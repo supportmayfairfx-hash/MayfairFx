@@ -129,6 +129,20 @@ function fmtEta(ms: number) {
   return d.toLocaleString([], { weekday: "short", month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
+function parseDateSafe(raw: string | null | undefined): number | null {
+  const s = String(raw || "").trim();
+  if (!s) return null;
+  const t1 = Date.parse(s);
+  if (Number.isFinite(t1)) return t1;
+
+  // Safari can reject SQL-like timestamps using a space separator.
+  const normalized = s.replace(" ", "T");
+  const withZone = /[zZ]|[+\-]\d{2}:?\d{2}$/.test(normalized) ? normalized : `${normalized}Z`;
+  const t2 = Date.parse(withZone);
+  if (Number.isFinite(t2)) return t2;
+  return null;
+}
+
 function buildEvents(seed: string, startSec: number, totalSec: number): SimEvent[] {
   const rng = mulberry32(hashString(seed) ^ 0xa54ff53a);
   const mk = (id: string, f: number, tag: string, title: string, body: string) => {
@@ -265,10 +279,10 @@ export default function ProgressPage() {
   const plan = useMemo(() => (profile ? pickPlan(profile) : null), [profile]);
 
   const startSec = useMemo(() => {
-    if (!user) return null;
-    const ts = Date.parse(user.created_at);
-    return Number.isFinite(ts) ? Math.floor(ts / 1000) : null;
-  }, [user]);
+    if (!user && !profile) return null;
+    const ts = parseDateSafe(user?.created_at) ?? parseDateSafe(profile?.created_at);
+    return ts != null && Number.isFinite(ts) ? Math.floor(ts / 1000) : null;
+  }, [user, profile]);
 
   const seedBase = useMemo(() => {
     if (!user || !plan) return null;
@@ -528,6 +542,28 @@ export default function ProgressPage() {
     return { peak, maxDdPct: maxDd * 100, curDdPct: curDd * 100, vol1hPct };
   }, [minuteSeries, plan, simMeta]);
 
+  const compatChart = useMemo(() => {
+    if (!plan || !simMeta || !minuteSeries) return null;
+    const n = 180;
+    const values: number[] = [];
+    const target: number[] = [];
+    const totalSec = Math.max(1, plan.durationSec);
+    const liveSpan = Math.max(1, simMeta.nowSec - simMeta.startSec);
+    for (let i = 0; i < n; i++) {
+      const f = i / Math.max(1, n - 1);
+      const tSec = simMeta.startSec + Math.floor(liveSpan * f);
+      const v = valueAtFromMinuteSeries({
+        closes: minuteSeries,
+        startSec: simMeta.startSec,
+        totalSec,
+        tSec
+      });
+      values.push(v);
+      target.push(plan.startValue + (plan.targetValue - plan.startValue) * ((tSec - simMeta.startSec) / totalSec));
+    }
+    return { values, target };
+  }, [plan, simMeta, minuteSeries]);
+
   const pace = useMemo(() => {
     if (!plan || !simMeta || !minuteSeries) return null;
     const reqPerHr = (plan.targetValue - plan.startValue) / Math.max(1e-9, plan.durationSec / 3600);
@@ -687,6 +723,41 @@ export default function ProgressPage() {
       : Number(lockedWithdrawalAmount).toLocaleString(undefined, { maximumFractionDigits: 6 });
   const lockedWithdrawalAmountLabel = plan.unit === "USD" ? `$${lockedWithdrawalAmountStr}` : `${lockedWithdrawalAmountStr} BTC`;
 
+  const compatSvg = (() => {
+    if (!compatChart) return null;
+    const w = 1200;
+    const h = 220;
+    const pad = 10;
+    const series = [...compatChart.values, ...compatChart.target].filter((v) => Number.isFinite(v));
+    if (!series.length) return null;
+    let min = Math.min(...series);
+    let max = Math.max(...series);
+    if (min === max) {
+      min -= 1;
+      max += 1;
+    }
+    const yPad = (max - min) * 0.12;
+    min -= yPad;
+    max += yPad;
+
+    const yAt = (v: number) => {
+      const r = (v - min) / Math.max(1e-9, max - min);
+      return pad + (1 - clamp(r, 0, 1)) * (h - pad * 2);
+    };
+    const xAt = (i: number, len: number) => pad + (i / Math.max(1, len - 1)) * (w - pad * 2);
+    const toPath = (arr: number[]) =>
+      arr
+        .map((v, i) => `${i === 0 ? "M" : "L"} ${xAt(i, arr.length).toFixed(2)} ${yAt(v).toFixed(2)}`)
+        .join(" ");
+    return {
+      w,
+      h,
+      livePath: toPath(compatChart.values),
+      targetPath: toPath(compatChart.target),
+      lastY: yAt(compatChart.values[compatChart.values.length - 1])
+    };
+  })();
+
   async function submitWithdrawal(e: React.FormEvent) {
     e.preventDefault();
     if (!plan) return;
@@ -838,6 +909,16 @@ export default function ProgressPage() {
             <div className="muted mono">live</div>
           </div>
           <div className="authBody">
+            {compatSvg ? (
+              <div style={{ marginBottom: 12, border: "1px solid rgba(231,238,252,0.12)", borderRadius: 12, overflow: "hidden" }}>
+                <svg viewBox={`0 0 ${compatSvg.w} ${compatSvg.h}`} width="100%" height="220" role="img" aria-label="Progress compatibility chart">
+                  <rect x="0" y="0" width={compatSvg.w} height={compatSvg.h} fill="#131722" />
+                  <path d={compatSvg.targetPath} fill="none" stroke="rgba(231,238,252,0.45)" strokeWidth="2" strokeDasharray="6 6" />
+                  <path d={compatSvg.livePath} fill="none" stroke="rgba(90,210,255,0.95)" strokeWidth="2.4" />
+                  <line x1="0" x2={compatSvg.w} y1={compatSvg.lastY} y2={compatSvg.lastY} stroke="rgba(90,210,255,0.18)" strokeDasharray="4 6" />
+                </svg>
+              </div>
+            ) : null}
             {toast ? (
               <div style={{ marginBottom: 12 }}>
                 <Notice tone="info" title={toast.title}>{toast.body}</Notice>
