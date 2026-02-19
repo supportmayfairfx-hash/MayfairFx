@@ -28,7 +28,7 @@ function generateAuthCode() {
 }
 
 function authCodeAutoGenerateEnabled() {
-  const v = String(process.env.AUTH_CODE_AUTO_GENERATE || "false").trim().toLowerCase();
+  const v = String(process.env.AUTH_CODE_AUTO_GENERATE || "true").trim().toLowerCase();
   return v === "1" || v === "true" || v === "yes";
 }
 
@@ -86,7 +86,6 @@ authRouter.post("/register", async (req, res) => {
     // Registration should NOT log the user in. Clear any existing session cookie.
     res.clearCookie("auth_token", authCookieClearOptions(req));
 
-    let generatedAuthCode = null;
     // Optional: auto-generate an AUTH code on registration so admin can retrieve it from DB.
     if (authCodeAutoGenerateEnabled()) {
       const code = generateAuthCode();
@@ -97,10 +96,9 @@ authRouter.post("/register", async (req, res) => {
         "INSERT INTO auth_codes (id, email, auth_code, auth_code_plain, is_active) VALUES ($1, $2, $3, $4, true)",
         [codeId, email, codeHash, code]
       );
-      generatedAuthCode = code;
     }
 
-    res.json({ user, requiresAuthCode: true, authCode: generatedAuthCode });
+    res.json({ user, requiresAuthCode: true });
   } catch (e) {
     const msg = typeof e?.message === "string" ? e.message : "Registration failed";
     if (String(msg).toLowerCase().includes("unique")) {
