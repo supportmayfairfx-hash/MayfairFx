@@ -6245,14 +6245,20 @@ html[data-theme="light"] .conversionSub {
 
 }
 
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .conversionDock {
-    right: 10px;
-    left: 10px;
-    width: auto;
-    bottom: calc(10px + env(safe-area-inset-bottom));
+    position: relative;
+    right: auto;
+    left: auto;
+    bottom: auto;
+    width: 100%;
+    max-width: 1100px;
+    margin: 12px auto 0;
+    z-index: 1;
   }
+}
 
+@media (max-width: 640px) {
   .conversionTitle {
     font-size: 16px;
   }
