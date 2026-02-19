@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="description" content="Trade Fix offers live market intelligence, portfolio tools, and trading progress analytics in one platform." />
+    <meta name="robots" content="index,follow" />
+    <meta name="theme-color" content="#4f46e5" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Trade Fix" />
+    <meta property="og:title" content="Trade Fix" />
+    <meta property="og:description" content="Live market intelligence, portfolio tracking, and progress analytics in one place." />
+    <meta property="og:image" content="/tradefix-icon.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Trade Fix" />
+    <meta name="twitter:description" content="Live market intelligence, portfolio tracking, and progress analytics." />
+    <meta name="twitter:image" content="/tradefix-icon.svg" />
+    <title>Trade Fix</title>
+    <link rel="canonical" href="/" />
+    <link rel="icon" type="image/svg+xml" href="/tradefix-icon.svg" />
+    <link rel="shortcut icon" href="/tradefix-icon.svg" />
+    <link rel="apple-touch-icon" href="/tradefix-icon.svg" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <script>
+      (function () {
+        try {
+          var d = document.documentElement;
+          d.classList.add("theme-preload");
+          var saved = localStorage.getItem("theme_mode") || localStorage.getItem("theme");
+          var mode = saved === "light" || saved === "dark" || saved === "auto" ? saved : "dark";
+          var sysDark =
+            typeof window !== "undefined" &&
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches;
+          var resolved = mode === "auto" ? (sysDark ? "dark" : "light") : mode;
+          d.setAttribute("data-theme", resolved);
+          d.setAttribute("data-theme-mode", mode);
+          requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+              d.classList.remove("theme-preload");
+            });
+          });
+        } catch {}
+      })();
+    </script>
+    <script>
+      // If the app crashes before React mounts (white screen), show the error on the page.
+      (function () {
+        function show(msg) {
+          try {
+            document.documentElement.setAttribute("data-theme", "dark");
+            document.documentElement.style.background = "#0f172a";
+            document.body && (document.body.style.background = "#0f172a");
+            var el = document.getElementById("__boot_error__");
+            if (!el) {
+              el = document.createElement("pre");
+              el.id = "__boot_error__";
+              el.style.whiteSpace = "pre-wrap";
+              el.style.margin = "16px";
+              el.style.padding = "14px";
+              el.style.borderRadius = "16px";
+              el.style.border = "1px solid rgba(148,163,184,0.35)";
+              el.style.background = "rgba(15,23,42,0.7)";
+              el.style.color = "rgba(241,245,249,0.95)";
+              el.style.font = "13px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+              el.style.maxWidth = "1100px";
+              document.body && document.body.prepend(el);
+            }
+            el.textContent = "[Boot Error]\\n" + String(msg || "Unknown error");
+          } catch {}
+        }
+
+        window.addEventListener("error", function (e) {
+          if (e && e.error) show(e.error && (e.error.stack || e.error.message) ? (e.error.stack || e.error.message) : e.message);
+          else show(e && e.message ? e.message : e);
+        });
+        window.addEventListener("unhandledrejection", function (e) {
+          var r = e && e.reason;
+          show(r && (r.stack || r.message) ? (r.stack || r.message) : r);
+        });
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

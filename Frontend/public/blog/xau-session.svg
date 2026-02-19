@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#1e293b"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="35%" cy="25%" r="65%">
+      <stop offset="0" stop-color="#60a5fa" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#60a5fa" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="75%" cy="35%" r="65%">
+      <stop offset="0" stop-color="#34d399" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#34d399" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="700" fill="url(#bg)"/>
+  <rect width="1200" height="700" fill="url(#glow)"/>
+  <rect width="1200" height="700" fill="url(#glow2)"/>
+  <g opacity="0.18" stroke="#94a3b8">
+    <path d="M80 130H1120M80 230H1120M80 330H1120M80 430H1120M80 530H1120"/>
+    <path d="M180 90V610M340 90V610M500 90V610M660 90V610M820 90V610M980 90V610"/>
+  </g>
+  <g>
+    <rect x="90" y="110" width="1020" height="520" rx="22" fill="rgba(15,23,42,0.55)" stroke="rgba(148,163,184,0.25)"/>
+    <path d="M130 500C210 420 260 450 330 380C410 300 470 360 540 320C615 272 640 330 710 300C790 266 860 350 920 320C990 290 1030 310 1070 260"
+      fill="none" stroke="#60a5fa" stroke-width="6" stroke-linecap="round"/>
+    <path d="M130 500C210 420 260 450 330 380C410 300 470 360 540 320C615 272 640 330 710 300C790 266 860 350 920 320C990 290 1030 310 1070 260"
+      fill="none" stroke="rgba(96,165,250,0.22)" stroke-width="16" stroke-linecap="round"/>
+    <g opacity="0.85">
+      <text x="130" y="165" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="36" fill="#f1f5f9" font-weight="900">
+        XAUUSD Range + Levels
+      </text>
+      <text x="130" y="205" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="18" fill="#94a3b8" font-weight="700">
+        Session recap placeholder (swap with your chart screenshot)
+      </text>
+    </g>
+  </g>
+</svg>
+
