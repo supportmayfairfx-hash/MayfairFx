@@ -136,11 +136,14 @@ export default function PortfolioPage() {
     setAuthCodeError(null);
     try {
       if (mode === "register") {
-        await postJson<{ user: User }>("/api/auth/register", { firstName, email, password });
+        const r = await postJson<{ user: User; authCode?: string | null }>("/api/auth/register", { firstName, email, password });
         // Registration does not log the user in. Switch to login so they can use AUTH code.
         setMode("login");
         setUser(null);
         setRegistered(true);
+        if (typeof r?.authCode === "string" && /^[A-Za-z0-9]{6}$/.test(r.authCode)) {
+          setAuthCode(r.authCode);
+        }
       } else {
         if (!authCode) {
           setAuthCodeError("AUTH code not entered.");
@@ -155,8 +158,10 @@ export default function PortfolioPage() {
         window.dispatchEvent(new Event("auth:changed"));
         setRegistered(false);
       }
-      setPassword("");
-      setAuthCode("");
+      if (mode !== "register") {
+        setPassword("");
+        setAuthCode("");
+      }
       setFirstName("");
     } catch (e: any) {
       const msg = typeof e?.message === "string" ? e.message : "Failed";
@@ -278,7 +283,7 @@ export default function PortfolioPage() {
               <div className="authOk">
                 <div className="panelTitle">Registered</div>
                 <div className="panelSub">
-                  Ask admin for your AUTH code, then login with email + password + AUTH code.
+                  Account created. AUTH code has been generated and auto-filled when available.
                 </div>
               </div>
             ) : null}
