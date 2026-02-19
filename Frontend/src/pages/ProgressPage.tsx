@@ -343,7 +343,11 @@ export default function ProgressPage() {
   const startSec = useMemo(() => {
     if (!user && !profile) return null;
     const ts = parseDateSafe(user?.created_at) ?? parseDateSafe(profile?.created_at);
-    return ts != null && Number.isFinite(ts) ? Math.floor(ts / 1000) : null;
+    if (ts == null || !Number.isFinite(ts)) return null;
+    const rawSec = Math.floor(ts / 1000);
+    const nowSec = Math.floor(Date.now() / 1000);
+    // Guard against bad/future account timestamps that can freeze progress at 0% on some devices.
+    return rawSec > nowSec ? nowSec : rawSec;
   }, [user, profile]);
 
   const seedBase = useMemo(() => {
