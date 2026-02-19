@@ -29,6 +29,7 @@ import {
 import { buildEquitySeries, computeCurrentValue, pickPlan, type Profile } from "../sim/progressSim";
 import Notice from "../components/Notice";
 import Skeleton from "../components/Skeleton";
+import { apiUrl } from "../lib/api";
 
 type PhotoItem = { name: string; url: string; uploadedMs?: number; mtimeMs?: number };
 
@@ -113,24 +114,6 @@ function uiConn(stream: StreamState, hasData: boolean) {
 
 function uiSession(v: "open" | "closed") {
   return v === "open" ? { label: "Open", cls: "pos" as const } : { label: "Closed", cls: "muted" as const };
-}
-
-function apiBase(): string {
-  const envBase = (import.meta as any)?.env?.VITE_API_BASE;
-  if (typeof envBase === "string" && envBase.trim()) return envBase.trim().replace(/\/+$/, "");
-  if (typeof window !== "undefined") {
-    const host = window.location.hostname.toLowerCase();
-    const isDevVite = window.location.hostname === "localhost" && window.location.port === "5173";
-    if (isDevVite) return "http://localhost:8787";
-    if (host.endsWith(".vercel.app")) return "https://investment-backend-9nxb.onrender.com";
-  }
-  return "";
-}
-
-function apiUrl(path: string): string {
-  const base = apiBase();
-  if (!base) return path;
-  return `${base}${path.startsWith("/") ? "" : "/"}${path}`;
 }
 
 async function getJson<T>(path: string): Promise<T> {

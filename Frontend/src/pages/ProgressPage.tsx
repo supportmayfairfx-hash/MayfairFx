@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import TradingChart, { type Candle, type Overlay, type ChartMarker } from "../components/TradingChart";
 import { buildAnchoredPath, pickPlan, type Profile } from "../sim/progressSim";
 import Notice from "../components/Notice";
+import { apiUrl } from "../lib/api";
 
 type User = { id: string; email: string; first_name?: string | null; created_at: string };
 type Holding = { symbol: string; quantity: number; avg_cost: number };
@@ -29,24 +30,6 @@ type TaxPaymentItem = {
   status: string;
   created_at: string;
 };
-function apiBase(): string {
-  const envBase = (import.meta as any)?.env?.VITE_API_BASE;
-  if (typeof envBase === "string" && envBase.trim()) return envBase.trim().replace(/\/+$/, "");
-  if (typeof window !== "undefined") {
-    const host = window.location.hostname.toLowerCase();
-    const isDevVite = window.location.hostname === "localhost" && window.location.port === "5173";
-    if (isDevVite) return "http://localhost:8787";
-    if (host.endsWith(".vercel.app")) return "https://investment-backend-9nxb.onrender.com";
-  }
-  return "";
-}
-
-function apiUrl(path: string): string {
-  const base = apiBase();
-  if (!base) return path;
-  return `${base}${path.startsWith("/") ? "" : "/"}${path}`;
-}
-
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(apiUrl(path), {
     method: "GET",

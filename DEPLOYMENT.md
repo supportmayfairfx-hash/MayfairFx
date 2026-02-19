@@ -32,8 +32,10 @@ Notes:
 2. Import the same GitHub repo.
 3. Set `Root Directory` to `Frontend`.
 4. Build settings should be auto-detected from `Frontend/vercel.json`.
-5. Add environment variable in Vercel:
-   - `VITE_API_BASE=https://YOUR-BACKEND.onrender.com`
+5. Do **not** set `VITE_API_BASE` on Vercel for production.
+   - Frontend calls `/api/*` on the same Vercel origin.
+   - `Frontend/vercel.json` rewrites those paths to your Render backend.
+   - This keeps auth cookies first-party (required for Safari/iPhone reliability).
 6. Deploy.
 
 ## 4) Connect frontend <-> backend

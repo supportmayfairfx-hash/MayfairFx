@@ -1,3 +1,5 @@
+import { apiUrl } from "./lib/api";
+
 export type CryptoQuote = {
   productId: string; // e.g. BTC-USD (frontend convention)
   price: number;
@@ -58,26 +60,6 @@ async function fetchJson(url: string, signal?: AbortSignal): Promise<any> {
   const j = await res.json().catch(() => null);
   if (!res.ok) throw new Error(j?.error || `HTTP ${res.status} for ${url}`);
   return j;
-}
-
-function apiBase(): string {
-  // Prefer an explicit env var; fallback to dev localhost backend without needing Vite proxy.
-  const envBase = (import.meta as any)?.env?.VITE_API_BASE;
-  if (typeof envBase === "string" && envBase.trim()) return envBase.trim().replace(/\/+$/, "");
-
-  if (typeof window !== "undefined") {
-    const host = window.location.hostname.toLowerCase();
-    const isDevVite = window.location.hostname === "localhost" && window.location.port === "5173";
-    if (isDevVite) return "http://localhost:8787";
-    if (host.endsWith(".vercel.app")) return "https://investment-backend-9nxb.onrender.com";
-  }
-  return "";
-}
-
-function apiUrl(path: string): string {
-  const base = apiBase();
-  if (!base) return path;
-  return `${base}${path.startsWith("/") ? "" : "/"}${path}`;
 }
 
 export async function fetchMarketSnapshot(signal?: AbortSignal): Promise<MarketSnapshot> {
