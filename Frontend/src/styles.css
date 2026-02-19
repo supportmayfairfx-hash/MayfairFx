@@ -6185,6 +6185,31 @@ html[data-theme="light"] .conversionSub {
   color: var(--muted);
 }
 
+.conversionToggle {
+  margin-left: auto;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.conversionToggle:hover {
+  border-color: color-mix(in srgb, var(--accent) 26%, var(--line));
+}
+
+@media (min-width: 901px) {
+  .conversionToggle {
+    display: none;
+  }
+}
+
 .conversionDot {
   width: 8px;
   height: 8px;
@@ -6197,6 +6222,10 @@ html[data-theme="light"] .conversionSub {
   padding: 12px;
   display: grid;
   gap: 10px;
+}
+
+.conversionDock.collapsed .conversionDockBody {
+  display: none;
 }
 
 .conversionTitle {

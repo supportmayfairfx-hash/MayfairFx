@@ -134,6 +134,7 @@ export default function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [statusTick, setStatusTick] = useState(0);
+  const [dockCollapsed, setDockCollapsed] = useState(false);
 
   const ribbonMessages = useMemo(
     () => [
@@ -181,6 +182,16 @@ export default function App() {
       setStatusTick((v) => v + 1);
     }, 4000);
     return () => window.clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    const updateDock = () => {
+      if (typeof window === "undefined") return;
+      setDockCollapsed(window.innerWidth <= 900);
+    };
+    updateDock();
+    window.addEventListener("resize", updateDock);
+    return () => window.removeEventListener("resize", updateDock);
   }, []);
 
   useEffect(() => {
@@ -845,10 +856,19 @@ export default function App() {
         </ErrorBoundary>
       </main>
 
-      <aside className="conversionDock" aria-label="Quick actions">
+      <aside className={`conversionDock ${dockCollapsed ? "collapsed" : ""}`} aria-label="Quick actions">
         <div className="conversionDockHead">
           <span className="conversionDot" aria-hidden="true" />
           <span>Priority Access</span>
+          <button
+            type="button"
+            className="conversionToggle"
+            onClick={() => setDockCollapsed((v) => !v)}
+            aria-expanded={!dockCollapsed}
+            aria-label={dockCollapsed ? "Expand priority access" : "Collapse priority access"}
+          >
+            {dockCollapsed ? "Open" : "Hide"}
+          </button>
         </div>
         <div className="conversionDockBody">
           <div className="conversionTitle">Trade with confidence and speed</div>
