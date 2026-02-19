@@ -51,3 +51,13 @@ export function authCookieOptions(req) {
     maxAge: 7 * 24 * 60 * 60 * 1000
   };
 }
+
+export function authCookieClearOptions(req) {
+  const base = authCookieOptions(req);
+  return {
+    httpOnly: base.httpOnly,
+    sameSite: base.sameSite,
+    secure: base.secure,
+    path: base.path
+  };
+}

@@ -1,7 +1,16 @@
 import express from "express";
 import crypto from "node:crypto";
 import { query } from "../db.js";
-import { authCookieOptions, signAuthToken, hashAuthCode, hashPassword, verifyAuthCode, verifyPassword, verifyAuthToken } from "../auth.js";
+import {
+  authCookieClearOptions,
+  authCookieOptions,
+  signAuthToken,
+  hashAuthCode,
+  hashPassword,
+  verifyAuthCode,
+  verifyPassword,
+  verifyAuthToken
+} from "../auth.js";
 
 export const authRouter = express.Router();
 
@@ -75,7 +84,7 @@ authRouter.post("/register", async (req, res) => {
 
     const user = r.rows[0];
     // Registration should NOT log the user in. Clear any existing session cookie.
-    res.clearCookie("auth_token", { path: "/" });
+    res.clearCookie("auth_token", authCookieClearOptions(req));
 
     // Optional: auto-generate an AUTH code on registration so admin can retrieve it from DB.
     if (authCodeAutoGenerateEnabled()) {
@@ -226,7 +235,7 @@ authRouter.get("/admin/active-auth-code", async (req, res) => {
 });
 
 authRouter.post("/logout", async (req, res) => {
-  res.clearCookie("auth_token", { path: "/" });
+  res.clearCookie("auth_token", authCookieClearOptions(req));
   res.json({ ok: true });
 });
 
