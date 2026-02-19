@@ -437,6 +437,7 @@ export default function ProgressPage() {
   const [wdDestination, setWdDestination] = useState("");
   const [wdNote, setWdNote] = useState("");
   const [wdBusy, setWdBusy] = useState(false);
+  const [showAdvancedChart, setShowAdvancedChart] = useState(false);
   const [wdPendingAmount, setWdPendingAmount] = useState(0);
   const [wdMsg, setWdMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
   const [taxPopup, setTaxPopup] = useState<string | null>(null);
@@ -906,7 +907,7 @@ export default function ProgressPage() {
               <div className="panelTitle">Time vs Target</div>
               <div className="panelSub">Actual (live) vs Target (dashed). Anchored to hit the exact destination on time.</div>
             </div>
-            <div className="muted mono">live</div>
+            <div className="muted mono">live | {new Date().toLocaleTimeString()}</div>
           </div>
           <div className="authBody">
             {compatSvg ? (
@@ -919,12 +920,18 @@ export default function ProgressPage() {
                 </svg>
               </div>
             ) : null}
+            <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+              <button type="button" className="mini" onClick={() => setShowAdvancedChart((v) => !v)}>
+                {showAdvancedChart ? "Hide advanced chart" : "Show advanced chart"}
+              </button>
+              <span className="muted mono">Reliable mode is enabled by default for cross-device stability.</span>
+            </div>
             {toast ? (
               <div style={{ marginBottom: 12 }}>
                 <Notice tone="info" title={toast.title}>{toast.body}</Notice>
               </div>
             ) : null}
-            {progressProvider ? (
+            {showAdvancedChart && progressProvider ? (
               <TradingChart
                 symbol={plan.unit === "USD" ? "POOL-USD" : "POOL-BTC"}
                 dataProvider={tvDataProvider}
@@ -932,9 +939,9 @@ export default function ProgressPage() {
                 markers={markers}
                 heightPx={860}
               />
-            ) : (
+            ) : showAdvancedChart ? (
               <div className="authError">Pool trading not ready.</div>
-            )}
+            ) : null}
             <div className="progressWithdrawRow">
               <button
                 type="button"
