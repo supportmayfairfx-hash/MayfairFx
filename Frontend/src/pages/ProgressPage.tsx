@@ -233,34 +233,83 @@ export default function ProgressPage() {
   const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [booting, setBooting] = useState(true);
+  const [usingCachedSession, setUsingCachedSession] = useState(false);
   const [tick, setTick] = useState(0);
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
     setError(null);
-    getJson<{ user: User | null }>("/api/auth/me")
-      .then((r) => {
-        if (r.user) {
-          cacheUser(r.user as any);
-          setUser(r.user);
-          return;
+    let cancelled = false;
+    const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+    const bootstrap = async () => {
+      const cachedUser = getCachedUser() as any;
+      const cachedProfile = getCachedProfile(cachedUser?.id) as any;
+
+      // Start with cache immediately so the page can render even if cookie handshake is flaky.
+      if (!cancelled && cachedUser) {
+        setUser(cachedUser);
+        setUsingCachedSession(true);
+      }
+      if (!cancelled && cachedProfile) setProfile(cachedProfile);
+
+      let remoteUser: User | null = null;
+      for (let i = 0; i < 3; i++) {
+        try {
+          const r = await getJson<{ user: User | null }>("/api/auth/me");
+          if (r.user) {
+            remoteUser = r.user;
+            break;
+          }
+        } catch (e: any) {
+          if (i === 2 && !cancelled) setError(typeof e?.message === "string" ? e.message : "Failed");
         }
-        setUser((getCachedUser() as any) || null);
-      })
-      .catch((e: any) => {
-        // Treat auth fetch failures as "not logged in" so we don't hang in Loading forever.
-        setUser((getCachedUser() as any) || null);
-        setError(typeof e?.message === "string" ? e.message : "Failed");
-      });
-    getJson<{ profile: Profile | null }>("/api/profile/me")
-      .then((r) => {
-        setProfile(r.profile);
-        if (r.profile) cacheProfile(r.profile as any);
-      })
-      .catch(() => setProfile((getCachedProfile() as any) || null));
-    getJson<{ holdings: Holding[] }>("/api/portfolio/holdings")
-      .then((r) => setHoldings(r.holdings || []))
-      .catch(() => setHoldings([]));
+        await sleep(700);
+      }
+
+      if (!cancelled) {
+        if (remoteUser) {
+          cacheUser(remoteUser as any);
+          setUser(remoteUser);
+          setUsingCachedSession(false);
+        } else if (!cachedUser) {
+          setUser(null);
+        }
+      }
+
+      let remoteProfile: Profile | null = null;
+      for (let i = 0; i < 3; i++) {
+        try {
+          const r = await getJson<{ profile: Profile | null }>("/api/profile/me");
+          if (r.profile) {
+            remoteProfile = r.profile;
+            break;
+          }
+        } catch {}
+        await sleep(700);
+      }
+      if (!cancelled) {
+        if (remoteProfile) {
+          cacheProfile(remoteProfile as any);
+          setProfile(remoteProfile);
+        } else if (!cachedProfile) {
+          setProfile(null);
+        }
+      }
+
+      try {
+        const r = await getJson<{ holdings: Holding[] }>("/api/portfolio/holdings");
+        if (!cancelled) setHoldings(r.holdings || []);
+      } catch {
+        if (!cancelled) setHoldings([]);
+      }
+      if (!cancelled) setBooting(false);
+    };
+
+    void bootstrap();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -273,19 +322,21 @@ export default function ProgressPage() {
 
   // Guard: only reachable after login and initialization. If user types #progress directly, send them back.
   useEffect(() => {
+    if (booting) return;
     if (user === undefined) return;
     if (user === null) {
       window.history.pushState(null, "", "/portfolio");
       window.dispatchEvent(new PopStateEvent("popstate"));
     }
-  }, [user]);
+  }, [user, booting]);
   useEffect(() => {
+    if (booting) return;
     if (profile === undefined) return;
     if (profile === null) {
       window.history.pushState(null, "", "/portfolio");
       window.dispatchEvent(new PopStateEvent("popstate"));
     }
-  }, [profile]);
+  }, [profile, booting]);
 
   const plan = useMemo(() => (profile ? pickPlan(profile) : null), [profile]);
 
@@ -940,6 +991,11 @@ export default function ProgressPage() {
             {toast ? (
               <div style={{ marginBottom: 12 }}>
                 <Notice tone="info" title={toast.title}>{toast.body}</Notice>
+              </div>
+            ) : null}
+            {usingCachedSession ? (
+              <div style={{ marginBottom: 12 }}>
+                <Notice tone="info" title="Session sync in progress">Using local session cache while account sync completes.</Notice>
               </div>
             ) : null}
             {showAdvancedChart && progressProvider ? (
