@@ -128,21 +128,21 @@ function scoreResult(query, title) {
 }
 
 const menuItems = [
-  { id: "home", label: "Home", icon: "fa-house", href: "#dashboard" },
-  { id: "explore", label: "Explore", icon: "fa-compass", href: "#markets" },
-  { id: "services", label: "Services", icon: "fa-briefcase", href: "#portfolio" },
-  { id: "blog", label: "Blog", icon: "fa-newspaper", href: "#blog" },
-  { id: "contact", label: "Contact", icon: "fa-envelope", href: "#contact" }
+  { id: "home", label: "Home", icon: "fa-house", href: "/dashboard" },
+  { id: "explore", label: "Explore", icon: "fa-compass", href: "/markets" },
+  { id: "services", label: "Services", icon: "fa-briefcase", href: "/portfolio" },
+  { id: "blog", label: "Blog", icon: "fa-newspaper", href: "/blog" },
+  { id: "contact", label: "Contact", icon: "fa-envelope", href: "/contact" }
 ];
 
 const searchIndex = [
-  { id: "page_dashboard", type: "page", title: "Home Dashboard", href: "#dashboard" },
-  { id: "page_markets", type: "page", title: "Explore Markets", href: "#markets" },
-  { id: "page_chart", type: "page", title: "Charts and Indicators", href: "#chart" },
-  { id: "page_blog", type: "page", title: "Blog", href: "#blog" },
-  { id: "page_portfolio", type: "page", title: "Portfolio and Progress", href: "#portfolio" },
-  { id: "doc_auth", type: "help", title: "How AUTH codes work", href: "#portfolio" },
-  { id: "doc_progress", type: "help", title: "Progress simulation overview", href: "#progress" }
+  { id: "page_dashboard", type: "page", title: "Home Dashboard", href: "/dashboard" },
+  { id: "page_markets", type: "page", title: "Explore Markets", href: "/markets" },
+  { id: "page_chart", type: "page", title: "Charts and Indicators", href: "/chart" },
+  { id: "page_blog", type: "page", title: "Blog", href: "/blog" },
+  { id: "page_portfolio", type: "page", title: "Portfolio and Progress", href: "/portfolio" },
+  { id: "doc_auth", type: "help", title: "How AUTH codes work", href: "/portfolio" },
+  { id: "doc_progress", type: "help", title: "Progress simulation overview", href: "/progress" }
 ];
 
 uiRouter.get("/menu", (_req, res) => {

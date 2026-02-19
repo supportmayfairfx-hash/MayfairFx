@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ErrorBoundary from "./components/ErrorBoundary";
 import Skeleton from "./components/Skeleton";
 
@@ -19,8 +19,18 @@ type ThemeMode = "light" | "dark" | "auto";
 type ThemeResolved = "light" | "dark";
 type SEOConfig = { title: string; description: string };
 
-function parseHashPage(hash: string): Page {
-  const h = (hash || "").replace(/^#/, "").trim().toLowerCase();
+const PAGE_TO_PATH: Record<Page, string> = {
+  dashboard: "/dashboard",
+  markets: "/markets",
+  portfolio: "/portfolio",
+  progress: "/progress",
+  chart: "/chart",
+  blog: "/blog",
+  contact: "/contact"
+};
+
+function parsePageToken(token: string): Page {
+  const h = String(token || "").replace(/^[/#]+/, "").trim().toLowerCase();
   if (h === "markets") return "markets";
   if (h === "portfolio") return "portfolio";
   if (h === "progress") return "progress";
@@ -28,6 +38,26 @@ function parseHashPage(hash: string): Page {
   if (h === "blog") return "blog";
   if (h === "contact") return "contact";
   return "dashboard";
+}
+
+function parseLocationPage(loc: Location): Page {
+  const pathToken = String(loc.pathname || "/").replace(/^\/+/, "").split("/")[0] || "dashboard";
+  const byPath = parsePageToken(pathToken);
+  if (byPath !== "dashboard" || /^\/?$/.test(loc.pathname || "")) return byPath;
+  const hashToken = String(loc.hash || "").replace(/^#/, "");
+  return parsePageToken(hashToken);
+}
+
+function pageToPath(page: Page): string {
+  return PAGE_TO_PATH[page] || "/dashboard";
+}
+
+function hrefToPage(href: string): Page | null {
+  const h = String(href || "").trim();
+  if (!h) return null;
+  if (h.startsWith("#")) return parsePageToken(h);
+  if (h.startsWith("/")) return parsePageToken(h);
+  return null;
 }
 
 function apiBase(): string {
@@ -113,7 +143,7 @@ const SEO_BY_PAGE: Record<Page, SEOConfig> = {
 };
 
 export default function App() {
-  const [page, setPage] = useState<Page>(() => parseHashPage(window.location.hash));
+  const [page, setPage] = useState<Page>(() => parseLocationPage(window.location));
   const [me, setMe] = useState<AuthMe["user"]>(null);
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -135,6 +165,14 @@ export default function App() {
   const [scrolled, setScrolled] = useState(false);
   const [statusTick, setStatusTick] = useState(0);
   const [dockCollapsed, setDockCollapsed] = useState(false);
+
+  const navigateToPage = useCallback((next: Page, replace = false) => {
+    const nextPath = pageToPath(next);
+    const currentPath = window.location.pathname || "/";
+    if (replace) window.history.replaceState(null, "", nextPath);
+    else if (currentPath !== nextPath) window.history.pushState(null, "", nextPath);
+    setPage(next);
+  }, []);
 
   const ribbonMessages = useMemo(
     () => [
@@ -159,10 +197,46 @@ export default function App() {
   };
 
   useEffect(() => {
-    const onHash = () => setPage(parseHashPage(window.location.hash));
+    const sync = (replace = false) => {
+      const next = parseLocationPage(window.location);
+      const canonicalPath = pageToPath(next);
+      if (window.location.hash) {
+        window.history.replaceState(null, "", canonicalPath);
+      } else if ((window.location.pathname || "/") !== canonicalPath && replace) {
+        window.history.replaceState(null, "", canonicalPath);
+      }
+      setPage(next);
+    };
+    sync(true);
+    const onPop = () => sync(false);
+    const onHash = () => sync(false);
+    window.addEventListener("popstate", onPop);
     window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      window.removeEventListener("hashchange", onHash);
+    };
   }, []);
+
+  useEffect(() => {
+    const onRouteClick = (e: MouseEvent) => {
+      if (e.defaultPrevented) return;
+      const el = e.target as HTMLElement | null;
+      const a = el?.closest?.("a") as HTMLAnchorElement | null;
+      if (!a) return;
+      const href = a.getAttribute("href") || "";
+      const next = hrefToPage(href);
+      if (!next) return;
+      if (a.target && a.target !== "_self") return;
+      e.preventDefault();
+      navigateToPage(next);
+      setMobileOpen(false);
+      setProfileOpen(false);
+      setSearchOpen(false);
+    };
+    document.addEventListener("click", onRouteClick);
+    return () => document.removeEventListener("click", onRouteClick);
+  }, [navigateToPage]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -226,15 +300,25 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const normalizeHref = (href: string) => {
+      const p = hrefToPage(href);
+      return p ? pageToPath(p) : href;
+    };
     getJson<{ items: MenuItem[] }>("/api/menu")
-      .then((r) => setMenu(Array.isArray(r.items) ? r.items : []))
+      .then((r) =>
+        setMenu(
+          Array.isArray(r.items)
+            ? r.items.map((it) => ({ ...it, href: normalizeHref(it.href) }))
+            : []
+        )
+      )
       .catch(() =>
         setMenu([
-          { id: "home", label: "Home", icon: "fa-house", href: "#dashboard" },
-          { id: "explore", label: "Explore", icon: "fa-compass", href: "#markets" },
-          { id: "services", label: "Services", icon: "fa-briefcase", href: "#portfolio" },
-          { id: "blog", label: "Blog", icon: "fa-newspaper", href: "#blog" },
-          { id: "contact", label: "Contact", icon: "fa-envelope", href: "#contact" }
+          { id: "home", label: "Home", icon: "fa-house", href: "/dashboard" },
+          { id: "explore", label: "Explore", icon: "fa-compass", href: "/markets" },
+          { id: "services", label: "Services", icon: "fa-briefcase", href: "/portfolio" },
+          { id: "blog", label: "Blog", icon: "fa-newspaper", href: "/blog" },
+          { id: "contact", label: "Contact", icon: "fa-envelope", href: "/contact" }
         ])
       );
   }, []);
@@ -377,15 +461,15 @@ export default function App() {
         track("funnel_contact", { channel: "telegram", href });
         return;
       }
-      if (href.includes("#portfolio") || label.includes("portfolio")) {
+      if (href.includes("/portfolio") || href.includes("#portfolio") || label.includes("portfolio")) {
         track("funnel_portfolio_open", { href, label });
         return;
       }
-      if (href.includes("#contact") || label.includes("contact") || label.includes("support")) {
+      if (href.includes("/contact") || href.includes("#contact") || label.includes("contact") || label.includes("support")) {
         track("funnel_contact", { channel: "site", href, label });
         return;
       }
-      if (href.includes("#blog") || label.includes("blog")) {
+      if (href.includes("/blog") || href.includes("#blog") || label.includes("blog")) {
         track("funnel_blog_open", { href });
       }
     };
@@ -514,7 +598,7 @@ export default function App() {
       setProfileOpen(false);
       window.dispatchEvent(new Event("auth:changed"));
       track("logout");
-      window.location.hash = "#dashboard";
+      navigateToPage("dashboard");
     } catch {}
   }
 
@@ -525,7 +609,7 @@ export default function App() {
       <a className="skipLink" href="#main-content">Skip to content</a>
       <header className={`topbar ${scrolled ? "scrolled" : ""}`} id="topbar">
         <div className="topbarInner">
-          <a className="brand" href="#dashboard" aria-label="Home">
+          <a className="brand" href="/dashboard" aria-label="Home">
             <img
               className="brandLogo"
               src={logoSrc}
@@ -632,7 +716,8 @@ export default function App() {
                         role="option"
                         onClick={() => {
                           setSearchOpen(false);
-                          window.location.hash = r.href || "#dashboard";
+                          const next = hrefToPage(r.href || "/dashboard") || "dashboard";
+                          navigateToPage(next);
                           track("search_select", { id: r.id });
                         }}
                       >
@@ -764,7 +849,7 @@ export default function App() {
                       <i className="fa-solid fa-circle-half-stroke" aria-hidden="true" /> Auto
                     </button>
                   </div>
-                  <div className="notifRow" onClick={() => { window.location.hash = "#portfolio"; setProfileOpen(false); }}>
+                  <div className="notifRow" onClick={() => { navigateToPage("portfolio"); setProfileOpen(false); }}>
                     <div className="notifTitle">Portfolio</div>
                     <div className="notifBody">Login, setup, and progress</div>
                   </div>
@@ -774,7 +859,7 @@ export default function App() {
                       <div className="notifBody">End this session</div>
                     </div>
                   ) : (
-                    <div className="notifRow" onClick={() => { window.location.hash = "#portfolio"; setProfileOpen(false); }}>
+                    <div className="notifRow" onClick={() => { navigateToPage("portfolio"); setProfileOpen(false); }}>
                       <div className="notifTitle">Login</div>
                       <div className="notifBody">Sign in to enable features</div>
                     </div>
@@ -841,7 +926,7 @@ export default function App() {
                   Logout
                 </button>
               ) : (
-                <a className="dropBtn" href="#portfolio" onClick={() => setMobileOpen(false)}>
+                <a className="dropBtn" href="/portfolio" onClick={() => setMobileOpen(false)}>
                   Login
                 </a>
               )}
@@ -878,10 +963,10 @@ export default function App() {
               : "Sign in to unlock portfolio tools, then continue to progress and support."}
           </div>
           <div className="conversionActions">
-            <a className="primary" href={me ? "#progress" : "#portfolio"}>
+            <a className="primary" href={me ? "/progress" : "/portfolio"}>
               {me ? "Open Progress" : "Login Now"}
             </a>
-            <a className="ghost" href="#contact">Contact Admin</a>
+            <a className="ghost" href="/contact">Contact Admin</a>
           </div>
         </div>
       </aside>
@@ -893,10 +978,10 @@ export default function App() {
             <div className="muted footNote">Markets, portfolio tracking, and progress analytics in one place.</div>
           </div>
           <div className="footLinks" aria-label="Footer links">
-            <a className="footLink" href="#markets">Markets</a>
-            <a className="footLink" href="#portfolio">Portfolio</a>
-            <a className="footLink" href="#blog">Insights</a>
-            <a className="footLink" href="#contact">Support</a>
+            <a className="footLink" href="/markets">Markets</a>
+            <a className="footLink" href="/portfolio">Portfolio</a>
+            <a className="footLink" href="/blog">Insights</a>
+            <a className="footLink" href="/contact">Support</a>
           </div>
         </div>
       </footer>

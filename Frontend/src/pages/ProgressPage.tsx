@@ -266,11 +266,17 @@ export default function ProgressPage() {
   // Guard: only reachable after login and initialization. If user types #progress directly, send them back.
   useEffect(() => {
     if (user === undefined) return;
-    if (user === null) window.location.hash = "#portfolio";
+    if (user === null) {
+      window.history.pushState(null, "", "/portfolio");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    }
   }, [user]);
   useEffect(() => {
     if (profile === undefined) return;
-    if (profile === null) window.location.hash = "#portfolio";
+    if (profile === null) {
+      window.history.pushState(null, "", "/portfolio");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    }
   }, [profile]);
 
   const plan = useMemo(() => (profile ? pickPlan(profile) : null), [profile]);

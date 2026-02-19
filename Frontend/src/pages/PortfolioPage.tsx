@@ -440,7 +440,8 @@ export default function PortfolioPage() {
                   className="success"
                   type="button"
                   onClick={() => {
-                    window.location.hash = "#progress";
+                    window.history.pushState(null, "", "/progress");
+                    window.dispatchEvent(new PopStateEvent("popstate"));
                   }}
                   disabled={busy}
                 >
