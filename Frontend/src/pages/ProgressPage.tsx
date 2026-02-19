@@ -983,7 +983,7 @@ export default function ProgressPage() {
               </div>
             ) : null}
             <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-              <button type="button" className="mini" onClick={() => setShowAdvancedChart((v) => !v)}>
+              <button type="button" className="mini progressToggleBtn" onClick={() => setShowAdvancedChart((v) => !v)}>
                 {showAdvancedChart ? "Hide advanced chart" : "Show advanced chart"}
               </button>
               <span className="muted mono">Reliable mode is enabled by default for cross-device stability.</span>

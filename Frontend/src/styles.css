@@ -3453,6 +3453,20 @@ html[data-theme="light"] .ripple {
   background: rgba(231, 238, 252, 0.06);
 }
 
+.progressToggleBtn {
+  border: 1px solid #ffd86a;
+  background: linear-gradient(135deg, #ffb11b, #ff8a00);
+  color: #17120a;
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgba(255, 145, 0, 0.35);
+}
+
+.progressToggleBtn:hover {
+  background: linear-gradient(135deg, #ffc84d, #ff9d2a);
+  color: #120d07;
+  border-color: #ffe8a3;
+}
+
 .kpiRow {
   margin-top: 18px;
   display: grid;
@@ -5569,6 +5583,19 @@ html[data-theme="light"] .mini {
   background: #f4f6fb;
   border-color: #e2e7f2;
   color: #4b5563;
+}
+
+html[data-theme="light"] .progressToggleBtn {
+  border-color: #d97706;
+  background: linear-gradient(135deg, #f59e0b, #ea580c);
+  color: #ffffff;
+  box-shadow: 0 10px 18px rgba(234, 88, 12, 0.22);
+}
+
+html[data-theme="light"] .progressToggleBtn:hover {
+  border-color: #b45309;
+  background: linear-gradient(135deg, #fbbf24, #f97316);
+  color: #ffffff;
 }
 
 /* Full-Site Light Mode Consistency */
