@@ -347,7 +347,16 @@ export default function ProgressPage() {
     const rawSec = Math.floor(ts / 1000);
     const nowSec = Math.floor(Date.now() / 1000);
     // Guard against bad/future account timestamps that can freeze progress at 0% on some devices.
-    return rawSec > nowSec ? nowSec : rawSec;
+    if (rawSec > nowSec) {
+      console.warn("[ProgressPage] Future account timestamp detected; clamping start time.", {
+        userCreatedAt: user?.created_at ?? null,
+        profileCreatedAt: profile?.created_at ?? null,
+        rawStartSec: rawSec,
+        clampedStartSec: nowSec
+      });
+      return nowSec;
+    }
+    return rawSec;
   }, [user, profile]);
 
   const seedBase = useMemo(() => {
