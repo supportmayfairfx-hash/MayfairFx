@@ -2,18 +2,25 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/:path*",
-      "destination": "https://investment-backend-9nxb.onrender.com/api/:path*"
+      "src": "/api/(.*)",
+      "dest": "https://investment-backend-9nxb.onrender.com/api/$1"
     },
     {
-      "source": "/photos/:path*",
-      "destination": "https://investment-backend-9nxb.onrender.com/photos/:path*"
+      "src": "/photos/(.*)",
+      "dest": "https://investment-backend-9nxb.onrender.com/photos/$1"
     },
     {
-      "source": "/health",
-      "destination": "https://investment-backend-9nxb.onrender.com/health"
+      "src": "/health",
+      "dest": "https://investment-backend-9nxb.onrender.com/health"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/.*",
+      "dest": "/index.html"
     }
   ]
 }
