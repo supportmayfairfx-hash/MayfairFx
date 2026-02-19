@@ -1,13 +1,17 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
+import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const localNodeModules = path.resolve(here, "node_modules");
+const parentNodeModules = path.resolve(here, "..", "node_modules");
+const nodeModulesBase = fs.existsSync(localNodeModules) ? localNodeModules : parentNodeModules;
 const reactRoot = {
   // @react-three/fiber@9 has peer dep on React 19; ensure a single React copy.
-  react: path.resolve(here, "..", "node_modules/react"),
-  "react-dom": path.resolve(here, "..", "node_modules/react-dom")
+  react: path.resolve(nodeModulesBase, "react"),
+  "react-dom": path.resolve(nodeModulesBase, "react-dom")
 };
 
 export default defineConfig({
