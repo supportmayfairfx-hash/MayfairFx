@@ -346,18 +346,28 @@ export default function ProgressPage() {
     if (ts == null || !Number.isFinite(ts)) return null;
     const rawSec = Math.floor(ts / 1000);
     const nowSec = Math.floor(Date.now() / 1000);
-    // Guard against bad/future account timestamps that can freeze progress at 0% on some devices.
-    if (rawSec > nowSec) {
-      console.warn("[ProgressPage] Future account timestamp detected; clamping start time.", {
-        userCreatedAt: user?.created_at ?? null,
-        profileCreatedAt: profile?.created_at ?? null,
-        rawStartSec: rawSec,
-        clampedStartSec: nowSec
-      });
-      return nowSec;
-    }
-    return rawSec;
-  }, [user, profile]);
+    if (rawSec <= nowSec) return rawSec;
+
+    // Guard against bad/future account timestamps that can freeze progress at 0%.
+    // Persist a stable fallback start time so page remounts/back navigation do not reset progress.
+    const fallbackKey = user?.id && plan ? `progress_start_fallback:${user.id}:${plan.key}` : null;
+    let fallbackSec = nowSec;
+    try {
+      if (fallbackKey) {
+        const stored = Number(localStorage.getItem(fallbackKey));
+        if (Number.isFinite(stored) && stored > 0) fallbackSec = Math.floor(stored);
+        else localStorage.setItem(fallbackKey, String(nowSec));
+      }
+    } catch {}
+
+    console.warn("[ProgressPage] Future account timestamp detected; using persisted fallback start time.", {
+      userCreatedAt: user?.created_at ?? null,
+      profileCreatedAt: profile?.created_at ?? null,
+      rawStartSec: rawSec,
+      fallbackStartSec: fallbackSec
+    });
+    return fallbackSec;
+  }, [user, profile, plan]);
 
   const seedBase = useMemo(() => {
     if (!user || !plan) return null;
