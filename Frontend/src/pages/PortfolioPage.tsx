@@ -58,6 +58,8 @@ export default function PortfolioPage() {
   useEffect(() => {
     let alive = true;
     // Bootstrap user session first so Services doesn't flash login/register for signed-in users.
+    const cached = getCachedUser() as any;
+    if (cached) setUser(cached);
     getJson<{ user: User | null }>("/api/auth/me")
       .then((r) => {
         if (!alive) return;
@@ -66,7 +68,8 @@ export default function PortfolioPage() {
           setUser(r.user);
           return;
         }
-        setUser(getCachedUser() as any);
+        clearCachedSession();
+        setUser(null);
       })
       .catch(() => {
         if (!alive) return;

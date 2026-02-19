@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import ErrorBoundary from "./components/ErrorBoundary";
 import Skeleton from "./components/Skeleton";
 import { apiUrl } from "./lib/api";
+import { cacheUser, clearCachedSession } from "./lib/sessionCache";
 
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const MarketsPage = lazy(() => import("./pages/MarketsPage"));
@@ -144,6 +145,7 @@ export default function App() {
   const [searchBusy, setSearchBusy] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const searchTimerRef = useRef<number | null>(null);
+  const authSessionVersionRef = useRef(0);
   const [profileOpen, setProfileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [statusTick, setStatusTick] = useState(0);
@@ -254,12 +256,17 @@ export default function App() {
   useEffect(() => {
     let alive = true;
     const refreshMe = async () => {
+      const reqSessionVersion = authSessionVersionRef.current;
       try {
         const r = await getJson<AuthMe>("/api/auth/me");
         if (!alive) return;
+        if (reqSessionVersion !== authSessionVersionRef.current) return;
+        if (r.user) cacheUser(r.user as any);
+        else clearCachedSession();
         setMe(r.user);
       } catch {
         if (!alive) return;
+        if (reqSessionVersion !== authSessionVersionRef.current) return;
         setMe(null);
       }
     };
@@ -573,16 +580,18 @@ export default function App() {
   }
 
   async function logout() {
+    authSessionVersionRef.current += 1;
+    clearCachedSession();
+    setMe(null);
+    setNotifOpen(false);
+    setSearchOpen(false);
+    setProfileOpen(false);
     try {
       await sendJson("POST", "/api/auth/logout", {});
-      setMe(null);
-      setNotifOpen(false);
-      setSearchOpen(false);
-      setProfileOpen(false);
-      window.dispatchEvent(new Event("auth:changed"));
-      track("logout");
-      navigateToPage("dashboard");
     } catch {}
+    window.dispatchEvent(new Event("auth:changed"));
+    track("logout");
+    navigateToPage("dashboard");
   }
 
   return (

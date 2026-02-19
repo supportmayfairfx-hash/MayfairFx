@@ -112,3 +112,50 @@ test("progress does not reset when navigating away and back (cached session path
   expect((t2 as number) - (t1 as number)).toBeLessThanOrEqual(2);
 });
 
+test("profile dropdown logout clears cached session and returns to guest state", async ({ page }) => {
+  let loggedIn = true;
+  const user = { id: "logout-e2e-user", email: "logout-e2e@example.com", first_name: "Logout", created_at: new Date().toISOString() };
+
+  await page.route("**/api/auth/me", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ user: loggedIn ? user : null })
+    });
+  });
+  await page.route("**/api/auth/logout", async (route) => {
+    loggedIn = false;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true })
+    });
+  });
+
+  await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("button", { name: /user profile/i })).toBeVisible();
+
+  await page.evaluate(() => {
+    localStorage.setItem("tf_user_v1", JSON.stringify({ id: "logout-e2e-user", email: "logout-e2e@example.com", created_at: new Date().toISOString() }));
+    localStorage.setItem("tf_profile_latest_v1", JSON.stringify({ user_id: "logout-e2e-user" }));
+    localStorage.setItem("tf_profile_v1:logout-e2e-user", JSON.stringify({ user_id: "logout-e2e-user" }));
+  });
+
+  await page.getByRole("button", { name: /user profile/i }).click();
+  await page.getByRole("menu", { name: "Profile menu" }).getByText("Logout", { exact: true }).click();
+
+  await expect(page.locator(".whoSub")).toContainText("Not signed in");
+
+  await page.getByRole("button", { name: /user profile/i }).click();
+  await expect(page.getByRole("menu", { name: "Profile menu" }).getByText("Login", { exact: true })).toBeVisible();
+  await expect(page.getByRole("menu", { name: "Profile menu" }).getByText("Logout", { exact: true })).toHaveCount(0);
+
+  const cacheState = await page.evaluate(() => ({
+    user: localStorage.getItem("tf_user_v1"),
+    profileLatest: localStorage.getItem("tf_profile_latest_v1"),
+    profileByUser: localStorage.getItem("tf_profile_v1:logout-e2e-user")
+  }));
+  expect(cacheState.user).toBeNull();
+  expect(cacheState.profileLatest).toBeNull();
+  expect(cacheState.profileByUser).toBeNull();
+});
