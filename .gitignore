@@ -1,1 +1,5 @@
 node_modules
+.npm-cache
+Frontend/.npm-cache
+Backend/data
+*.log
