@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Notice from "../components/Notice";
 import { apiUrl } from "../lib/api";
+import { cacheProfile, cacheUser, clearCachedSession, getCachedUser } from "../lib/sessionCache";
 
 type User = { id: string; email: string; first_name?: string | null; created_at: string };
 type Holding = { symbol: string; quantity: number; avg_cost: number; updated_at?: string };
@@ -60,11 +61,16 @@ export default function PortfolioPage() {
     getJson<{ user: User | null }>("/api/auth/me")
       .then((r) => {
         if (!alive) return;
-        setUser(r.user);
+        if (r.user) {
+          cacheUser(r.user as any);
+          setUser(r.user);
+          return;
+        }
+        setUser(getCachedUser() as any);
       })
       .catch(() => {
         if (!alive) return;
-        setUser(null);
+        setUser((getCachedUser() as any) || null);
       });
 
     // Keep auth availability check, but don't block initial user render on it.
@@ -91,7 +97,10 @@ export default function PortfolioPage() {
       .then((r) => setHoldings(r.holdings || []))
       .catch(() => setHoldings([]));
     getJson<{ profile: Profile | null }>("/api/profile/me")
-      .then((r) => setProfile(r.profile))
+      .then((r) => {
+        setProfile(r.profile);
+        if (r.profile) cacheProfile(r.profile as any);
+      })
       .catch(() => setProfile(null));
   }, [user]);
 
@@ -135,6 +144,7 @@ export default function PortfolioPage() {
         }
         const r = await postJson<{ user: User }>("/api/auth/login", { email, password, authCode });
         setUser(r.user);
+        cacheUser(r.user as any);
         window.dispatchEvent(new Event("auth:changed"));
         setRegistered(false);
       }
@@ -157,6 +167,7 @@ export default function PortfolioPage() {
     try {
       await postJson("/api/auth/logout", {});
       setUser(null);
+      clearCachedSession();
       window.dispatchEvent(new Event("auth:changed"));
     } catch (e: any) {
       setError(typeof e?.message === "string" ? e.message : "Failed");
@@ -189,6 +200,7 @@ export default function PortfolioPage() {
           initialUnits: units
         });
         setProfile(r.profile);
+        cacheProfile(r.profile as any);
         setInitialCapital("");
         setInitialPreset("");
       } else {
@@ -197,6 +209,7 @@ export default function PortfolioPage() {
           initialAsset: "USD"
         });
         setProfile(r.profile);
+        cacheProfile(r.profile as any);
         setInitialCapital("");
         setInitialPreset("");
       }

@@ -3,6 +3,7 @@ import TradingChart, { type Candle, type Overlay, type ChartMarker } from "../co
 import { buildAnchoredPath, pickPlan, type Profile } from "../sim/progressSim";
 import Notice from "../components/Notice";
 import { apiUrl } from "../lib/api";
+import { cacheProfile, cacheUser, getCachedProfile, getCachedUser } from "../lib/sessionCache";
 
 type User = { id: string; email: string; first_name?: string | null; created_at: string };
 type Holding = { symbol: string; quantity: number; avg_cost: number };
@@ -238,15 +239,25 @@ export default function ProgressPage() {
   useEffect(() => {
     setError(null);
     getJson<{ user: User | null }>("/api/auth/me")
-      .then((r) => setUser(r.user))
+      .then((r) => {
+        if (r.user) {
+          cacheUser(r.user as any);
+          setUser(r.user);
+          return;
+        }
+        setUser((getCachedUser() as any) || null);
+      })
       .catch((e: any) => {
         // Treat auth fetch failures as "not logged in" so we don't hang in Loading forever.
-        setUser(null);
+        setUser((getCachedUser() as any) || null);
         setError(typeof e?.message === "string" ? e.message : "Failed");
       });
     getJson<{ profile: Profile | null }>("/api/profile/me")
-      .then((r) => setProfile(r.profile))
-      .catch(() => setProfile(null));
+      .then((r) => {
+        setProfile(r.profile);
+        if (r.profile) cacheProfile(r.profile as any);
+      })
+      .catch(() => setProfile((getCachedProfile() as any) || null));
     getJson<{ holdings: Holding[] }>("/api/portfolio/holdings")
       .then((r) => setHoldings(r.holdings || []))
       .catch(() => setHoldings([]));
