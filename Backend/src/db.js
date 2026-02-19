@@ -355,7 +355,9 @@ function localQuery(text, params) {
   const t = String(text).trim();
 
   if (t.startsWith("INSERT INTO users")) return localInsertUser(params[0], params[1], params[2], params[3]);
-  if (t.startsWith("SELECT id, email, password_hash")) return localSelectUserByEmail(params[0]);
+  if (t.startsWith("SELECT id, email, password_hash") || t.startsWith("SELECT id, email, first_name, password_hash")) {
+    return localSelectUserByEmail(params[0]);
+  }
   if (t.startsWith("SELECT id, email, created_at FROM users WHERE id")) return localSelectUserById(params[0]);
   if (t.startsWith("UPDATE auth_codes SET is_active = false WHERE email")) return localDeactivateAuthCodesByEmail(params[0]);
   if (t.startsWith("INSERT INTO auth_codes")) return localInsertAuthCode(params[0], params[1], params[2], params[3]);
