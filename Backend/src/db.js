@@ -166,7 +166,24 @@ function localSelectActiveAuthCodePlainByEmail(email) {
 
 function isNetworkBlockedError(e) {
   const code = e?.code;
-  return code === "EACCES" || code === "ENETUNREACH" || code === "EHOSTUNREACH" || code === "ETIMEDOUT";
+  return (
+    code === "EACCES" ||
+    code === "ENETUNREACH" ||
+    code === "EHOSTUNREACH" ||
+    code === "ETIMEDOUT" ||
+    code === "ECONNRESET" ||
+    code === "ECONNREFUSED" ||
+    code === "EAI_AGAIN" ||
+    code === "ENOTFOUND"
+  );
+}
+
+function localFallbackEnabled() {
+  const raw = String(process.env.ALLOW_LOCAL_DB_FALLBACK || "").trim().toLowerCase();
+  if (raw === "1" || raw === "true" || raw === "yes") return true;
+  if (raw === "0" || raw === "false" || raw === "no") return false;
+  // Safe default: allow fallback only outside production.
+  return String(process.env.NODE_ENV || "").trim().toLowerCase() !== "production";
 }
 
 let dbMode = "pg"; // "pg" | "local"
@@ -403,6 +420,9 @@ export async function query(text, params) {
 
   const p = getPgPool();
   if (!p) {
+    if (!localFallbackEnabled()) {
+      throw new Error("DATABASE_URL is not set and local DB fallback is disabled.");
+    }
     dbMode = "local";
     return localQuery(text, params);
   }
@@ -416,7 +436,10 @@ export async function query(text, params) {
       return await p.query(text, params);
     }
     if (isNetworkBlockedError(e)) {
-      // Fall back so the project keeps working even if Postgres is blocked.
+      if (!localFallbackEnabled()) {
+        throw new Error(`Postgres unreachable (${e?.code || "unknown"}), and local DB fallback is disabled.`);
+      }
+      // Fall back so the project keeps working in non-production/dev environments.
       dbMode = "local";
       console.warn("[backend] Postgres unreachable; falling back to local file DB at", STORE_PATH);
       return localQuery(text, params);
