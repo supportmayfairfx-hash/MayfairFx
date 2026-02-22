@@ -310,7 +310,7 @@ export default function PortfolioPage() {
                 {mode === "register" ? (
                   <label className="authField">
                     <span className="muted">First name</span>
-                    <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="e.g. Roy" />
+                    <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="e.g. Paul" />
                   </label>
                 ) : null}
 
