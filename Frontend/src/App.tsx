@@ -11,8 +11,9 @@ const ProgressPage = lazy(() => import("./pages/ProgressPage"));
 const ChartPage = lazy(() => import("./pages/ChartPage"));
 const ContactPage = lazy(() => import("./pages/ContactPage"));
 const BlogPage = lazy(() => import("./pages/BlogPage"));
+const AdminPage = lazy(() => import("./pages/AdminPage"));
 
-type Page = "dashboard" | "markets" | "portfolio" | "progress" | "chart" | "blog" | "contact";
+type Page = "dashboard" | "markets" | "portfolio" | "progress" | "chart" | "blog" | "contact" | "admin";
 type MenuItem = { id: string; label: string; icon: string; href: string };
 type AuthMe = { user: { id: string; email: string; first_name?: string | null; created_at: string } | null };
 type NotificationItem = { id: string; title: string; body: string; ts: string; read: boolean };
@@ -20,6 +21,7 @@ type SearchResult = { id: string; type: string; title: string; href: string; rel
 type ThemeMode = "light" | "dark" | "auto";
 type ThemeResolved = "light" | "dark";
 type SEOConfig = { title: string; description: string };
+const ADMIN_SECRET_SLUG = "admin-9x7k";
 
 const PAGE_TO_PATH: Record<Page, string> = {
   dashboard: "/dashboard",
@@ -28,7 +30,8 @@ const PAGE_TO_PATH: Record<Page, string> = {
   progress: "/progress",
   chart: "/chart",
   blog: "/blog",
-  contact: "/contact"
+  contact: "/contact",
+  admin: `/${ADMIN_SECRET_SLUG}`
 };
 
 function parsePageToken(token: string): Page {
@@ -39,6 +42,7 @@ function parsePageToken(token: string): Page {
   if (h === "chart" || h === "charts") return "chart";
   if (h === "blog") return "blog";
   if (h === "contact") return "contact";
+  if (h === "admin" || h === ADMIN_SECRET_SLUG) return "admin";
   return "dashboard";
 }
 
@@ -123,6 +127,10 @@ const SEO_BY_PAGE: Record<Page, SEOConfig> = {
   contact: {
     title: "Trade Fix Contact",
     description: "Contact Trade Fix support for onboarding, account setup, and urgent assistance."
+  },
+  admin: {
+    title: "Trade Fix Admin",
+    description: "Private admin operations panel."
   }
 };
 
@@ -486,6 +494,7 @@ export default function App() {
     ensure("og:description", "property").setAttribute("content", seo.description);
     ensure("twitter:title", "name").setAttribute("content", seo.title);
     ensure("twitter:description", "name").setAttribute("content", seo.description);
+    ensure("robots", "name").setAttribute("content", page === "admin" ? "noindex, nofollow, noarchive" : "index, follow");
   }, [page]);
 
   const content = useMemo(() => {
@@ -496,6 +505,7 @@ export default function App() {
     if (page === "chart") return <ChartPage />;
     if (page === "blog") return <BlogPage />;
     if (page === "contact") return <ContactPage />;
+    if (page === "admin") return <AdminPage />;
     return <DashboardPage displayName={displayName} userId={me?.id || null} userCreatedAt={me?.created_at || null} />;
   }, [page, me?.first_name, me?.id]);
 
@@ -505,6 +515,7 @@ export default function App() {
     if (page === "portfolio" || page === "progress") return "services";
     if (page === "chart" || page === "blog") return "blog";
     if (page === "contact") return "contact";
+    if (page === "admin") return "";
     return "home";
   }, [page]);
 
