@@ -354,7 +354,7 @@ export default function PortfolioPage() {
                       </button>
                     }
                   >
-                    Please try again.
+                    {error}
                   </Notice>
                 ) : null}
 
