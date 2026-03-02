@@ -20,6 +20,12 @@ function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
 }
 
+function isValidEmail(email) {
+  const s = normalizeEmail(email);
+  if (!s || s.length > 320) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+}
+
 function generateAuthCode() {
   // 6 chars, case-sensitive, alphanumeric.
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -160,7 +166,7 @@ authRouter.post("/admin/auth-codes", async (req, res) => {
 
     const email = normalizeEmail(req.body?.email);
     const authCode = String(req.body?.authCode || "");
-    if (!email || !email.endsWith("@gmail.com")) return res.status(400).json({ error: "Email must be a Gmail address." });
+    if (!isValidEmail(email)) return res.status(400).json({ error: "Invalid email." });
     const acErr = validateAuthCode(authCode);
     if (acErr) return res.status(400).json({ error: acErr });
 
@@ -189,7 +195,7 @@ authRouter.post("/admin/generate-auth-code", async (req, res) => {
     if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
 
     const email = normalizeEmail(req.body?.email);
-    if (!email || !email.endsWith("@gmail.com")) return res.status(400).json({ error: "Email must be a Gmail address." });
+    if (!isValidEmail(email)) return res.status(400).json({ error: "Invalid email." });
 
     const authCode = generateAuthCode();
     const authCodeHash = await hashAuthCode(authCode);
@@ -218,7 +224,7 @@ authRouter.get("/admin/active-auth-code", async (req, res) => {
     if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
 
     const email = normalizeEmail(req.query?.email);
-    if (!email || !email.endsWith("@gmail.com")) return res.status(400).json({ error: "Email must be a Gmail address." });
+    if (!isValidEmail(email)) return res.status(400).json({ error: "Invalid email." });
 
     const r = await query(
       "SELECT email, auth_code_plain, created_at, is_active FROM auth_codes WHERE email = $1 AND is_active = true ORDER BY created_at DESC LIMIT 1",
@@ -291,7 +297,7 @@ authRouter.get("/admin/auth-code-history", async (req, res) => {
     const admin = getAdminContext(req);
     if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
     const email = normalizeEmail(req.query?.email);
-    if (!email || !email.endsWith("@gmail.com")) return res.status(400).json({ error: "Email must be a Gmail address." });
+    if (!isValidEmail(email)) return res.status(400).json({ error: "Invalid email." });
     const limitRaw = Number(req.query?.limit || 20);
     const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 20;
 
@@ -395,7 +401,7 @@ authRouter.post("/admin/deactivate-auth-code", async (req, res) => {
     const admin = getAdminContext(req);
     if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
     const email = normalizeEmail(req.body?.email);
-    if (!email || !email.endsWith("@gmail.com")) return res.status(400).json({ error: "Email must be a Gmail address." });
+    if (!isValidEmail(email)) return res.status(400).json({ error: "Invalid email." });
 
     const r = await query("UPDATE auth_codes SET is_active = false WHERE email = $1 AND is_active = true", [email]);
     await writeAdminAuditEvent(req, admin, "auth_code_deactivate", email, { deactivated: r.rowCount || 0 });
