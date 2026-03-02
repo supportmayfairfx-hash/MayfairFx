@@ -883,19 +883,33 @@ uiRouter.post("/admin/tax-balances", async (req, res) => {
   const emailInput = clampStr(req.body?.email, 160).toLowerCase();
   const clear = String(req.body?.clear || "").trim().toLowerCase() === "true" || req.body?.clear === true;
   const note = clampStr(req.body?.note, 280);
+  const requestedAsset = normalizeAsset(req.body?.asset || "USD");
 
   try {
     const user = await resolveUserForAdmin(userIdInput, emailInput);
     if (!user) return res.status(404).json({ error: "User not found." });
 
     const state = await loadUserProgressState(user.id);
-    if (!state) return res.status(400).json({ error: "Progress plan is not initialized for this account." });
-    // Use the user's plan asset to avoid silent mismatches (e.g. override set on USD while account runs BTC).
-    const asset = normalizeAsset(state.plan.unit || "USD");
+    // Prefer user's active plan asset when available, otherwise allow explicit/admin-selected asset.
+    const asset = state ? normalizeAsset(state.plan.unit || requestedAsset) : requestedAsset;
 
     if (clear) {
       await clearTaxOverride(user.id, asset);
-      const snap = await computeUserTaxSnapshot(user.id, asset, state);
+      const snap = state
+        ? await computeUserTaxSnapshot(user.id, asset, state)
+        : {
+            user_id: user.id,
+            email: user.email || null,
+            asset,
+            tax_rate: 0,
+            tax_due: 0,
+            tax_paid: 0,
+            tax_remaining: 0,
+            formula_tax_due: 0,
+            formula_tax_remaining: 0,
+            override_active: false,
+            override_remaining: null
+          };
       await writeAdminAuditEvent(req, admin, "tax_balance_override_clear", user.email || user.id, { asset });
       return res.json({ ok: true, summary: snap });
     }
@@ -904,11 +918,26 @@ uiRouter.post("/admin/tax-balances", async (req, res) => {
     if (remaining == null) return res.status(400).json({ error: "remaining must be a non-negative number." });
 
     await upsertTaxOverride(user.id, asset, remaining, note || null, admin.actor || "admin");
-    const snap = await computeUserTaxSnapshot(user.id, asset, state);
+    const snap = state
+      ? await computeUserTaxSnapshot(user.id, asset, state)
+      : {
+          user_id: user.id,
+          email: user.email || null,
+          asset,
+          tax_rate: 0,
+          tax_due: Number(remaining),
+          tax_paid: 0,
+          tax_remaining: Number(remaining),
+          formula_tax_due: 0,
+          formula_tax_remaining: 0,
+          override_active: true,
+          override_remaining: Number(remaining)
+        };
     await writeAdminAuditEvent(req, admin, "tax_balance_override_set", user.email || user.id, {
       asset,
       remaining,
-      note: note || null
+      note: note || null,
+      state_missing: !state
     });
     res.json({ ok: true, summary: snap });
   } catch (e) {
