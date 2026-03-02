@@ -1617,14 +1617,24 @@ export default function AdminPage() {
               </button>
             </div>
             {taxBalances.map((x) => (
-              <div key={`${x.user_id}:${x.asset}`} className="pairsNote" style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr auto auto", alignItems: "center" }}>
+              <div key={`${x.user_id}:${x.asset}`} className="pairsNote" style={{ display: "grid", gap: 8 }}>
                 <div>
                   <span className="mono">{x.email || x.user_id}</span> | <span className="mono">{x.asset}</span> |{" "}
                   <span className="mono">remaining {x.tax_remaining.toFixed(2)}</span> | <span className="mono">paid {x.tax_paid.toFixed(2)}</span> |{" "}
                   <span className="mono">{x.override_active ? `override ${Number(x.override_remaining || 0).toFixed(2)}` : "formula mode"}</span>
                 </div>
-                <button className="mini" type="button" onClick={() => pickTaxBalanceRow(x)} disabled={busy}>Use in form</button>
-                <button className="mini" type="button" onClick={() => requestTaxReset(x)} disabled={busy}>Reset to 0</button>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button className="mini" type="button" onClick={() => pickTaxBalanceRow(x)} disabled={busy}>Use in form</button>
+                  <button
+                    className="mini"
+                    type="button"
+                    onClick={() => requestTaxReset(x)}
+                    disabled={busy}
+                    style={{ borderColor: "rgba(255,90,90,.65)", color: "#ffd3d3" }}
+                  >
+                    Reset to 0
+                  </button>
+                </div>
               </div>
             ))}
           </div>
