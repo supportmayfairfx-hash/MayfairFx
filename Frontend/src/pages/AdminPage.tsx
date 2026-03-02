@@ -76,6 +76,44 @@ type AdminOverview = {
   }>;
   recent_audit: Array<{ id: string; actor: string; action: string; target?: string; created_at: string }>;
 };
+type User360 = {
+  user: { id: string; email?: string | null };
+  crm_profile?: { tags?: string[]; status?: string | null; score?: number; updated_at?: string | null };
+  notes?: Array<{ id: string; author?: string | null; note: string; created_at: string }>;
+  auth_history?: Array<{ id: string; created_at: string; auth_code_plain?: string | null; is_active?: boolean }>;
+  withdrawals?: Array<{ id: string; amount: number; asset: string; status: string; created_at: string }>;
+  tax_payments?: Array<{ id: string; amount: number; asset: string; status: string; created_at: string }>;
+  tax_snapshot?: { tax_due: number; tax_paid: number; tax_remaining: number; override_active?: boolean };
+};
+type AutomationRule = { id: string; name: string; enabled: boolean; config?: any; created_at?: string; updated_at?: string };
+type AutomationRun = { id: string; rule_id?: string | null; status: string; result?: any; created_at: string };
+type CommsTemplate = { id: string; name: string; channel: string; subject?: string | null; body: string; updated_at?: string };
+type CommsCampaign = {
+  id: string;
+  template_id?: string | null;
+  channel: string;
+  audience?: string | null;
+  status: string;
+  sent_count: number;
+  failed_count: number;
+  created_at: string;
+};
+type Reconciliation = {
+  generated_at: string;
+  tax_collections: { d1: number; d7: number; d30: number };
+  withdrawals: { d1: number; d7: number; d30: number };
+  deltas: { d1: number; d7: number; d30: number };
+};
+type Revenue = {
+  generated_at: string;
+  subs_total?: number;
+  subs_active: number;
+  monthly_revenue: number;
+  arpu: number;
+  ltv_estimate: number;
+  referral_count?: number;
+  referral_commissions_total: number;
+};
 
 async function apiJson<T>(method: Method, path: string, adminKey: string, body?: any): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
@@ -156,6 +194,33 @@ export default function AdminPage() {
   const [taxBalances, setTaxBalances] = useState<TaxBalanceItem[]>([]);
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [overviewAutoRefresh, setOverviewAutoRefresh] = useState(true);
+  const [user360Email, setUser360Email] = useState("");
+  const [user360Note, setUser360Note] = useState("");
+  const [user360Tags, setUser360Tags] = useState("");
+  const [user360Status, setUser360Status] = useState("");
+  const [user360Score, setUser360Score] = useState("0");
+  const [user360Data, setUser360Data] = useState<User360 | null>(null);
+  const [automationRules, setAutomationRules] = useState<AutomationRule[]>([]);
+  const [automationRuns, setAutomationRuns] = useState<AutomationRun[]>([]);
+  const [automationName, setAutomationName] = useState("");
+  const [automationConfig, setAutomationConfig] = useState("{\"condition\":\"tax_remaining_gt\",\"value\":1000}");
+  const [automationSelectedRuleId, setAutomationSelectedRuleId] = useState("");
+  const [commsTemplates, setCommsTemplates] = useState<CommsTemplate[]>([]);
+  const [commsCampaigns, setCommsCampaigns] = useState<CommsCampaign[]>([]);
+  const [commsTemplateName, setCommsTemplateName] = useState("");
+  const [commsTemplateChannel, setCommsTemplateChannel] = useState("email");
+  const [commsTemplateSubject, setCommsTemplateSubject] = useState("");
+  const [commsTemplateBody, setCommsTemplateBody] = useState("");
+  const [commsCampaignTemplateId, setCommsCampaignTemplateId] = useState("");
+  const [commsCampaignAudience, setCommsCampaignAudience] = useState("all_users");
+  const [reconciliation, setReconciliation] = useState<Reconciliation | null>(null);
+  const [revenue, setRevenue] = useState<Revenue | null>(null);
+  const [subEmail, setSubEmail] = useState("");
+  const [subPlan, setSubPlan] = useState("pro");
+  const [subPrice, setSubPrice] = useState("99");
+  const [referrerEmail, setReferrerEmail] = useState("");
+  const [referredEmail, setReferredEmail] = useState("");
+  const [refEarned, setRefEarned] = useState("0");
   const [taxBalanceFilter, setTaxBalanceFilter] = useState("");
   const [taxBalanceEmail, setTaxBalanceEmail] = useState("");
   const [taxBalanceRemaining, setTaxBalanceRemaining] = useState("");
@@ -190,6 +255,9 @@ export default function AdminPage() {
     void refreshLatestAuthCodes(0, true);
     void refreshTaxBalances();
     void refreshOverview();
+    void refreshAutomations();
+    void refreshComms();
+    void refreshFinance();
   }, [canAdmin]);
 
   useEffect(() => {
@@ -514,6 +582,277 @@ export default function AdminPage() {
     }
   }
 
+  function parseConfigJson(raw: string) {
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      throw new Error("Automation config must be valid JSON.");
+    }
+  }
+
+  async function loadUser360() {
+    if (!canAdmin || !user360Email.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await apiJson<User360>("GET", `/api/admin/user-360?email=${encodeURIComponent(user360Email.trim().toLowerCase())}`, adminKey);
+      setUser360Data(r || null);
+      const p = r?.crm_profile || {};
+      setUser360Tags(Array.isArray(p.tags) ? p.tags.join(", ") : "");
+      setUser360Status(String(p.status || ""));
+      setUser360Score(String(Number(p.score || 0)));
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "User 360 load failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveCrmProfile() {
+    if (!canAdmin || !user360Email.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await apiJson("POST", "/api/admin/crm/profile", adminKey, {
+        email: user360Email.trim().toLowerCase(),
+        tags: user360Tags,
+        status: user360Status,
+        score: Number(user360Score || 0)
+      });
+      await loadUser360();
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "CRM profile save failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addCrmNote() {
+    if (!canAdmin || !user360Email.trim() || !user360Note.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await apiJson("POST", "/api/admin/crm/note", adminKey, {
+        email: user360Email.trim().toLowerCase(),
+        note: user360Note.trim()
+      });
+      setUser360Note("");
+      await loadUser360();
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "CRM note save failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function refreshAutomations() {
+    if (!canAdmin) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const [rulesR, runsR] = await Promise.all([
+        apiJson<{ items: AutomationRule[] }>("GET", "/api/admin/automations/rules", adminKey),
+        apiJson<{ items: AutomationRun[] }>("GET", "/api/admin/automations/runs?limit=80", adminKey)
+      ]);
+      setAutomationRules(Array.isArray(rulesR.items) ? rulesR.items : []);
+      setAutomationRuns(Array.isArray(runsR.items) ? runsR.items : []);
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Automation fetch failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveAutomationRule() {
+    if (!canAdmin || !automationName.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await apiJson("POST", "/api/admin/automations/rules", adminKey, {
+        id: automationSelectedRuleId || undefined,
+        name: automationName.trim(),
+        enabled: true,
+        config: parseConfigJson(automationConfig)
+      });
+      setAutomationName("");
+      setAutomationSelectedRuleId("");
+      await refreshAutomations();
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Automation rule save failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runAutomationRule(ruleId: string) {
+    if (!canAdmin || !ruleId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await apiJson("POST", "/api/admin/automations/run", adminKey, { ruleId });
+      await refreshAutomations();
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Automation run failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function refreshComms() {
+    if (!canAdmin) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const [tR, cR] = await Promise.all([
+        apiJson<{ items: CommsTemplate[] }>("GET", "/api/admin/comms/templates", adminKey),
+        apiJson<{ items: CommsCampaign[] }>("GET", "/api/admin/comms/campaigns", adminKey)
+      ]);
+      setCommsTemplates(Array.isArray(tR.items) ? tR.items : []);
+      setCommsCampaigns(Array.isArray(cR.items) ? cR.items : []);
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Comms fetch failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveCommsTemplate() {
+    if (!canAdmin || !commsTemplateName.trim() || !commsTemplateBody.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await apiJson("POST", "/api/admin/comms/templates", adminKey, {
+        name: commsTemplateName.trim(),
+        channel: commsTemplateChannel,
+        subject: commsTemplateSubject.trim(),
+        body: commsTemplateBody.trim()
+      });
+      setCommsTemplateName("");
+      setCommsTemplateSubject("");
+      setCommsTemplateBody("");
+      await refreshComms();
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Template save failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendCampaign() {
+    if (!canAdmin) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await apiJson("POST", "/api/admin/comms/campaigns", adminKey, {
+        templateId: commsCampaignTemplateId || null,
+        channel: commsTemplateChannel,
+        audience: commsCampaignAudience
+      });
+      await refreshComms();
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Campaign send failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function refreshFinance() {
+    if (!canAdmin) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const [recR, revR] = await Promise.all([
+        apiJson<Reconciliation>("GET", "/api/admin/reconciliation", adminKey),
+        apiJson<Revenue>("GET", "/api/admin/revenue", adminKey)
+      ]);
+      setReconciliation(recR || null);
+      setRevenue(revR || null);
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Finance dashboard fetch failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createSubscription() {
+    if (!canAdmin || !subEmail.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await apiJson("POST", "/api/admin/revenue/subscription", adminKey, {
+        email: subEmail.trim().toLowerCase(),
+        plan: subPlan,
+        status: "active",
+        price: Number(subPrice || 0),
+        currency: "USD"
+      });
+      await refreshFinance();
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Subscription create failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createReferral() {
+    if (!canAdmin || !referrerEmail.trim() || !referredEmail.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await apiJson("POST", "/api/admin/revenue/referral", adminKey, {
+        referrerEmail: referrerEmail.trim().toLowerCase(),
+        referredEmail: referredEmail.trim().toLowerCase(),
+        commissionRate: 0.1,
+        earnedTotal: Number(refEarned || 0)
+      });
+      await refreshFinance();
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Referral create failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function exportInvestorReport(format: "json" | "csv") {
+    if (!canAdmin) return;
+    try {
+      if (format === "json") {
+        const r = await apiJson<any>("GET", "/api/admin/reports/investor?format=json", adminKey);
+        const blob = new Blob([JSON.stringify(r, null, 2)], { type: "application/json;charset=utf-8" });
+        const u = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = u;
+        a.download = `investor-report-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(u);
+        return;
+      }
+      const headers: Record<string, string> = { Accept: "text/csv" };
+      if (adminKey.trim()) headers["x-admin-api-key"] = adminKey.trim();
+      const res = await fetch(apiUrl("/api/admin/reports/investor?format=csv"), {
+        method: "GET",
+        credentials: "include",
+        headers
+      });
+      const text = await res.text();
+      if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
+      const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
+      const u = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = u;
+      a.download = `investor-report-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(u);
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Investor report export failed");
+    }
+  }
+
   async function refreshTaxBalances() {
     if (!canAdmin) return;
     setBusy(true);
@@ -726,6 +1065,145 @@ export default function AdminPage() {
                 <span className="mono">{a.action}</span> | <span className="mono">{a.target || "--"}</span>
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className="marketCard spanFull">
+          <div className="marketCardHead">
+            <div>
+              <div className="panelTitle">User 360 + CRM</div>
+              <div className="panelSub">Unified profile, notes, tags, risk score, and account financial stream.</div>
+            </div>
+          </div>
+          <div className="authBody">
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
+              <input value={user360Email} onChange={(e) => setUser360Email(e.target.value)} placeholder="user email" />
+              <button className="mini" type="button" onClick={() => void loadUser360()} disabled={!canAdmin || busy}>Load User 360</button>
+              <input value={user360Tags} onChange={(e) => setUser360Tags(e.target.value)} placeholder="tags: vip, high-risk" />
+              <input value={user360Status} onChange={(e) => setUser360Status(e.target.value)} placeholder="status" />
+              <input value={user360Score} onChange={(e) => setUser360Score(e.target.value)} placeholder="score 0-100" />
+              <button className="mini" type="button" onClick={() => void saveCrmProfile()} disabled={!canAdmin || busy}>Save CRM profile</button>
+            </div>
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr auto" }}>
+              <input value={user360Note} onChange={(e) => setUser360Note(e.target.value)} placeholder="add CRM note" />
+              <button className="mini" type="button" onClick={() => void addCrmNote()} disabled={!canAdmin || busy || !user360Note.trim()}>Add note</button>
+            </div>
+            {user360Data ? (
+              <div className="pairsNote">
+                <span className="mono">{user360Data.user?.email || user360Data.user?.id}</span> |{" "}
+                <span className="mono">tax remaining {Number(user360Data.tax_snapshot?.tax_remaining || 0).toFixed(2)}</span> |{" "}
+                <span className="mono">{user360Data.tax_snapshot?.override_active ? "override mode" : "formula mode"}</span>
+              </div>
+            ) : null}
+            {(user360Data?.notes || []).slice(0, 6).map((n) => (
+              <div key={n.id} className="pairsNote">
+                <span className="mono">{fmt(n.created_at)}</span> | <span className="mono">{n.author || "--"}</span> | {n.note}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="marketCard spanFull">
+          <div className="marketCardHead">
+            <div>
+              <div className="panelTitle">Automation Engine</div>
+              <div className="panelSub">Define operational rules, then trigger controlled runs.</div>
+            </div>
+          </div>
+          <div className="authBody">
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
+              <input value={automationName} onChange={(e) => setAutomationName(e.target.value)} placeholder="rule name" />
+              <input value={automationConfig} onChange={(e) => setAutomationConfig(e.target.value)} placeholder='{"condition":"tax_remaining_gt","value":1000}' />
+              <button className="mini" type="button" onClick={() => void saveAutomationRule()} disabled={!canAdmin || busy}>Save rule</button>
+              <button className="mini" type="button" onClick={() => void refreshAutomations()} disabled={!canAdmin || busy}>Refresh automation</button>
+            </div>
+            {automationRules.map((r) => (
+              <div key={r.id} className="pairsNote">
+                <span className="mono">{r.name}</span> | <span className="mono">{r.enabled ? "enabled" : "disabled"}</span> |{" "}
+                <button className="mini" type="button" onClick={() => void runAutomationRule(r.id)} disabled={!canAdmin || busy}>Run</button>
+              </div>
+            ))}
+            {(automationRuns || []).slice(0, 6).map((r) => (
+              <div key={r.id} className="pairsNote">
+                <span className="mono">{fmt(r.created_at)}</span> | <span className="mono">{r.rule_id || "--"}</span> | <span className="mono">{r.status}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="marketCard spanFull">
+          <div className="marketCardHead">
+            <div>
+              <div className="panelTitle">Communication Center</div>
+              <div className="panelSub">Templates + campaign dispatch log for operational messaging.</div>
+            </div>
+          </div>
+          <div className="authBody">
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))" }}>
+              <input value={commsTemplateName} onChange={(e) => setCommsTemplateName(e.target.value)} placeholder="template name" />
+              <select value={commsTemplateChannel} onChange={(e) => setCommsTemplateChannel(e.target.value)}>
+                <option value="email">email</option>
+                <option value="telegram">telegram</option>
+                <option value="in_app">in_app</option>
+              </select>
+              <input value={commsTemplateSubject} onChange={(e) => setCommsTemplateSubject(e.target.value)} placeholder="subject (optional)" />
+              <input value={commsTemplateBody} onChange={(e) => setCommsTemplateBody(e.target.value)} placeholder="message body" />
+              <button className="mini" type="button" onClick={() => void saveCommsTemplate()} disabled={!canAdmin || busy}>Save template</button>
+            </div>
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))" }}>
+              <select value={commsCampaignTemplateId} onChange={(e) => setCommsCampaignTemplateId(e.target.value)}>
+                <option value="">no template</option>
+                {commsTemplates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+              <input value={commsCampaignAudience} onChange={(e) => setCommsCampaignAudience(e.target.value)} placeholder="audience e.g. all_users / vip" />
+              <button className="mini" type="button" onClick={() => void sendCampaign()} disabled={!canAdmin || busy}>Send campaign</button>
+              <button className="mini" type="button" onClick={() => void refreshComms()} disabled={!canAdmin || busy}>Refresh comms</button>
+            </div>
+            {(commsCampaigns || []).slice(0, 8).map((c) => (
+              <div key={c.id} className="pairsNote">
+                <span className="mono">{fmt(c.created_at)}</span> | <span className="mono">{c.channel}</span> |{" "}
+                <span className="mono">{c.audience || "--"}</span> | <span className="mono">{c.sent_count} sent / {c.failed_count} failed</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="marketCard spanFull">
+          <div className="marketCardHead">
+            <div>
+              <div className="panelTitle">Finance + Investor Reports</div>
+              <div className="panelSub">Reconciliation, revenue pipeline, subscriptions/referrals, and export-ready investor pack.</div>
+            </div>
+          </div>
+          <div className="authBody">
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button className="mini" type="button" onClick={() => void refreshFinance()} disabled={!canAdmin || busy}>Refresh finance</button>
+              <button className="mini" type="button" onClick={() => void exportInvestorReport("json")} disabled={!canAdmin || busy}>Export report JSON</button>
+              <button className="mini" type="button" onClick={() => void exportInvestorReport("csv")} disabled={!canAdmin || busy}>Export report CSV</button>
+            </div>
+            <div className="pairsNote">
+              <span className="mono">MRR {Number(revenue?.monthly_revenue || 0).toFixed(2)}</span> |{" "}
+              <span className="mono">ARPU {Number(revenue?.arpu || 0).toFixed(2)}</span> |{" "}
+              <span className="mono">LTV est. {Number(revenue?.ltv_estimate || 0).toFixed(2)}</span> |{" "}
+              <span className="mono">Referral commissions {Number(revenue?.referral_commissions_total || 0).toFixed(2)}</span>
+            </div>
+            <div className="pairsNote">
+              <span className="mono">Reconciliation delta D1 {Number(reconciliation?.deltas?.d1 || 0).toFixed(2)}</span> |{" "}
+              <span className="mono">D7 {Number(reconciliation?.deltas?.d7 || 0).toFixed(2)}</span> |{" "}
+              <span className="mono">D30 {Number(reconciliation?.deltas?.d30 || 0).toFixed(2)}</span>
+            </div>
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))" }}>
+              <input value={subEmail} onChange={(e) => setSubEmail(e.target.value)} placeholder="subscription user email" />
+              <input value={subPlan} onChange={(e) => setSubPlan(e.target.value)} placeholder="plan name" />
+              <input value={subPrice} onChange={(e) => setSubPrice(e.target.value)} placeholder="price" />
+              <button className="mini" type="button" onClick={() => void createSubscription()} disabled={!canAdmin || busy}>Create subscription</button>
+            </div>
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))" }}>
+              <input value={referrerEmail} onChange={(e) => setReferrerEmail(e.target.value)} placeholder="referrer email" />
+              <input value={referredEmail} onChange={(e) => setReferredEmail(e.target.value)} placeholder="referred email" />
+              <input value={refEarned} onChange={(e) => setRefEarned(e.target.value)} placeholder="commission earned" />
+              <button className="mini" type="button" onClick={() => void createReferral()} disabled={!canAdmin || busy}>Create referral</button>
+            </div>
           </div>
         </div>
 

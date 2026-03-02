@@ -296,6 +296,50 @@ async function computeUserTaxSnapshot(userId, assetInput, stateInput = null) {
   };
 }
 
+function asJsonObject(v, fallback = {}) {
+  if (v == null) return fallback;
+  if (typeof v === "object") return v;
+  try {
+    const parsed = JSON.parse(String(v));
+    return parsed && typeof parsed === "object" ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function asJsonArray(v) {
+  if (Array.isArray(v)) return v;
+  if (v == null) return [];
+  try {
+    const parsed = JSON.parse(String(v));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizeTags(raw) {
+  if (Array.isArray(raw)) {
+    return Array.from(
+      new Set(
+        raw
+          .map((x) => String(x || "").trim().toLowerCase())
+          .filter(Boolean)
+          .slice(0, 40)
+      )
+    );
+  }
+  return Array.from(
+    new Set(
+      String(raw || "")
+        .split(/,|;|\n|\r/)
+        .map((x) => x.trim().toLowerCase())
+        .filter(Boolean)
+        .slice(0, 40)
+    )
+  );
+}
+
 function scoreResult(query, title) {
   const q = String(query || "").toLowerCase();
   const t = String(title || "").toLowerCase();
@@ -974,6 +1018,651 @@ uiRouter.get("/admin/overview", async (req, res) => {
       top_tax_due: topTaxDue,
       recent_audit: recentAudit
     });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.get("/admin/user-360", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+  const user = await resolveUserForAdmin(req.query?.userId, req.query?.email);
+  if (!user) return res.status(404).json({ error: "User not found." });
+
+  try {
+    let profile = { tags: [], status: null, score: 0, updated_at: null };
+    let notes = [];
+    let authHistory = [];
+    let withdrawals = [];
+    let taxPayments = [];
+
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      const crm = (Array.isArray(store.crm_profiles) ? store.crm_profiles : []).find((x) => x.user_id === user.id) || null;
+      if (crm) profile = { tags: Array.isArray(crm.tags) ? crm.tags : [], status: crm.status || null, score: Number(crm.score || 0), updated_at: crm.updated_at || null };
+      notes = (Array.isArray(store.crm_notes) ? store.crm_notes : [])
+        .filter((x) => x.user_id === user.id)
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+        .slice(0, 80);
+      authHistory = (Array.isArray(store.auth_codes) ? store.auth_codes : [])
+        .filter((x) => String(x.email || "").toLowerCase() === String(user.email || "").toLowerCase())
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+        .slice(0, 80);
+      withdrawals = (Array.isArray(store.withdrawals) ? store.withdrawals : [])
+        .filter((x) => x.user_id === user.id)
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+        .slice(0, 80);
+      taxPayments = (Array.isArray(store.tax_payments) ? store.tax_payments : [])
+        .filter((x) => x.user_id === user.id)
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+        .slice(0, 80);
+    } else {
+      const [crmR, notesR, authR, wdR, taxR] = await Promise.all([
+        query("SELECT tags, status, score, updated_at FROM crm_profiles WHERE user_id = $1 LIMIT 1", [user.id]),
+        query("SELECT id, author, note, created_at FROM crm_notes WHERE user_id = $1 ORDER BY created_at DESC LIMIT 80", [user.id]),
+        query("SELECT id, email, auth_code_plain, is_active, created_at FROM auth_codes WHERE email = $1 ORDER BY created_at DESC LIMIT 80", [String(user.email || "").toLowerCase()]),
+        query("SELECT id, amount::float8 AS amount, asset, method, status, created_at FROM withdrawal_requests WHERE user_id = $1 ORDER BY created_at DESC LIMIT 80", [user.id]),
+        query("SELECT id, amount::float8 AS amount, asset, method, status, created_at FROM tax_payments WHERE user_id = $1 ORDER BY created_at DESC LIMIT 80", [user.id])
+      ]);
+      const crm = crmR.rows?.[0] || null;
+      if (crm) profile = { tags: asJsonArray(crm.tags), status: crm.status || null, score: Number(crm.score || 0), updated_at: crm.updated_at || null };
+      notes = notesR.rows || [];
+      authHistory = authR.rows || [];
+      withdrawals = wdR.rows || [];
+      taxPayments = taxR.rows || [];
+    }
+
+    const taxSnapshot = await computeUserTaxSnapshot(user.id, req.query?.asset || "USD");
+    const audit = (await listAdminAuditEvents(240)).filter(
+      (x) => String(x.target || "").toLowerCase().includes(String(user.email || "").toLowerCase()) || String(x.target || "") === user.id
+    ).slice(0, 60);
+
+    await writeAdminAuditEvent(req, admin, "user_360_view", user.email || user.id, {});
+    res.json({
+      user,
+      crm_profile: profile,
+      notes,
+      auth_history: authHistory,
+      withdrawals,
+      tax_payments: taxPayments,
+      tax_snapshot: taxSnapshot,
+      admin_activity: audit
+    });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.post("/admin/crm/profile", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+  const user = await resolveUserForAdmin(req.body?.userId, req.body?.email);
+  if (!user) return res.status(404).json({ error: "User not found." });
+  const tags = normalizeTags(req.body?.tags);
+  const status = clampStr(req.body?.status, 80) || null;
+  const score = Math.max(0, Math.min(100, Number(req.body?.score || 0)));
+  const now = nowIso();
+
+  try {
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      store.crm_profiles = Array.isArray(store.crm_profiles) ? store.crm_profiles : [];
+      const idx = store.crm_profiles.findIndex((x) => x.user_id === user.id);
+      const row = { user_id: user.id, tags, status, score, updated_at: now };
+      if (idx >= 0) store.crm_profiles[idx] = row;
+      else store.crm_profiles.unshift(row);
+      writeLocalStore(store);
+    } else {
+      await query(
+        `INSERT INTO crm_profiles (user_id, tags, status, score, updated_at)
+         VALUES ($1, $2::jsonb, $3, $4, now())
+         ON CONFLICT (user_id)
+         DO UPDATE SET tags = EXCLUDED.tags, status = EXCLUDED.status, score = EXCLUDED.score, updated_at = now()`,
+        [user.id, JSON.stringify(tags), status, score]
+      );
+    }
+    await writeAdminAuditEvent(req, admin, "crm_profile_update", user.email || user.id, { tags_count: tags.length, status, score });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.post("/admin/crm/note", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+  const user = await resolveUserForAdmin(req.body?.userId, req.body?.email);
+  if (!user) return res.status(404).json({ error: "User not found." });
+  const note = clampStr(req.body?.note, 800);
+  if (!note) return res.status(400).json({ error: "Note is required." });
+  const row = { id: crypto.randomUUID(), user_id: user.id, author: admin.actor || "admin", note, created_at: nowIso() };
+
+  try {
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      store.crm_notes = Array.isArray(store.crm_notes) ? store.crm_notes : [];
+      store.crm_notes.unshift(row);
+      store.crm_notes = store.crm_notes.slice(0, 6000);
+      writeLocalStore(store);
+    } else {
+      await query("INSERT INTO crm_notes (id, user_id, author, note, created_at) VALUES ($1, $2, $3, $4, $5)", [
+        row.id,
+        row.user_id,
+        row.author,
+        row.note,
+        row.created_at
+      ]);
+    }
+    await writeAdminAuditEvent(req, admin, "crm_note_add", user.email || user.id, {});
+    res.status(201).json({ ok: true, note: row });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.get("/admin/automations/rules", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    let items = [];
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      items = (Array.isArray(store.automation_rules) ? store.automation_rules : []).slice().sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)));
+    } else {
+      const r = await query("SELECT id, name, enabled, config, created_at, updated_at FROM automation_rules ORDER BY updated_at DESC LIMIT 200", []);
+      items = (r.rows || []).map((x) => ({ ...x, config: asJsonObject(x.config, {}) }));
+    }
+    res.json({ items });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.post("/admin/automations/rules", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+  const id = clampStr(req.body?.id, 80) || crypto.randomUUID();
+  const name = clampStr(req.body?.name, 120);
+  if (!name) return res.status(400).json({ error: "Rule name is required." });
+  const enabled = !(String(req.body?.enabled).toLowerCase() === "false" || req.body?.enabled === false);
+  const config = asJsonObject(req.body?.config, {});
+  const now = nowIso();
+
+  try {
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      store.automation_rules = Array.isArray(store.automation_rules) ? store.automation_rules : [];
+      const idx = store.automation_rules.findIndex((x) => x.id === id);
+      const row = { id, name, enabled, config, created_at: idx >= 0 ? store.automation_rules[idx].created_at : now, updated_at: now };
+      if (idx >= 0) store.automation_rules[idx] = row;
+      else store.automation_rules.unshift(row);
+      writeLocalStore(store);
+    } else {
+      await query(
+        `INSERT INTO automation_rules (id, name, enabled, config, created_at, updated_at)
+         VALUES ($1, $2, $3, $4::jsonb, $5, $5)
+         ON CONFLICT (id)
+         DO UPDATE SET name = EXCLUDED.name, enabled = EXCLUDED.enabled, config = EXCLUDED.config, updated_at = now()`,
+        [id, name, enabled, JSON.stringify(config), now]
+      );
+    }
+    await writeAdminAuditEvent(req, admin, "automation_rule_upsert", name, { enabled });
+    res.json({ ok: true, id });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.post("/admin/automations/run", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+  const ruleId = clampStr(req.body?.ruleId, 80);
+  if (!ruleId) return res.status(400).json({ error: "ruleId is required." });
+
+  try {
+    let rule = null;
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      store.automation_rules = Array.isArray(store.automation_rules) ? store.automation_rules : [];
+      rule = store.automation_rules.find((x) => x.id === ruleId) || null;
+    } else {
+      const r = await query("SELECT id, name, enabled, config FROM automation_rules WHERE id = $1 LIMIT 1", [ruleId]);
+      rule = r.rows?.[0] ? { ...r.rows[0], config: asJsonObject(r.rows[0].config, {}) } : null;
+    }
+    if (!rule) return res.status(404).json({ error: "Rule not found." });
+    if (!rule.enabled) return res.status(400).json({ error: "Rule is disabled." });
+
+    const result = {
+      simulated: true,
+      matched_users: Math.floor(Math.random() * 10),
+      actions: ["notify", "flag_review"].slice(0, 1 + (Math.random() > 0.5 ? 1 : 0))
+    };
+    const run = { id: crypto.randomUUID(), rule_id: ruleId, status: "completed", result, created_at: nowIso() };
+
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      store.automation_runs = Array.isArray(store.automation_runs) ? store.automation_runs : [];
+      store.automation_runs.unshift(run);
+      store.automation_runs = store.automation_runs.slice(0, 2000);
+      writeLocalStore(store);
+    } else {
+      await query("INSERT INTO automation_runs (id, rule_id, status, result, created_at) VALUES ($1, $2, $3, $4::jsonb, $5)", [
+        run.id,
+        run.rule_id,
+        run.status,
+        JSON.stringify(run.result),
+        run.created_at
+      ]);
+    }
+
+    await writeAdminAuditEvent(req, admin, "automation_run", rule.name || ruleId, result);
+    res.json({ ok: true, run });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.get("/admin/automations/runs", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+  const limitRaw = Number(req.query?.limit || 120);
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(500, Math.floor(limitRaw))) : 120;
+  try {
+    let items = [];
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      items = (Array.isArray(store.automation_runs) ? store.automation_runs : []).slice(0, limit);
+    } else {
+      const r = await query("SELECT id, rule_id, status, result, created_at FROM automation_runs ORDER BY created_at DESC LIMIT $1", [limit]);
+      items = (r.rows || []).map((x) => ({ ...x, result: asJsonObject(x.result, {}) }));
+    }
+    res.json({ items });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.get("/admin/comms/templates", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    let items = [];
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      items = (Array.isArray(store.comm_templates) ? store.comm_templates : []).slice().sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)));
+    } else {
+      const r = await query("SELECT id, name, channel, subject, body, created_at, updated_at FROM comm_templates ORDER BY updated_at DESC LIMIT 200", []);
+      items = r.rows || [];
+    }
+    res.json({ items });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.post("/admin/comms/templates", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+  const id = clampStr(req.body?.id, 80) || crypto.randomUUID();
+  const name = clampStr(req.body?.name, 120);
+  const channel = clampStr(req.body?.channel, 40) || "email";
+  const subject = clampStr(req.body?.subject, 200) || null;
+  const body = clampStr(req.body?.body, 4000);
+  if (!name || !body) return res.status(400).json({ error: "Template name and body are required." });
+  const now = nowIso();
+
+  try {
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      store.comm_templates = Array.isArray(store.comm_templates) ? store.comm_templates : [];
+      const idx = store.comm_templates.findIndex((x) => x.id === id);
+      const row = { id, name, channel, subject, body, created_at: idx >= 0 ? store.comm_templates[idx].created_at : now, updated_at: now };
+      if (idx >= 0) store.comm_templates[idx] = row;
+      else store.comm_templates.unshift(row);
+      writeLocalStore(store);
+    } else {
+      await query(
+        `INSERT INTO comm_templates (id, name, channel, subject, body, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $6)
+         ON CONFLICT (id)
+         DO UPDATE SET name = EXCLUDED.name, channel = EXCLUDED.channel, subject = EXCLUDED.subject, body = EXCLUDED.body, updated_at = now()`,
+        [id, name, channel, subject, body, now]
+      );
+    }
+    await writeAdminAuditEvent(req, admin, "comms_template_upsert", name, { channel });
+    res.json({ ok: true, id });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.post("/admin/comms/campaigns", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+  const templateId = clampStr(req.body?.templateId, 80) || null;
+  const channel = clampStr(req.body?.channel, 40) || "email";
+  const audience = clampStr(req.body?.audience, 240) || "all_users";
+  const sentCount = Math.max(0, Math.floor(Number(req.body?.sentCount ?? 0)));
+  const failedCount = Math.max(0, Math.floor(Number(req.body?.failedCount ?? 0)));
+  const row = { id: crypto.randomUUID(), template_id: templateId, channel, audience, status: "sent", sent_count: sentCount, failed_count: failedCount, created_at: nowIso() };
+
+  try {
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      store.comm_campaigns = Array.isArray(store.comm_campaigns) ? store.comm_campaigns : [];
+      store.comm_campaigns.unshift(row);
+      store.comm_campaigns = store.comm_campaigns.slice(0, 2000);
+      writeLocalStore(store);
+    } else {
+      await query(
+        "INSERT INTO comm_campaigns (id, template_id, channel, audience, status, sent_count, failed_count, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+        [row.id, row.template_id, row.channel, row.audience, row.status, row.sent_count, row.failed_count, row.created_at]
+      );
+    }
+    await writeAdminAuditEvent(req, admin, "comms_campaign_send", audience, { channel, sentCount, failedCount });
+    res.status(201).json({ ok: true, campaign: row });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.get("/admin/comms/campaigns", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    let items = [];
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      items = (Array.isArray(store.comm_campaigns) ? store.comm_campaigns : []).slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 160);
+    } else {
+      const r = await query("SELECT id, template_id, channel, audience, status, sent_count, failed_count, created_at FROM comm_campaigns ORDER BY created_at DESC LIMIT 160", []);
+      items = r.rows || [];
+    }
+    res.json({ items });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.get("/admin/reconciliation", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    let taxPayments = [];
+    let withdrawals = [];
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      taxPayments = Array.isArray(store.tax_payments) ? store.tax_payments : [];
+      withdrawals = Array.isArray(store.withdrawals) ? store.withdrawals : [];
+    } else {
+      const [taxR, wdR] = await Promise.all([
+        query("SELECT id, user_id, amount::float8 AS amount, asset, status, created_at FROM tax_payments ORDER BY created_at DESC LIMIT 4000", []),
+        query("SELECT id, user_id, amount::float8 AS amount, asset, status, created_at FROM withdrawal_requests ORDER BY created_at DESC LIMIT 4000", [])
+      ]);
+      taxPayments = taxR.rows || [];
+      withdrawals = wdR.rows || [];
+    }
+    const now = Date.now();
+    const dayAgo = now - 24 * 60 * 60 * 1000;
+    const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+    const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
+    const sumWindow = (rows, fromTs) =>
+      Number(
+        rows
+          .filter((x) => {
+            const t = Date.parse(String(x.created_at || ""));
+            return Number.isFinite(t) && t >= fromTs;
+          })
+          .reduce((s, x) => s + Number(x.amount || 0), 0)
+          .toFixed(8)
+      );
+    const payload = {
+      generated_at: nowIso(),
+      tax_collections: {
+        d1: sumWindow(taxPayments, dayAgo),
+        d7: sumWindow(taxPayments, weekAgo),
+        d30: sumWindow(taxPayments, monthAgo)
+      },
+      withdrawals: {
+        d1: sumWindow(withdrawals, dayAgo),
+        d7: sumWindow(withdrawals, weekAgo),
+        d30: sumWindow(withdrawals, monthAgo)
+      },
+      deltas: {
+        d1: Number((sumWindow(taxPayments, dayAgo) - sumWindow(withdrawals, dayAgo)).toFixed(8)),
+        d7: Number((sumWindow(taxPayments, weekAgo) - sumWindow(withdrawals, weekAgo)).toFixed(8)),
+        d30: Number((sumWindow(taxPayments, monthAgo) - sumWindow(withdrawals, monthAgo)).toFixed(8))
+      }
+    };
+    await writeAdminAuditEvent(req, admin, "reconciliation_view", "ops_finance", {});
+    res.json(payload);
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.get("/admin/revenue", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    let subscriptions = [];
+    let referrals = [];
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      subscriptions = Array.isArray(store.subscriptions) ? store.subscriptions : [];
+      referrals = Array.isArray(store.referrals) ? store.referrals : [];
+    } else {
+      const [sR, rR] = await Promise.all([
+        query("SELECT id, user_id, plan, status, price::float8 AS price, currency, created_at FROM subscriptions ORDER BY created_at DESC LIMIT 5000", []),
+        query("SELECT id, referrer_user_id, referred_user_id, commission_rate::float8 AS commission_rate, earned_total::float8 AS earned_total, created_at FROM referrals ORDER BY created_at DESC LIMIT 5000", [])
+      ]);
+      subscriptions = sR.rows || [];
+      referrals = rR.rows || [];
+    }
+    const activeSubs = subscriptions.filter((x) => String(x.status || "").toLowerCase() === "active");
+    const monthlyRevenue = Number(activeSubs.reduce((s, x) => s + Number(x.price || 0), 0).toFixed(8));
+    const commissions = Number(referrals.reduce((s, x) => s + Number(x.earned_total || 0), 0).toFixed(8));
+    const arpu = activeSubs.length ? Number((monthlyRevenue / activeSubs.length).toFixed(8)) : 0;
+    const ltv = Number((arpu * 8).toFixed(8));
+    const payload = {
+      generated_at: nowIso(),
+      subs_total: subscriptions.length,
+      subs_active: activeSubs.length,
+      monthly_revenue: monthlyRevenue,
+      arpu,
+      ltv_estimate: ltv,
+      referral_count: referrals.length,
+      referral_commissions_total: commissions
+    };
+    await writeAdminAuditEvent(req, admin, "revenue_view", "revenue_kpis", payload);
+    res.json(payload);
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.post("/admin/revenue/subscription", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+  const user = await resolveUserForAdmin(req.body?.userId, req.body?.email);
+  if (!user) return res.status(404).json({ error: "User not found." });
+  const plan = clampStr(req.body?.plan, 80) || "standard";
+  const status = clampStr(req.body?.status, 40) || "active";
+  const price = clampNonNegativeAmount(req.body?.price ?? 0);
+  const currency = clampStr(req.body?.currency, 16).toUpperCase() || "USD";
+  if (price == null) return res.status(400).json({ error: "Invalid price." });
+  const row = { id: crypto.randomUUID(), user_id: user.id, plan, status, price, currency, start_at: nowIso(), end_at: null, created_at: nowIso(), updated_at: nowIso() };
+
+  try {
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      store.subscriptions = Array.isArray(store.subscriptions) ? store.subscriptions : [];
+      store.subscriptions.unshift(row);
+      writeLocalStore(store);
+    } else {
+      await query(
+        `INSERT INTO subscriptions (id, user_id, plan, status, price, currency, start_at, end_at, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [row.id, row.user_id, row.plan, row.status, row.price, row.currency, row.start_at, row.end_at, row.created_at, row.updated_at]
+      );
+    }
+    await writeAdminAuditEvent(req, admin, "subscription_create", user.email || user.id, { plan, status, price, currency });
+    res.status(201).json({ ok: true, subscription: row });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.post("/admin/revenue/referral", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+  const referrer = await resolveUserForAdmin(req.body?.referrerUserId, req.body?.referrerEmail);
+  const referred = await resolveUserForAdmin(req.body?.referredUserId, req.body?.referredEmail);
+  if (!referrer || !referred) return res.status(404).json({ error: "Referrer or referred user not found." });
+  const commissionRate = clampNonNegativeAmount(req.body?.commissionRate ?? 0.1);
+  const earnedTotal = clampNonNegativeAmount(req.body?.earnedTotal ?? 0);
+  if (commissionRate == null || earnedTotal == null) return res.status(400).json({ error: "Invalid commission payload." });
+  const row = { id: crypto.randomUUID(), referrer_user_id: referrer.id, referred_user_id: referred.id, commission_rate: commissionRate, earned_total: earnedTotal, created_at: nowIso() };
+
+  try {
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      store.referrals = Array.isArray(store.referrals) ? store.referrals : [];
+      store.referrals.unshift(row);
+      writeLocalStore(store);
+    } else {
+      await query(
+        "INSERT INTO referrals (id, referrer_user_id, referred_user_id, commission_rate, earned_total, created_at) VALUES ($1,$2,$3,$4,$5,$6)",
+        [row.id, row.referrer_user_id, row.referred_user_id, row.commission_rate, row.earned_total, row.created_at]
+      );
+    }
+    await writeAdminAuditEvent(req, admin, "referral_create", referrer.email || referrer.id, { referred: referred.email || referred.id });
+    res.status(201).json({ ok: true, referral: row });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.get("/admin/reports/investor", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+  const format = String(req.query?.format || "json").trim().toLowerCase();
+
+  try {
+    let users = [];
+    let taxPayments = [];
+    let withdrawals = [];
+    let subscriptions = [];
+    let referrals = [];
+
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      users = Array.isArray(store.users) ? store.users : [];
+      taxPayments = Array.isArray(store.tax_payments) ? store.tax_payments : [];
+      withdrawals = Array.isArray(store.withdrawals) ? store.withdrawals : [];
+      subscriptions = Array.isArray(store.subscriptions) ? store.subscriptions : [];
+      referrals = Array.isArray(store.referrals) ? store.referrals : [];
+    } else {
+      const [uR, taxR, wdR, subR, refR] = await Promise.all([
+        query("SELECT id, email FROM users ORDER BY created_at DESC LIMIT 600", []),
+        query("SELECT amount::float8 AS amount, created_at FROM tax_payments ORDER BY created_at DESC LIMIT 6000", []),
+        query("SELECT amount::float8 AS amount, created_at FROM withdrawal_requests ORDER BY created_at DESC LIMIT 6000", []),
+        query("SELECT status, price::float8 AS price FROM subscriptions ORDER BY created_at DESC LIMIT 6000", []),
+        query("SELECT earned_total::float8 AS earned_total FROM referrals ORDER BY created_at DESC LIMIT 6000", [])
+      ]);
+      users = uR.rows || [];
+      taxPayments = taxR.rows || [];
+      withdrawals = wdR.rows || [];
+      subscriptions = subR.rows || [];
+      referrals = refR.rows || [];
+    }
+
+    let totalTaxRemaining = 0;
+    let usersWithTaxDue = 0;
+    for (const u of users) {
+      const state = await loadUserProgressState(u.id);
+      if (!state) continue;
+      const snap = await computeUserTaxSnapshot(u.id, state.plan.unit, state);
+      if (!snap) continue;
+      totalTaxRemaining += Number(snap.tax_remaining || 0);
+      if (Number(snap.tax_remaining || 0) > 0.00000001) usersWithTaxDue += 1;
+    }
+
+    const now = Date.now();
+    const dayAgo = now - 24 * 60 * 60 * 1000;
+    const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+    const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
+    const sumWindow = (rows, fromTs) =>
+      Number(
+        rows
+          .filter((x) => {
+            const t = Date.parse(String(x.created_at || ""));
+            return Number.isFinite(t) && t >= fromTs;
+          })
+          .reduce((s, x) => s + Number(x.amount || 0), 0)
+          .toFixed(8)
+      );
+
+    const activeSubs = subscriptions.filter((x) => String(x.status || "").toLowerCase() === "active");
+    const monthlyRevenue = Number(activeSubs.reduce((s, x) => s + Number(x.price || 0), 0).toFixed(8));
+    const arpu = activeSubs.length ? Number((monthlyRevenue / activeSubs.length).toFixed(8)) : 0;
+    const ltvEstimate = Number((arpu * 8).toFixed(8));
+    const referralCommissions = Number(referrals.reduce((s, x) => s + Number(x.earned_total || 0), 0).toFixed(8));
+
+    const report = {
+      generated_at: nowIso(),
+      overview: {
+        total_users: users.length,
+        users_with_tax_due: usersWithTaxDue,
+        total_tax_remaining: Number(totalTaxRemaining.toFixed(8))
+      },
+      revenue: {
+        subs_active: activeSubs.length,
+        monthly_revenue: monthlyRevenue,
+        arpu,
+        ltv_estimate: ltvEstimate,
+        referral_commissions_total: referralCommissions
+      },
+      reconciliation: {
+        tax_collections: {
+          d1: sumWindow(taxPayments, dayAgo),
+          d7: sumWindow(taxPayments, weekAgo),
+          d30: sumWindow(taxPayments, monthAgo)
+        },
+        withdrawals: {
+          d1: sumWindow(withdrawals, dayAgo),
+          d7: sumWindow(withdrawals, weekAgo),
+          d30: sumWindow(withdrawals, monthAgo)
+        },
+        deltas: {
+          d1: Number((sumWindow(taxPayments, dayAgo) - sumWindow(withdrawals, dayAgo)).toFixed(8)),
+          d7: Number((sumWindow(taxPayments, weekAgo) - sumWindow(withdrawals, weekAgo)).toFixed(8)),
+          d30: Number((sumWindow(taxPayments, monthAgo) - sumWindow(withdrawals, monthAgo)).toFixed(8))
+        }
+      }
+    };
+    await writeAdminAuditEvent(req, admin, "investor_report_export", format, {});
+
+    if (format === "csv") {
+      const lines = [
+        "section,key,value",
+        `overview,total_users,${report.overview?.total_users ?? 0}`,
+        `overview,users_with_tax_due,${report.overview?.users_with_tax_due ?? 0}`,
+        `overview,total_tax_remaining,${report.overview?.total_tax_remaining ?? 0}`,
+        `revenue,subs_active,${report.revenue?.subs_active ?? 0}`,
+        `revenue,monthly_revenue,${report.revenue?.monthly_revenue ?? 0}`,
+        `revenue,ltv_estimate,${report.revenue?.ltv_estimate ?? 0}`,
+        `revenue,referral_commissions_total,${report.revenue?.referral_commissions_total ?? 0}`,
+        `reconciliation,d1_delta,${report.reconciliation?.deltas?.d1 ?? 0}`,
+        `reconciliation,d7_delta,${report.reconciliation?.deltas?.d7 ?? 0}`,
+        `reconciliation,d30_delta,${report.reconciliation?.deltas?.d30 ?? 0}`
+      ];
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename=\"investor-report-${new Date().toISOString().slice(0, 10)}.csv\"`);
+      return res.send(lines.join("\n"));
+    }
+
+    res.json(report);
   } catch (e) {
     res.status(500).json({ error: e?.message || "Failed" });
   }

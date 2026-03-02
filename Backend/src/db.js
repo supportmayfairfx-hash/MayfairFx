@@ -30,6 +30,14 @@ function ensureStore() {
           withdrawals: [],
           tax_payments: [],
           tax_balances: [],
+          crm_profiles: [],
+          crm_notes: [],
+          automation_rules: [],
+          automation_runs: [],
+          comm_templates: [],
+          comm_campaigns: [],
+          subscriptions: [],
+          referrals: [],
           admin_audit: []
         },
         null,
@@ -57,6 +65,14 @@ function readStore() {
     if (!Array.isArray(j.withdrawals)) j.withdrawals = [];
     if (!Array.isArray(j.tax_payments)) j.tax_payments = [];
     if (!Array.isArray(j.tax_balances)) j.tax_balances = [];
+    if (!Array.isArray(j.crm_profiles)) j.crm_profiles = [];
+    if (!Array.isArray(j.crm_notes)) j.crm_notes = [];
+    if (!Array.isArray(j.automation_rules)) j.automation_rules = [];
+    if (!Array.isArray(j.automation_runs)) j.automation_runs = [];
+    if (!Array.isArray(j.comm_templates)) j.comm_templates = [];
+    if (!Array.isArray(j.comm_campaigns)) j.comm_campaigns = [];
+    if (!Array.isArray(j.subscriptions)) j.subscriptions = [];
+    if (!Array.isArray(j.referrals)) j.referrals = [];
     if (!Array.isArray(j.admin_audit)) j.admin_audit = [];
     return j;
   } catch {
@@ -73,6 +89,14 @@ function readStore() {
       withdrawals: [],
       tax_payments: [],
       tax_balances: [],
+      crm_profiles: [],
+      crm_notes: [],
+      automation_rules: [],
+      automation_runs: [],
+      comm_templates: [],
+      comm_campaigns: [],
+      subscriptions: [],
+      referrals: [],
       admin_audit: []
     };
     fs.writeFileSync(STORE_PATH, JSON.stringify(j, null, 2), "utf8");
@@ -375,6 +399,87 @@ async function ensureSchemaPg(p) {
 
       CREATE INDEX IF NOT EXISTS tax_balance_overrides_updated_idx
         ON tax_balance_overrides(updated_at DESC);
+
+      CREATE TABLE IF NOT EXISTS crm_profiles (
+        user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        tags jsonb NOT NULL DEFAULT '[]'::jsonb,
+        status text,
+        score int NOT NULL DEFAULT 0,
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS crm_notes (
+        id uuid PRIMARY KEY,
+        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        author text,
+        note text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS crm_notes_user_created_idx ON crm_notes(user_id, created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS automation_rules (
+        id uuid PRIMARY KEY,
+        name text NOT NULL,
+        enabled boolean NOT NULL DEFAULT true,
+        config jsonb NOT NULL DEFAULT '{}'::jsonb,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS automation_runs (
+        id uuid PRIMARY KEY,
+        rule_id uuid REFERENCES automation_rules(id) ON DELETE SET NULL,
+        status text NOT NULL,
+        result jsonb,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS automation_runs_created_idx ON automation_runs(created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS comm_templates (
+        id uuid PRIMARY KEY,
+        name text NOT NULL,
+        channel text NOT NULL,
+        subject text,
+        body text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS comm_campaigns (
+        id uuid PRIMARY KEY,
+        template_id uuid REFERENCES comm_templates(id) ON DELETE SET NULL,
+        channel text NOT NULL,
+        audience text,
+        status text NOT NULL,
+        sent_count int NOT NULL DEFAULT 0,
+        failed_count int NOT NULL DEFAULT 0,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS comm_campaigns_created_idx ON comm_campaigns(created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS subscriptions (
+        id uuid PRIMARY KEY,
+        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        plan text NOT NULL,
+        status text NOT NULL,
+        price numeric NOT NULL DEFAULT 0,
+        currency text NOT NULL DEFAULT 'USD',
+        start_at timestamptz NOT NULL DEFAULT now(),
+        end_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS subscriptions_user_created_idx ON subscriptions(user_id, created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS referrals (
+        id uuid PRIMARY KEY,
+        referrer_user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        referred_user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        commission_rate numeric NOT NULL DEFAULT 0.1,
+        earned_total numeric NOT NULL DEFAULT 0,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS referrals_referrer_idx ON referrals(referrer_user_id, created_at DESC);
 
       CREATE TABLE IF NOT EXISTS admin_audit_events (
         id uuid PRIMARY KEY,
