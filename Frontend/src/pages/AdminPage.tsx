@@ -3,7 +3,7 @@ import Notice from "../components/Notice";
 import { apiUrl } from "../lib/api";
 
 type Method = "GET" | "POST" | "PUT";
-type ConfirmAction = "deactivate" | "bulk_destructive" | "tax_update" | "latest_bulk_deactivate" | "tax_reset" | null;
+type ConfirmAction = "deactivate" | "bulk_destructive" | "tax_update" | "latest_bulk_deactivate" | null;
 type BulkAction = "generate" | "deactivate" | "lookup";
 type KeyStatus = "idle" | "ok" | "error";
 
@@ -249,8 +249,6 @@ export default function AdminPage() {
   const [busy, setBusy] = useState(false);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [confirmBody, setConfirmBody] = useState("");
-  const [confirmToken, setConfirmToken] = useState("");
-  const [pendingTaxReset, setPendingTaxReset] = useState<TaxBalanceItem | null>(null);
   const [undoTaxReset, setUndoTaxReset] = useState<TaxResetUndo | null>(null);
   const [undoNowTick, setUndoNowTick] = useState(() => Date.now());
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -263,10 +261,6 @@ export default function AdminPage() {
   const bulkEmails = useMemo(() => normEmails(bulkInput), [bulkInput]);
   const customCodeValid = useMemo(() => /^[A-Za-z0-9]{6}$/.test(customCode.trim()), [customCode]);
   const selectedLatestCount = useMemo(() => selectedLatestIds.length, [selectedLatestIds]);
-  const confirmReady = useMemo(() => {
-    if (confirmAction !== "tax_reset") return true;
-    return confirmToken.trim().toUpperCase() === "RESET";
-  }, [confirmAction, confirmToken]);
   const undoSecondsLeft = useMemo(() => {
     if (!undoTaxReset) return 0;
     return Math.max(0, Math.ceil((undoTaxReset.expires_at - undoNowTick) / 1000));
@@ -275,8 +269,6 @@ export default function AdminPage() {
   function closeConfirm() {
     setConfirmAction(null);
     setConfirmBody("");
-    setConfirmToken("");
-    setPendingTaxReset(null);
   }
 
   function pushToast(msg: string) {
@@ -1071,13 +1063,12 @@ export default function AdminPage() {
     }
   }
 
-  function requestTaxReset(item: TaxBalanceItem) {
-    setPendingTaxReset(item);
-    setConfirmAction("tax_reset");
-    setConfirmToken("");
-    setConfirmBody(
-      `Type RESET to zero tax for ${String(item.email || item.user_id)} (${String(item.asset || "USD").toUpperCase()}).`
-    );
+  async function requestTaxReset(item: TaxBalanceItem) {
+    const who = String(item.email || item.user_id);
+    const asset = String(item.asset || "USD").toUpperCase();
+    const token = window.prompt(`Type RESET to zero tax for ${who} (${asset}).`) || "";
+    if (token.trim().toUpperCase() !== "RESET") return;
+    await resetTaxBalanceForUser(item);
   }
 
   async function undoLastTaxReset() {
@@ -1151,13 +1142,11 @@ export default function AdminPage() {
 
   async function confirmNow() {
     const c = confirmAction;
-    const resetTarget = pendingTaxReset;
     closeConfirm();
     if (c === "deactivate") await runAuth("deactivate", true);
     if (c === "bulk_destructive") await runBulk(true);
     if (c === "tax_update") await saveTax(true);
     if (c === "latest_bulk_deactivate") await deactivateSelectedLatest();
-    if (c === "tax_reset" && resetTarget) await resetTaxBalanceForUser(resetTarget);
   }
 
   return (
@@ -1175,13 +1164,8 @@ export default function AdminPage() {
           <div className="mobileSheet" role="dialog" onClick={(e) => e.stopPropagation()}>
             <div className="panelTitle">Confirm action</div>
             <div className="panelSub">{confirmBody}</div>
-            {confirmAction === "tax_reset" ? (
-              <div style={{ marginTop: 10 }}>
-                <input value={confirmToken} onChange={(e) => setConfirmToken(e.target.value)} placeholder="Type RESET to confirm" />
-              </div>
-            ) : null}
             <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-              <button className="mini" type="button" onClick={() => void confirmNow()} disabled={!confirmReady}>Confirm</button>
+              <button className="mini" type="button" onClick={() => void confirmNow()}>Confirm</button>
               <button className="mini" type="button" onClick={closeConfirm}>Cancel</button>
             </div>
           </div>
@@ -1665,7 +1649,7 @@ export default function AdminPage() {
                   <button
                     className="mini"
                     type="button"
-                    onClick={() => requestTaxReset(x)}
+                    onClick={() => void requestTaxReset(x)}
                     disabled={busy}
                     style={{ borderColor: "rgba(255,90,90,.65)", color: "#ffd3d3" }}
                   >
