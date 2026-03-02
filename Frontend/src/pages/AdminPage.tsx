@@ -100,8 +100,8 @@ export default function AdminPage() {
   const [confirmBody, setConfirmBody] = useState("");
 
   const emailNorm = useMemo(() => email.trim().toLowerCase(), [email]);
-  const authReady = useMemo(() => (!!adminSession?.ok || !!adminKey.trim()) && !!emailNorm, [adminSession?.ok, adminKey, emailNorm]);
-  const canAdmin = useMemo(() => !!adminSession?.ok || !!adminKey.trim(), [adminSession?.ok, adminKey]);
+  const canAdmin = useMemo(() => !!adminSession?.ok, [adminSession?.ok]);
+  const authReady = useMemo(() => canAdmin && !!emailNorm, [canAdmin, emailNorm]);
   const bulkEmails = useMemo(() => normEmails(bulkInput), [bulkInput]);
   const customCodeValid = useMemo(() => /^[A-Za-z0-9]{6}$/.test(customCode.trim()), [customCode]);
 
@@ -128,6 +128,19 @@ export default function AdminPage() {
       await refreshSession();
     } catch (e: any) {
       setError(typeof e?.message === "string" ? e.message : "Sign-in failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function logoutAdmin() {
+    setBusy(true);
+    setError(null);
+    try {
+      await siteJson("POST", "/api/auth/logout", {});
+      setAdminSession(null);
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Logout failed");
     } finally {
       setBusy(false);
     }
@@ -301,23 +314,44 @@ export default function AdminPage() {
         </div>
       ) : null}
 
+      {!canAdmin ? (
+        <section className="marketGrid">
+          <div className="marketCard spanFull">
+            <div className="marketCardHead">
+              <div>
+                <div className="panelTitle">Role Admin Login</div>
+                <div className="panelSub">Login first. Admin tools unlock only after successful admin session.</div>
+              </div>
+              <div className="muted mono">not authenticated</div>
+            </div>
+            <div className="authBody">
+              <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
+                <input value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="admin email" />
+                <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="password" />
+                <input value={loginAuthCode} onChange={(e) => setLoginAuthCode(e.target.value)} placeholder="AUTH code (default admin can leave blank)" />
+              </div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button className="mini" type="button" onClick={() => void signInRoleAdmin()} disabled={busy}>Sign in</button>
+                <button className="mini" type="button" onClick={() => void refreshSession()} disabled={busy}>Check admin session</button>
+              </div>
+              {error ? <div className="authError">{error}</div> : null}
+            </div>
+          </div>
+        </section>
+      ) : (
+
       <section className="marketGrid">
         <div className="marketCard spanFull">
           <div className="marketCardHead">
             <div>
               <div className="panelTitle">Role Admin Login</div>
-              <div className="panelSub">Use portfolio credentials. Admin role is controlled by backend allowlist.</div>
+              <div className="panelSub">Authenticated admin session.</div>
             </div>
             <div className="muted mono">{adminSession?.ok ? `${adminSession.actor} (${adminSession.mode})` : "not authenticated"}</div>
           </div>
           <div className="authBody">
-            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
-              <input value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="admin email" />
-              <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="password" />
-              <input value={loginAuthCode} onChange={(e) => setLoginAuthCode(e.target.value)} placeholder="AUTH code" />
-            </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button className="mini" type="button" onClick={() => void signInRoleAdmin()} disabled={busy}>Sign in</button>
+              <button className="mini" type="button" onClick={() => void logoutAdmin()} disabled={busy}>Logout</button>
               <button className="mini" type="button" onClick={() => void refreshSession()} disabled={busy}>Check admin session</button>
             </div>
           </div>
@@ -413,6 +447,7 @@ export default function AdminPage() {
           </div>
         </div>
       </section>
+      )}
     </>
   );
 }
