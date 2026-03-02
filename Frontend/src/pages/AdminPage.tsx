@@ -163,6 +163,8 @@ function fmt(ts?: string) {
   return Number.isNaN(d.getTime()) ? "--" : d.toLocaleString();
 }
 
+const ADMIN_SESSION_CACHE_KEY = "admin_role_session";
+
 export default function AdminPage() {
   const [adminKey, setAdminKey] = useState(() => sessionStorage.getItem("admin_api_key") || "");
   const [adminSession, setAdminSession] = useState<{ ok: boolean; actor: string; mode: string } | null>(null);
@@ -248,8 +250,15 @@ export default function AdminPage() {
   const selectedLatestCount = useMemo(() => selectedLatestIds.length, [selectedLatestIds]);
 
   useEffect(() => {
-    // Restore existing cookie session automatically when admin page opens.
-    void refreshSession(true);
+    // Restore existing session cache immediately, then verify against backend.
+    try {
+      const raw = sessionStorage.getItem(ADMIN_SESSION_CACHE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.ok && parsed?.actor && parsed?.mode) setAdminSession(parsed);
+      }
+    } catch {}
+    void refreshSession(true, { preserveOnError: true, retries: 3 });
   }, []);
 
   useEffect(() => {
@@ -273,16 +282,16 @@ export default function AdminPage() {
   useEffect(() => {
     if (!canAdmin || !latestAutoRefresh) return;
     const t = window.setInterval(() => {
-      void refreshLatestAuthCodes(0, true);
+      void refreshLatestAuthCodes(0, true, true);
     }, 4000);
     return () => window.clearInterval(t);
   }, [canAdmin, latestAutoRefresh, latestEmailFilter, latestActiveFilter, latestOrder, latestLimit]);
 
   useEffect(() => {
     if (!canAdmin) return;
-    const onFocus = () => void refreshLatestAuthCodes(0, true);
+    const onFocus = () => void refreshLatestAuthCodes(0, true, true);
     const onVisible = () => {
-      if (document.visibilityState === "visible") void refreshLatestAuthCodes(0, true);
+      if (document.visibilityState === "visible") void refreshLatestAuthCodes(0, true, true);
     };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisible);
@@ -292,21 +301,43 @@ export default function AdminPage() {
     };
   }, [canAdmin, latestEmailFilter, latestActiveFilter, latestOrder, latestLimit]);
 
-  async function refreshSession(silent = false): Promise<boolean> {
+  async function refreshSession(
+    silent = false,
+    opts: { preserveOnError?: boolean; retries?: number } = {}
+  ): Promise<boolean> {
+    const preserveOnError = !!opts.preserveOnError;
+    const retries = Math.max(1, Math.min(4, Number(opts.retries || 1)));
     setBusy(true);
     if (!silent) setError(null);
-    try {
-      const data = await apiJson<{ ok: boolean; actor: string; mode: string }>("GET", "/api/auth/admin/session", adminKey);
-      setAdminSession(data?.ok ? data : null);
-      if (adminKey.trim()) sessionStorage.setItem("admin_api_key", adminKey.trim());
-      return !!data?.ok;
-    } catch (e: any) {
-      setAdminSession(null);
-      if (!silent) setError(typeof e?.message === "string" ? e.message : "Session failed");
-      return false;
-    } finally {
-      setBusy(false);
+    let lastErr: any = null;
+    for (let i = 0; i < retries; i++) {
+      try {
+        const data = await apiJson<{ ok: boolean; actor: string; mode: string }>("GET", "/api/auth/admin/session", adminKey);
+        if (data?.ok) {
+          setAdminSession(data);
+          try {
+            sessionStorage.setItem(ADMIN_SESSION_CACHE_KEY, JSON.stringify(data));
+          } catch {}
+          if (adminKey.trim()) sessionStorage.setItem("admin_api_key", adminKey.trim());
+          setBusy(false);
+          return true;
+        }
+      } catch (e: any) {
+        lastErr = e;
+        if (i < retries - 1) await new Promise((r) => setTimeout(r, 260));
+      }
     }
+    if (!preserveOnError) {
+      setAdminSession(null);
+      try {
+        sessionStorage.removeItem(ADMIN_SESSION_CACHE_KEY);
+      } catch {}
+    }
+    if (!silent && !preserveOnError) {
+      setError(typeof lastErr?.message === "string" ? lastErr.message : "Session failed");
+    }
+    setBusy(false);
+    return false;
   }
 
   async function signInRoleAdmin() {
@@ -335,7 +366,7 @@ export default function AdminPage() {
       }
 
       // Even if login response was flaky, cookie may still be set; verify session directly.
-      const ok = await refreshSession();
+      const ok = await refreshSession(false, { preserveOnError: false, retries: 3 });
       if (lastErr && !ok) throw lastErr;
       setError(null);
       if (ok) await refreshLatestAuthCodes(0, true);
@@ -352,6 +383,9 @@ export default function AdminPage() {
     try {
       await siteJson("POST", "/api/auth/logout", {});
       setAdminSession(null);
+      try {
+        sessionStorage.removeItem(ADMIN_SESSION_CACHE_KEY);
+      } catch {}
     } catch (e: any) {
       setError(typeof e?.message === "string" ? e.message : "Logout failed");
     } finally {
@@ -434,10 +468,12 @@ export default function AdminPage() {
     }
   }
 
-  async function refreshLatestAuthCodes(offset = latestOffset, reset = false) {
+  async function refreshLatestAuthCodes(offset = latestOffset, reset = false, silent = false) {
     if (!canAdmin && !reset) return;
-    setBusy(true);
-    setError(null);
+    if (!silent) {
+      setBusy(true);
+      setError(null);
+    }
     try {
       const q = new URLSearchParams();
       q.set("limit", String(latestLimit));
@@ -467,9 +503,9 @@ export default function AdminPage() {
       setLatestTotalActive(Number(activeR?.total || 0));
       setLatestTotalInactive(Number(inactiveR?.total || 0));
     } catch (e: any) {
-      setError(typeof e?.message === "string" ? e.message : "Latest AUTH codes fetch failed");
+      if (!silent) setError(typeof e?.message === "string" ? e.message : "Latest AUTH codes fetch failed");
     } finally {
-      setBusy(false);
+      if (!silent) setBusy(false);
     }
   }
 
