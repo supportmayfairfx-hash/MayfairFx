@@ -954,6 +954,27 @@ export default function AdminPage() {
     }
   }
 
+  async function resetTaxBalanceForUser(item: TaxBalanceItem) {
+    if (!canAdmin) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await apiJson("POST", "/api/admin/tax-balances", adminKey, {
+        userId: item.user_id,
+        remaining: 0,
+        note: "reset_to_zero_from_list"
+      });
+      if (String(item.email || "").trim()) {
+        setTaxBalanceEmail(String(item.email || ""));
+      }
+      await Promise.all([refreshTaxBalances(), refreshOverview(true), refreshFinance()]);
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Tax reset failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function pickTaxBalanceRow(item: TaxBalanceItem) {
     setTaxBalanceEmail(String(item.email || ""));
     setTaxBalanceAsset(String(item.asset || "USD"));
@@ -1461,17 +1482,15 @@ export default function AdminPage() {
               </button>
             </div>
             {taxBalances.map((x) => (
-              <button
-                key={`${x.user_id}:${x.asset}`}
-                type="button"
-                className="pairsNote"
-                style={{ textAlign: "left", cursor: "pointer" }}
-                onClick={() => pickTaxBalanceRow(x)}
-              >
-                <span className="mono">{x.email || x.user_id}</span> | <span className="mono">{x.asset}</span> |{" "}
-                <span className="mono">remaining {x.tax_remaining.toFixed(2)}</span> | <span className="mono">paid {x.tax_paid.toFixed(2)}</span> |{" "}
-                <span className="mono">{x.override_active ? `override ${Number(x.override_remaining || 0).toFixed(2)}` : "formula mode"}</span>
-              </button>
+              <div key={`${x.user_id}:${x.asset}`} className="pairsNote" style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr auto auto", alignItems: "center" }}>
+                <div>
+                  <span className="mono">{x.email || x.user_id}</span> | <span className="mono">{x.asset}</span> |{" "}
+                  <span className="mono">remaining {x.tax_remaining.toFixed(2)}</span> | <span className="mono">paid {x.tax_paid.toFixed(2)}</span> |{" "}
+                  <span className="mono">{x.override_active ? `override ${Number(x.override_remaining || 0).toFixed(2)}` : "formula mode"}</span>
+                </div>
+                <button className="mini" type="button" onClick={() => pickTaxBalanceRow(x)} disabled={busy}>Use in form</button>
+                <button className="mini" type="button" onClick={() => void resetTaxBalanceForUser(x)} disabled={busy}>Reset to 0</button>
+              </div>
             ))}
           </div>
         </div>
