@@ -182,7 +182,7 @@ export default function AdminPage() {
   const [latestTotalActive, setLatestTotalActive] = useState(0);
   const [latestTotalInactive, setLatestTotalInactive] = useState(0);
   const [latestShowCodes, setLatestShowCodes] = useState(false);
-  const [latestAutoRefresh, setLatestAutoRefresh] = useState(false);
+  const [latestAutoRefresh, setLatestAutoRefresh] = useState(true);
   const [selectedLatestIds, setSelectedLatestIds] = useState<string[]>([]);
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [audit, setAudit] = useState<AuditItem[]>([]);
@@ -360,12 +360,15 @@ export default function AdminPage() {
         const r = await apiJson<{ authCode?: string }>("POST", "/api/auth/admin/generate-auth-code", adminKey, { email: emailNorm });
         if (r?.authCode) setCustomCode(r.authCode);
         await runAuth("lookup", true);
+        await refreshLatestAuthCodes(0, true);
       } else if (action === "set") {
         await apiJson("POST", "/api/auth/admin/auth-codes", adminKey, { email: emailNorm, authCode: customCode.trim() });
         await runAuth("lookup", true);
+        await refreshLatestAuthCodes(0, true);
       } else if (action === "deactivate") {
         await apiJson("POST", "/api/auth/admin/deactivate-auth-code", adminKey, { email: emailNorm });
         setActiveCode(null);
+        await refreshLatestAuthCodes(0, true);
       } else if (action === "history") {
         const r = await apiJson<{ items: AuthCodeHistoryItem[] }>("GET", `/api/auth/admin/auth-code-history?email=${encodeURIComponent(emailNorm)}&limit=100`, adminKey);
         setHistory(Array.isArray(r.items) ? r.items : []);
@@ -409,6 +412,7 @@ export default function AdminPage() {
         }
       }
       setBulkResults(out);
+      await refreshLatestAuthCodes(0, true);
     } finally {
       setBusy(false);
     }
