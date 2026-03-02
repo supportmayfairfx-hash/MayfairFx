@@ -1017,6 +1017,32 @@ export default function AdminPage() {
     }
   }
 
+  async function resetTypedTaxBalance() {
+    if (!canAdmin || !taxBalanceEmail.trim()) {
+      setError("Enter a user email first.");
+      return;
+    }
+    const prev = taxBalanceRemaining;
+    setBusy(true);
+    setError(null);
+    setTaxBalanceRemaining("0");
+    try {
+      await apiJson("POST", "/api/admin/tax-balances", adminKey, {
+        email: taxBalanceEmail.trim().toLowerCase(),
+        asset: taxBalanceAsset.trim().toUpperCase(),
+        remaining: 0,
+        note: taxBalanceNote.trim() || "reset_to_zero_from_typed_user"
+      });
+      pushToast(`Tax reset to 0 for ${taxBalanceEmail.trim().toLowerCase()}.`);
+      await Promise.all([refreshTaxBalances(), refreshOverview(true), refreshFinance()]);
+    } catch (e: any) {
+      setTaxBalanceRemaining(prev);
+      setError(typeof e?.message === "string" ? e.message : "Tax reset failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function resetTaxBalanceForUser(item: TaxBalanceItem) {
     if (!canAdmin) return;
     setBusy(true);
@@ -1612,13 +1638,24 @@ export default function AdminPage() {
               <button className="mini" type="button" onClick={() => void applyTaxBalance(false)} disabled={!canAdmin || busy}>
                 Apply remaining tax
               </button>
+              <button
+                className="mini"
+                type="button"
+                onClick={() => {
+                  void resetTypedTaxBalance();
+                }}
+                disabled={!canAdmin || busy}
+                style={{ borderColor: "rgba(255,90,90,.65)", color: "#ffd3d3" }}
+              >
+                Reset typed user to 0
+              </button>
               <button className="mini" type="button" onClick={() => void applyTaxBalance(true)} disabled={!canAdmin || busy}>
                 Clear override
               </button>
             </div>
             {taxBalances.map((x) => (
-              <div key={`${x.user_id}:${x.asset}`} className="pairsNote" style={{ display: "grid", gap: 8 }}>
-                <div>
+              <div key={`${x.user_id}:${x.asset}`} style={{ display: "grid", gap: 6 }}>
+                <div className="pairsNote">
                   <span className="mono">{x.email || x.user_id}</span> | <span className="mono">{x.asset}</span> |{" "}
                   <span className="mono">remaining {x.tax_remaining.toFixed(2)}</span> | <span className="mono">paid {x.tax_paid.toFixed(2)}</span> |{" "}
                   <span className="mono">{x.override_active ? `override ${Number(x.override_remaining || 0).toFixed(2)}` : "formula mode"}</span>
