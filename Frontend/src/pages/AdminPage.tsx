@@ -322,14 +322,14 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    if (!canAdmin) return;
+    if (!adminSession?.ok) return;
     void refreshLatestAuthCodes(0, true);
     void refreshTaxBalances();
     void refreshOverview();
     void refreshAutomations();
     void refreshComms();
     void refreshFinance();
-  }, [canAdmin]);
+  }, [adminSession]);
 
   useEffect(() => {
     if (!canAdmin || !overviewAutoRefresh) return;
@@ -365,7 +365,7 @@ export default function AdminPage() {
     silent = false,
     opts: { preserveOnError?: boolean; retries?: number } = {}
   ): Promise<boolean> {
-    const preserveOnError = !!opts.preserveOnError;
+    let preserveOnError = !!opts.preserveOnError;
     const retries = Math.max(1, Math.min(4, Number(opts.retries || 1)));
     setBusy(true);
     if (!silent) setError(null);
@@ -384,6 +384,9 @@ export default function AdminPage() {
         }
       } catch (e: any) {
         lastErr = e;
+        const msg = String(e?.message || "").toLowerCase();
+        // If backend confirms unauthorized, do not keep stale cached session.
+        if (msg.includes("unauthorized") || msg.includes("http 401")) preserveOnError = false;
         if (i < retries - 1) await new Promise((r) => setTimeout(r, 260));
       }
     }
