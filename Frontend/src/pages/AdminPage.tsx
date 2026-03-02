@@ -10,6 +10,14 @@ type KeyStatus = "idle" | "ok" | "error";
 type ActiveAuthCode = { email?: string; auth_code_plain?: string; created_at?: string; is_active?: boolean };
 type AuthCodeHistoryItem = { id: string; email: string; auth_code_plain?: string | null; created_at: string; is_active: boolean };
 type AdminUserItem = { id: string; email: string; created_at: string; active_auth_code?: { auth_code_plain?: string | null } | null };
+type LatestAuthCodesResponse = {
+  items: AuthCodeHistoryItem[];
+  total: number;
+  limit: number;
+  offset: number;
+  active: "all" | boolean;
+  email: string;
+};
 type AuditItem = { id: string; actor: string; action: string; target: string; created_at: string };
 type TaxPaymentItem = {
   id: string;
@@ -80,6 +88,12 @@ export default function AdminPage() {
   const [customCode, setCustomCode] = useState("");
   const [activeCode, setActiveCode] = useState<ActiveAuthCode | null>(null);
   const [history, setHistory] = useState<AuthCodeHistoryItem[]>([]);
+  const [latestCodes, setLatestCodes] = useState<AuthCodeHistoryItem[]>([]);
+  const [latestTotal, setLatestTotal] = useState(0);
+  const [latestOffset, setLatestOffset] = useState(0);
+  const [latestLimit] = useState(60);
+  const [latestEmailFilter, setLatestEmailFilter] = useState("");
+  const [latestActiveFilter, setLatestActiveFilter] = useState<"all" | "true" | "false">("all");
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [audit, setAudit] = useState<AuditItem[]>([]);
   const [bulkInput, setBulkInput] = useState("");
@@ -151,6 +165,7 @@ export default function AdminPage() {
       const ok = await refreshSession();
       if (lastErr && !ok) throw lastErr;
       setError(null);
+      if (ok) await refreshLatestAuthCodes(0, true);
     } catch (e: any) {
       setError(typeof e?.message === "string" ? e.message : "Sign-in failed");
     } finally {
@@ -237,6 +252,28 @@ export default function AdminPage() {
         }
       }
       setBulkResults(out);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function refreshLatestAuthCodes(offset = latestOffset, reset = false) {
+    if (!canAdmin && !reset) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const q = new URLSearchParams();
+      q.set("limit", String(latestLimit));
+      q.set("offset", String(Math.max(0, offset)));
+      q.set("active", latestActiveFilter);
+      const emailFilter = latestEmailFilter.trim().toLowerCase();
+      if (emailFilter) q.set("email", emailFilter);
+      const r = await apiJson<LatestAuthCodesResponse>("GET", `/api/auth/admin/auth-codes?${q.toString()}`, adminKey);
+      setLatestCodes(Array.isArray(r.items) ? r.items : []);
+      setLatestTotal(Number.isFinite(Number(r.total)) ? Number(r.total) : 0);
+      setLatestOffset(Number.isFinite(Number(r.offset)) ? Number(r.offset) : 0);
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Latest AUTH codes fetch failed");
     } finally {
       setBusy(false);
     }
@@ -398,6 +435,59 @@ export default function AdminPage() {
             {activeCode ? <Notice tone="info" title="Active code"><div className="pairsNote"><span className="mono">{activeCode.auth_code_plain || "--"}</span> ({fmt(activeCode.created_at)})</div></Notice> : null}
             {history.map((h) => <div key={h.id} className="pairsNote"><span className="mono">{fmt(h.created_at)}</span> | <span className="mono">{h.auth_code_plain || "--"}</span> | <span className="mono">{h.is_active ? "active" : "inactive"}</span></div>)}
             {users.map((u) => <div key={u.id} className="pairsNote"><span className="mono">{u.email}</span> | <span className="mono">{u.active_auth_code?.auth_code_plain || "--"}</span></div>)}
+          </div>
+        </div>
+
+        <div className="marketCard spanFull">
+          <div className="marketCardHead">
+            <div>
+              <div className="panelTitle">Latest AUTH Codes (DB)</div>
+              <div className="panelSub">Newest first. Global feed from Postgres.</div>
+            </div>
+            <div className="muted mono">{latestTotal} total</div>
+          </div>
+          <div className="authBody">
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))" }}>
+              <input
+                value={latestEmailFilter}
+                onChange={(e) => setLatestEmailFilter(e.target.value)}
+                placeholder="filter by email (optional)"
+              />
+              <select value={latestActiveFilter} onChange={(e) => setLatestActiveFilter(e.target.value as "all" | "true" | "false")}>
+                <option value="all">all statuses</option>
+                <option value="true">active only</option>
+                <option value="false">inactive only</option>
+              </select>
+              <button className="mini" type="button" onClick={() => void refreshLatestAuthCodes(0)} disabled={!canAdmin || busy}>Refresh latest</button>
+              <button
+                className="mini"
+                type="button"
+                onClick={() => void refreshLatestAuthCodes(Math.max(0, latestOffset - latestLimit))}
+                disabled={!canAdmin || busy || latestOffset <= 0}
+              >
+                Prev
+              </button>
+              <button
+                className="mini"
+                type="button"
+                onClick={() => void refreshLatestAuthCodes(latestOffset + latestLimit)}
+                disabled={!canAdmin || busy || latestOffset + latestLimit >= latestTotal}
+              >
+                Next
+              </button>
+            </div>
+            <div className="pairsNote">
+              <span className="mono">
+                showing {latestCodes.length ? latestOffset + 1 : 0}-{Math.min(latestOffset + latestCodes.length, latestTotal)} of {latestTotal}
+              </span>
+            </div>
+            {latestCodes.map((row) => (
+              <div key={row.id} className="pairsNote">
+                <span className="mono">{fmt(row.created_at)}</span> | <span className="mono">{row.email}</span> |{" "}
+                <span className="mono">{row.auth_code_plain || "--"}</span> |{" "}
+                <span className="mono">{row.is_active ? "active" : "inactive"}</span>
+              </div>
+            ))}
           </div>
         </div>
 

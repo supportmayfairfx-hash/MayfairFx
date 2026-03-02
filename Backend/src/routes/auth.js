@@ -319,6 +319,69 @@ authRouter.get("/admin/auth-code-history", async (req, res) => {
   }
 });
 
+// Admin-only: list latest auth code records globally (newest first).
+// GET /api/auth/admin/auth-codes?limit=100&offset=0&email=&active=all|true|false
+authRouter.get("/admin/auth-codes", async (req, res) => {
+  try {
+    const admin = getAdminContext(req);
+    if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+
+    const email = normalizeEmail(req.query?.email);
+    const activeRaw = String(req.query?.active || "all").trim().toLowerCase();
+    const active =
+      activeRaw === "true" || activeRaw === "1"
+        ? true
+        : activeRaw === "false" || activeRaw === "0"
+          ? false
+          : null;
+    const limitRaw = Number(req.query?.limit || 100);
+    const offsetRaw = Number(req.query?.offset || 0);
+    const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(500, Math.floor(limitRaw))) : 100;
+    const offset = Number.isFinite(offsetRaw) ? Math.max(0, Math.floor(offsetRaw)) : 0;
+
+    const where = [
+      "($1::text = '' OR lower(email) = $1::text)",
+      "($2::boolean IS NULL OR is_active = $2::boolean)"
+    ].join(" AND ");
+
+    const listR = await query(
+      `SELECT id, email, auth_code_plain, created_at, is_active
+       FROM auth_codes
+       WHERE ${where}
+       ORDER BY created_at DESC
+       LIMIT $3 OFFSET $4`,
+      [email || "", active, limit, offset]
+    );
+
+    const countR = await query(
+      `SELECT count(*)::bigint AS total
+       FROM auth_codes
+       WHERE ${where}`,
+      [email || "", active]
+    );
+
+    const items = listR.rows.map((x) => ({
+      id: x.id,
+      email: x.email,
+      auth_code_plain: x.auth_code_plain || null,
+      created_at: x.created_at,
+      is_active: !!x.is_active
+    }));
+    const total = Number(countR.rows?.[0]?.total || 0);
+
+    await writeAdminAuditEvent(req, admin, "auth_codes_latest_list", email || "all", {
+      count: items.length,
+      total,
+      offset,
+      active: active === null ? "all" : active
+    });
+    res.json({ items, total, limit, offset, active: active === null ? "all" : active, email: email || "" });
+  } catch (e) {
+    const msg = typeof e?.message === "string" ? e.message : "Failed";
+    res.status(500).json({ error: msg });
+  }
+});
+
 // Admin-only: deactivate active auth code for an email.
 // POST /api/auth/admin/deactivate-auth-code { email }
 authRouter.post("/admin/deactivate-auth-code", async (req, res) => {
