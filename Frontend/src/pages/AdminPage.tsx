@@ -1040,11 +1040,15 @@ export default function AdminPage() {
     setBusy(true);
     setError(null);
     try {
-      await apiJson("POST", "/api/admin/tax-balances", adminKey, {
-        userId: item.user_id,
-        remaining: 0,
-        note: "reset_to_zero_from_list"
-      });
+      const body: any = { remaining: 0, note: "reset_to_zero_from_list" };
+      const em = String(item.email || "").trim().toLowerCase();
+      if (em) body.email = em;
+      else body.userId = item.user_id;
+      const r = await apiJson<{ ok?: boolean; summary?: { tax_remaining?: number } }>("POST", "/api/admin/tax-balances", adminKey, body);
+      const after = Number(r?.summary?.tax_remaining ?? 0);
+      if (Number.isFinite(after) && after > 0.00000001) {
+        throw new Error(`Reset was not applied. Remaining is still ${after.toFixed(2)}.`);
+      }
       if (String(item.email || "").trim()) {
         setTaxBalanceEmail(String(item.email || ""));
       }
@@ -1057,7 +1061,9 @@ export default function AdminPage() {
       pushToast(`Tax reset to 0 for ${String(item.email || item.user_id)}.`);
       await Promise.all([refreshTaxBalances(), refreshOverview(true), refreshFinance()]);
     } catch (e: any) {
-      setError(typeof e?.message === "string" ? e.message : "Tax reset failed");
+      const msg = typeof e?.message === "string" ? e.message : "Tax reset failed";
+      setError(msg);
+      pushToast(`Reset failed: ${msg}`);
     } finally {
       setBusy(false);
     }
