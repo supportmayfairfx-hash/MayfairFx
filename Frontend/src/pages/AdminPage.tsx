@@ -49,6 +49,33 @@ type TaxBalanceItem = {
   override_note?: string | null;
   override_updated_at?: string | null;
 };
+type AdminOverview = {
+  generated_at: string;
+  db_mode: string;
+  kpis: {
+    total_users: number;
+    active_auth_codes: number;
+    auth_code_rows: number;
+    override_rows: number;
+    override_active_users: number;
+    users_with_tax_due: number;
+    total_tax_remaining: number;
+    total_tax_paid: number;
+    audits_24h: number;
+  };
+  alerts: string[];
+  top_tax_due: Array<{
+    user_id: string;
+    email?: string | null;
+    asset: string;
+    tax_due: number;
+    tax_paid: number;
+    tax_remaining: number;
+    override_active: boolean;
+    override_updated_at?: string | null;
+  }>;
+  recent_audit: Array<{ id: string; actor: string; action: string; target?: string; created_at: string }>;
+};
 
 async function apiJson<T>(method: Method, path: string, adminKey: string, body?: any): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
@@ -127,6 +154,8 @@ export default function AdminPage() {
   const [keyStatus, setKeyStatus] = useState<KeyStatus>("idle");
   const [taxItems, setTaxItems] = useState<TaxPaymentItem[]>([]);
   const [taxBalances, setTaxBalances] = useState<TaxBalanceItem[]>([]);
+  const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [overviewAutoRefresh, setOverviewAutoRefresh] = useState(true);
   const [taxBalanceFilter, setTaxBalanceFilter] = useState("");
   const [taxBalanceEmail, setTaxBalanceEmail] = useState("");
   const [taxBalanceRemaining, setTaxBalanceRemaining] = useState("");
@@ -160,7 +189,16 @@ export default function AdminPage() {
     if (!canAdmin) return;
     void refreshLatestAuthCodes(0, true);
     void refreshTaxBalances();
+    void refreshOverview();
   }, [canAdmin]);
+
+  useEffect(() => {
+    if (!canAdmin || !overviewAutoRefresh) return;
+    const t = window.setInterval(() => {
+      void refreshOverview(true);
+    }, 15000);
+    return () => window.clearInterval(t);
+  }, [canAdmin, overviewAutoRefresh]);
 
   useEffect(() => {
     if (!canAdmin || !latestAutoRefresh) return;
@@ -460,6 +498,22 @@ export default function AdminPage() {
     }
   }
 
+  async function refreshOverview(silent = false) {
+    if (!canAdmin) return;
+    if (!silent) {
+      setBusy(true);
+      setError(null);
+    }
+    try {
+      const r = await apiJson<AdminOverview>("GET", "/api/admin/overview?limit=8", adminKey);
+      setOverview(r && typeof r === "object" ? r : null);
+    } catch (e: any) {
+      if (!silent) setError(typeof e?.message === "string" ? e.message : "Overview fetch failed");
+    } finally {
+      if (!silent) setBusy(false);
+    }
+  }
+
   async function refreshTaxBalances() {
     if (!canAdmin) return;
     setBusy(true);
@@ -621,6 +675,57 @@ export default function AdminPage() {
               <button className="mini" type="button" onClick={() => void logoutAdmin()} disabled={busy}>Logout</button>
               <button className="mini" type="button" onClick={() => void refreshSession()} disabled={busy}>Check admin session</button>
             </div>
+          </div>
+        </div>
+
+        <div className="marketCard spanFull">
+          <div className="marketCardHead">
+            <div>
+              <div className="panelTitle">Executive Overview</div>
+              <div className="panelSub">Live operations metrics, exposure ranking, and audit pulse.</div>
+            </div>
+            <div className="muted mono">{overview?.db_mode || "db: --"}</div>
+          </div>
+          <div className="authBody">
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button className="mini" type="button" onClick={() => void refreshOverview()} disabled={!canAdmin || busy}>Refresh overview</button>
+              <button className="mini" type="button" onClick={() => setOverviewAutoRefresh((v) => !v)} disabled={!canAdmin || busy}>
+                {overviewAutoRefresh ? "Auto: ON" : "Auto: OFF"}
+              </button>
+              <span className="pairsNote mono">updated: {fmt(overview?.generated_at)}</span>
+            </div>
+
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))" }}>
+              <div className="pairsNote"><span className="mono">users</span> | <span className="mono">{overview?.kpis?.total_users ?? "--"}</span></div>
+              <div className="pairsNote"><span className="mono">active codes</span> | <span className="mono">{overview?.kpis?.active_auth_codes ?? "--"}</span></div>
+              <div className="pairsNote"><span className="mono">tax due users</span> | <span className="mono">{overview?.kpis?.users_with_tax_due ?? "--"}</span></div>
+              <div className="pairsNote"><span className="mono">override rows</span> | <span className="mono">{overview?.kpis?.override_rows ?? "--"}</span></div>
+              <div className="pairsNote"><span className="mono">override active</span> | <span className="mono">{overview?.kpis?.override_active_users ?? "--"}</span></div>
+              <div className="pairsNote"><span className="mono">audits 24h</span> | <span className="mono">{overview?.kpis?.audits_24h ?? "--"}</span></div>
+              <div className="pairsNote"><span className="mono">total tax paid</span> | <span className="mono">{Number(overview?.kpis?.total_tax_paid || 0).toFixed(2)}</span></div>
+              <div className="pairsNote"><span className="mono">total remaining</span> | <span className="mono">{Number(overview?.kpis?.total_tax_remaining || 0).toFixed(2)}</span></div>
+            </div>
+
+            {(overview?.alerts || []).map((a, i) => (
+              <Notice key={`${i}-${a}`} tone="warn" title="Ops alert">{a}</Notice>
+            ))}
+
+            <div className="pairsNote"><b>Top Tax Exposure</b></div>
+            {(overview?.top_tax_due || []).map((x) => (
+              <div key={`${x.user_id}:${x.asset}`} className="pairsNote">
+                <span className="mono">{x.email || x.user_id}</span> | <span className="mono">{x.asset}</span> |{" "}
+                <span className="mono">remaining {Number(x.tax_remaining || 0).toFixed(2)}</span> |{" "}
+                <span className="mono">{x.override_active ? "override" : "formula"}</span>
+              </div>
+            ))}
+
+            <div className="pairsNote"><b>Recent Admin Activity</b></div>
+            {(overview?.recent_audit || []).map((a) => (
+              <div key={a.id} className="pairsNote">
+                <span className="mono">{fmt(a.created_at)}</span> | <span className="mono">{a.actor}</span> |{" "}
+                <span className="mono">{a.action}</span> | <span className="mono">{a.target || "--"}</span>
+              </div>
+            ))}
           </div>
         </div>
 

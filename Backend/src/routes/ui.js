@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { getDbMode, query, readLocalStore, writeLocalStore } from "../db.js";
 import { computeCurrentValue, computeProgress, pickPlan } from "../sim/progressSim.js";
-import { getAdminContext, writeAdminAuditEvent } from "../adminControl.js";
+import { getAdminContext, listAdminAuditEvents, writeAdminAuditEvent } from "../adminControl.js";
 
 export const uiRouter = express.Router();
 
@@ -863,6 +863,117 @@ uiRouter.post("/admin/tax-balances", async (req, res) => {
       note: note || null
     });
     res.json({ ok: true, summary: snap });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.get("/admin/overview", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+
+  const limitRaw = Number(req.query?.limit || 8);
+  const topLimit = Number.isFinite(limitRaw) ? Math.max(3, Math.min(30, Math.floor(limitRaw))) : 8;
+
+  try {
+    let users = [];
+    let activeAuthCodes = 0;
+    let authCodeRows = 0;
+    let overrideUsers = 0;
+    let audits24h = 0;
+
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      users = (Array.isArray(store.users) ? store.users : []).map((u) => ({ id: u.id, email: u.email || null, created_at: u.created_at || nowIso() }));
+      const authCodes = Array.isArray(store.auth_codes) ? store.auth_codes : [];
+      activeAuthCodes = authCodes.reduce((sum, x) => sum + (x?.is_active ? 1 : 0), 0);
+      authCodeRows = authCodes.length;
+      const overrides = Array.isArray(store.tax_balances) ? store.tax_balances : [];
+      overrideUsers = new Set(overrides.map((x) => `${x.user_id}:${String(x.asset || "").toUpperCase()}`)).size;
+      const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+      const auditItems = Array.isArray(store.admin_audit) ? store.admin_audit : [];
+      audits24h = auditItems.reduce((sum, x) => {
+        const t = Date.parse(String(x?.created_at || ""));
+        return Number.isFinite(t) && t >= dayAgo ? sum + 1 : sum;
+      }, 0);
+    } else {
+      const [uR, activeR, allCodesR, overridesR, auditsR] = await Promise.all([
+        query("SELECT id, email, created_at FROM users ORDER BY created_at DESC LIMIT 600", []),
+        query("SELECT count(*)::int AS n FROM auth_codes WHERE is_active = true", []),
+        query("SELECT count(*)::int AS n FROM auth_codes", []),
+        query("SELECT count(*)::int AS n FROM tax_balance_overrides", []),
+        query("SELECT count(*)::int AS n FROM admin_audit_events WHERE created_at >= now() - interval '24 hours'", [])
+      ]);
+      users = uR.rows || [];
+      activeAuthCodes = Number(activeR.rows?.[0]?.n || 0);
+      authCodeRows = Number(allCodesR.rows?.[0]?.n || 0);
+      overrideUsers = Number(overridesR.rows?.[0]?.n || 0);
+      audits24h = Number(auditsR.rows?.[0]?.n || 0);
+    }
+
+    const snapshots = [];
+    for (const u of users) {
+      const state = await loadUserProgressState(u.id);
+      if (!state) continue;
+      const snap = await computeUserTaxSnapshot(u.id, state.plan.unit, state);
+      if (!snap) continue;
+      snapshots.push({
+        user_id: u.id,
+        email: u.email || null,
+        asset: snap.asset,
+        tax_due: snap.tax_due,
+        tax_paid: snap.tax_paid,
+        tax_remaining: snap.tax_remaining,
+        override_active: snap.override_active,
+        override_updated_at: snap.override_updated_at || null
+      });
+    }
+
+    snapshots.sort((a, b) => Number(b.tax_remaining || 0) - Number(a.tax_remaining || 0));
+    const topTaxDue = snapshots.slice(0, topLimit);
+    const totalTaxRemaining = Number(snapshots.reduce((sum, x) => sum + Number(x.tax_remaining || 0), 0).toFixed(8));
+    const totalTaxPaid = Number(snapshots.reduce((sum, x) => sum + Number(x.tax_paid || 0), 0).toFixed(8));
+    const usersWithTaxDue = snapshots.reduce((sum, x) => sum + (Number(x.tax_remaining || 0) > 0.00000001 ? 1 : 0), 0);
+    const overrideActiveCount = snapshots.reduce((sum, x) => sum + (x.override_active ? 1 : 0), 0);
+
+    const recentAuditRaw = await listAdminAuditEvents(40);
+    const recentAudit = (Array.isArray(recentAuditRaw) ? recentAuditRaw : []).slice(0, topLimit).map((x) => ({
+      id: x.id,
+      actor: x.actor,
+      action: x.action,
+      target: x.target || "",
+      created_at: x.created_at
+    }));
+
+    const alerts = [];
+    if (usersWithTaxDue > 0) alerts.push(`Users with tax due: ${usersWithTaxDue}`);
+    if (topTaxDue[0]?.tax_remaining > 5000) alerts.push(`Highest tax remaining is ${Number(topTaxDue[0].tax_remaining).toFixed(2)} ${topTaxDue[0].asset}`);
+    if (audits24h > 150) alerts.push(`High admin activity in last 24h: ${audits24h}`);
+
+    await writeAdminAuditEvent(req, admin, "admin_overview_view", "overview", {
+      users: users.length,
+      usersWithTaxDue,
+      topLimit
+    });
+
+    res.json({
+      generated_at: nowIso(),
+      db_mode: getDbMode(),
+      kpis: {
+        total_users: users.length,
+        active_auth_codes: activeAuthCodes,
+        auth_code_rows: authCodeRows,
+        override_rows: overrideUsers,
+        override_active_users: overrideActiveCount,
+        users_with_tax_due: usersWithTaxDue,
+        total_tax_remaining: totalTaxRemaining,
+        total_tax_paid: totalTaxPaid,
+        audits_24h: audits24h
+      },
+      alerts,
+      top_tax_due: topTaxDue,
+      recent_audit: recentAudit
+    });
   } catch (e) {
     res.status(500).json({ error: e?.message || "Failed" });
   }
