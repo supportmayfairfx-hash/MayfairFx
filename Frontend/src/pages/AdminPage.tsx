@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Notice from "../components/Notice";
 import { apiUrl } from "../lib/api";
 
 type Method = "GET" | "POST" | "PUT";
-type ConfirmAction = "deactivate" | "bulk_destructive" | "tax_update" | "latest_bulk_deactivate" | null;
+type ConfirmAction = "deactivate" | "bulk_destructive" | "tax_update" | "latest_bulk_deactivate" | "tax_reset" | null;
 type BulkAction = "generate" | "deactivate" | "lookup";
 type KeyStatus = "idle" | "ok" | "error";
 
@@ -48,6 +48,13 @@ type TaxBalanceItem = {
   override_remaining?: number | null;
   override_note?: string | null;
   override_updated_at?: string | null;
+};
+type TaxResetUndo = {
+  user_id: string;
+  email: string;
+  asset: string;
+  previous_remaining: number;
+  expires_at: number;
 };
 type AdminOverview = {
   generated_at: string;
@@ -166,6 +173,7 @@ function fmt(ts?: string) {
 const ADMIN_SESSION_CACHE_KEY = "admin_role_session";
 
 export default function AdminPage() {
+  const TAX_RESET_UNDO_WINDOW_MS = 12000;
   const [adminKey, setAdminKey] = useState(() => sessionStorage.getItem("admin_api_key") || "");
   const [adminSession, setAdminSession] = useState<{ ok: boolean; actor: string; mode: string } | null>(null);
   const [loginEmail, setLoginEmail] = useState("");
@@ -241,6 +249,13 @@ export default function AdminPage() {
   const [busy, setBusy] = useState(false);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [confirmBody, setConfirmBody] = useState("");
+  const [confirmToken, setConfirmToken] = useState("");
+  const [pendingTaxReset, setPendingTaxReset] = useState<TaxBalanceItem | null>(null);
+  const [undoTaxReset, setUndoTaxReset] = useState<TaxResetUndo | null>(null);
+  const [undoNowTick, setUndoNowTick] = useState(() => Date.now());
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const undoTimerRef = useRef<number | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
 
   const emailNorm = useMemo(() => email.trim().toLowerCase(), [email]);
   const canAdmin = useMemo(() => !!adminSession?.ok, [adminSession?.ok]);
@@ -248,6 +263,38 @@ export default function AdminPage() {
   const bulkEmails = useMemo(() => normEmails(bulkInput), [bulkInput]);
   const customCodeValid = useMemo(() => /^[A-Za-z0-9]{6}$/.test(customCode.trim()), [customCode]);
   const selectedLatestCount = useMemo(() => selectedLatestIds.length, [selectedLatestIds]);
+  const confirmReady = useMemo(() => {
+    if (confirmAction !== "tax_reset") return true;
+    return confirmToken.trim().toUpperCase() === "RESET";
+  }, [confirmAction, confirmToken]);
+  const undoSecondsLeft = useMemo(() => {
+    if (!undoTaxReset) return 0;
+    return Math.max(0, Math.ceil((undoTaxReset.expires_at - undoNowTick) / 1000));
+  }, [undoNowTick, undoTaxReset]);
+
+  function closeConfirm() {
+    setConfirmAction(null);
+    setConfirmBody("");
+    setConfirmToken("");
+    setPendingTaxReset(null);
+  }
+
+  function pushToast(msg: string) {
+    setToastMsg(msg);
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => setToastMsg(null), 3500);
+  }
+
+  function replaceUndoWindow(payload: Omit<TaxResetUndo, "expires_at">) {
+    if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+    const expiresAt = Date.now() + TAX_RESET_UNDO_WINDOW_MS;
+    setUndoTaxReset({ ...payload, expires_at: expiresAt });
+    setUndoNowTick(Date.now());
+    undoTimerRef.current = window.setTimeout(() => {
+      setUndoTaxReset(null);
+      undoTimerRef.current = null;
+    }, TAX_RESET_UNDO_WINDOW_MS);
+  }
 
   useEffect(() => {
     // Restore existing session cache immediately, then verify against backend.
@@ -259,6 +306,19 @@ export default function AdminPage() {
       }
     } catch {}
     void refreshSession(true, { preserveOnError: true, retries: 3 });
+  }, []);
+
+  useEffect(() => {
+    if (!undoTaxReset) return;
+    const timer = window.setInterval(() => setUndoNowTick(Date.now()), 500);
+    return () => window.clearInterval(timer);
+  }, [undoTaxReset]);
+
+  useEffect(() => {
+    return () => {
+      if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -967,9 +1027,50 @@ export default function AdminPage() {
       if (String(item.email || "").trim()) {
         setTaxBalanceEmail(String(item.email || ""));
       }
+      replaceUndoWindow({
+        user_id: item.user_id,
+        email: String(item.email || item.user_id),
+        asset: String(item.asset || "USD").toUpperCase(),
+        previous_remaining: Number(item.tax_remaining || 0)
+      });
+      pushToast(`Tax reset to 0 for ${String(item.email || item.user_id)}.`);
       await Promise.all([refreshTaxBalances(), refreshOverview(true), refreshFinance()]);
     } catch (e: any) {
       setError(typeof e?.message === "string" ? e.message : "Tax reset failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function requestTaxReset(item: TaxBalanceItem) {
+    setPendingTaxReset(item);
+    setConfirmAction("tax_reset");
+    setConfirmToken("");
+    setConfirmBody(
+      `Type RESET to zero tax for ${String(item.email || item.user_id)} (${String(item.asset || "USD").toUpperCase()}).`
+    );
+  }
+
+  async function undoLastTaxReset() {
+    if (!canAdmin || !undoTaxReset) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await apiJson("POST", "/api/admin/tax-balances", adminKey, {
+        userId: undoTaxReset.user_id,
+        asset: undoTaxReset.asset,
+        remaining: Number(Number(undoTaxReset.previous_remaining || 0).toFixed(8)),
+        note: "undo_reset_to_zero"
+      });
+      pushToast(`Undo complete for ${undoTaxReset.email}.`);
+      setUndoTaxReset(null);
+      if (undoTimerRef.current) {
+        window.clearTimeout(undoTimerRef.current);
+        undoTimerRef.current = null;
+      }
+      await Promise.all([refreshTaxBalances(), refreshOverview(true), refreshFinance()]);
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Undo tax reset failed");
     } finally {
       setBusy(false);
     }
@@ -1021,12 +1122,13 @@ export default function AdminPage() {
 
   async function confirmNow() {
     const c = confirmAction;
-    setConfirmAction(null);
-    setConfirmBody("");
+    const resetTarget = pendingTaxReset;
+    closeConfirm();
     if (c === "deactivate") await runAuth("deactivate", true);
     if (c === "bulk_destructive") await runBulk(true);
     if (c === "tax_update") await saveTax(true);
     if (c === "latest_bulk_deactivate") await deactivateSelectedLatest();
+    if (c === "tax_reset" && resetTarget) await resetTaxBalanceForUser(resetTarget);
   }
 
   return (
@@ -1040,13 +1142,18 @@ export default function AdminPage() {
       </section>
 
       {confirmAction ? (
-        <div className="mobilePanel" style={{ display: "block" }} onClick={() => setConfirmAction(null)}>
+        <div className="mobilePanel" style={{ display: "block" }} onClick={closeConfirm}>
           <div className="mobileSheet" role="dialog" onClick={(e) => e.stopPropagation()}>
             <div className="panelTitle">Confirm action</div>
             <div className="panelSub">{confirmBody}</div>
+            {confirmAction === "tax_reset" ? (
+              <div style={{ marginTop: 10 }}>
+                <input value={confirmToken} onChange={(e) => setConfirmToken(e.target.value)} placeholder="Type RESET to confirm" />
+              </div>
+            ) : null}
             <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-              <button className="mini" type="button" onClick={() => void confirmNow()}>Confirm</button>
-              <button className="mini" type="button" onClick={() => setConfirmAction(null)}>Cancel</button>
+              <button className="mini" type="button" onClick={() => void confirmNow()} disabled={!confirmReady}>Confirm</button>
+              <button className="mini" type="button" onClick={closeConfirm}>Cancel</button>
             </div>
           </div>
         </div>
@@ -1094,6 +1201,31 @@ export default function AdminPage() {
             </div>
           </div>
         </div>
+
+        {toastMsg ? (
+          <div className="marketCard spanFull">
+            <Notice tone="info" title="Action completed">{toastMsg}</Notice>
+          </div>
+        ) : null}
+
+        {undoTaxReset ? (
+          <div className="marketCard spanFull">
+            <Notice
+              tone="warn"
+              title="Tax reset applied"
+              actions={
+                <button className="mini" type="button" onClick={() => void undoLastTaxReset()} disabled={busy || undoSecondsLeft <= 0}>
+                  Undo ({undoSecondsLeft}s)
+                </button>
+              }
+            >
+              <div className="pairsNote">
+                <span className="mono">{undoTaxReset.email}</span> | <span className="mono">{undoTaxReset.asset}</span> |{" "}
+                <span className="mono">previous {Number(undoTaxReset.previous_remaining || 0).toFixed(2)}</span>
+              </div>
+            </Notice>
+          </div>
+        ) : null}
 
         <div className="marketCard spanFull">
           <div className="marketCardHead">
@@ -1489,7 +1621,7 @@ export default function AdminPage() {
                   <span className="mono">{x.override_active ? `override ${Number(x.override_remaining || 0).toFixed(2)}` : "formula mode"}</span>
                 </div>
                 <button className="mini" type="button" onClick={() => pickTaxBalanceRow(x)} disabled={busy}>Use in form</button>
-                <button className="mini" type="button" onClick={() => void resetTaxBalanceForUser(x)} disabled={busy}>Reset to 0</button>
+                <button className="mini" type="button" onClick={() => requestTaxReset(x)} disabled={busy}>Reset to 0</button>
               </div>
             ))}
           </div>
