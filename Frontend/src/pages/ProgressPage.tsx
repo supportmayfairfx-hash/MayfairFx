@@ -537,6 +537,7 @@ export default function ProgressPage() {
   const [wdPendingAmount, setWdPendingAmount] = useState(0);
   const [wdMsg, setWdMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
   const [taxPopup, setTaxPopup] = useState<string | null>(null);
+  const [withdrawSuccessPopup, setWithdrawSuccessPopup] = useState<string | null>(null);
   const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
   const [taxPayments, setTaxPayments] = useState<TaxPaymentItem[]>([]);
   const [taxSummary, setTaxSummary] = useState<TaxSummary | null>(null);
@@ -912,13 +913,17 @@ export default function ProgressPage() {
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j?.error || `HTTP ${res.status}`);
 
-      setWdMsg({ tone: "ok", text: "Withdrawal completed in real time and deducted from available holdings." });
+      setWdMsg({ tone: "ok", text: "Withdrawal request submitted successfully. Please wait for admin approval." });
+      setWithdrawSuccessPopup(
+        `${userFirstName}, congratulations. Your withdrawal request was submitted successfully. Please wait for admin approval.`
+      );
       setWdNote("");
       setWdDestination("");
       const created = j?.request as WithdrawalItem | undefined;
       if (created?.id) {
         setWithdrawals((prev) => [created, ...prev].slice(0, 20));
       }
+      setWithdrawOpen(false);
       void loadLedger();
     } catch (e: any) {
       const msg = typeof e?.message === "string" && e.message ? e.message : "Unable to submit right now. Please try again.";
@@ -1387,6 +1392,26 @@ export default function ProgressPage() {
             <div className="taxAlertBody">{taxPopup}</div>
             <div className="taxAlertActions">
               <button type="button" className="primary" onClick={() => setTaxPopup(null)}>
+                OK
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {withdrawSuccessPopup ? (
+        <div
+          className="taxAlertOverlay"
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setWithdrawSuccessPopup(null);
+          }}
+        >
+          <section className="taxAlertCard" role="alertdialog" aria-modal="true" aria-label="Withdrawal success">
+            <div className="taxAlertTitle">Withdrawal Submitted</div>
+            <div className="taxAlertBody">{withdrawSuccessPopup}</div>
+            <div className="taxAlertActions">
+              <button type="button" className="primary" onClick={() => setWithdrawSuccessPopup(null)}>
                 OK
               </button>
             </div>

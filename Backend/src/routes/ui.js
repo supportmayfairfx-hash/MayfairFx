@@ -2036,7 +2036,7 @@ uiRouter.post("/withdrawals", requireAuth, async (req, res) => {
         chain,
         destination,
         note: note || null,
-        status: "completed",
+        status: "pending",
         balance_before: availableBefore,
         balance_after: balanceAfter,
         tax_due_snapshot: taxDue,
@@ -2084,7 +2084,7 @@ uiRouter.post("/withdrawals", requireAuth, async (req, res) => {
     const r = await query(
       `INSERT INTO withdrawal_requests
         (id, user_id, amount, asset, method, chain, destination, note, status, balance_before, balance_after, tax_due_snapshot, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'completed', $9, $10, $11, $12, $12)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, $12)
        RETURNING id, amount, asset, method, chain, destination, note, status, balance_before, balance_after, tax_due_snapshot, created_at`,
       [id, userId, amount, asset || "USD", method, chain, destination, note || null, availableBefore, balanceAfter, taxDue, createdAt]
     );
@@ -2118,13 +2118,6 @@ uiRouter.get("/withdrawals/me", requireAuth, async (req, res) => {
     if (getDbMode() === "local") {
       const store = readLocalStore();
       store.withdrawals = Array.isArray(store.withdrawals) ? store.withdrawals : [];
-      for (const w of store.withdrawals) {
-        if (w.user_id === userId && String(w.status || "").toLowerCase() === "pending") {
-          w.status = "completed";
-          w.updated_at = nowIso();
-        }
-      }
-      writeLocalStore(store);
       const items = store.withdrawals
         .filter((w) => w.user_id === userId)
         .slice()
@@ -2146,8 +2139,6 @@ uiRouter.get("/withdrawals/me", requireAuth, async (req, res) => {
         }));
       return res.json({ items });
     }
-
-    await query("UPDATE withdrawal_requests SET status = 'completed', updated_at = now() WHERE user_id = $1 AND status = 'pending'", [userId]);
 
     const r = await query(
       `SELECT id, amount, asset, method, chain, destination, note, status, balance_before, balance_after, tax_due_snapshot, created_at
