@@ -320,7 +320,7 @@ authRouter.get("/admin/auth-code-history", async (req, res) => {
 });
 
 // Admin-only: list latest auth code records globally (newest first).
-// GET /api/auth/admin/auth-codes?limit=100&offset=0&email=&active=all|true|false
+// GET /api/auth/admin/auth-codes?limit=100&offset=0&email=&active=all|true|false&order=desc|asc
 authRouter.get("/admin/auth-codes", async (req, res) => {
   try {
     const admin = getAdminContext(req);
@@ -338,6 +338,8 @@ authRouter.get("/admin/auth-codes", async (req, res) => {
     const offsetRaw = Number(req.query?.offset || 0);
     const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(500, Math.floor(limitRaw))) : 100;
     const offset = Number.isFinite(offsetRaw) ? Math.max(0, Math.floor(offsetRaw)) : 0;
+    const orderRaw = String(req.query?.order || "desc").trim().toLowerCase();
+    const order = orderRaw === "asc" ? "ASC" : "DESC";
 
     const where = [
       "($1::text = '' OR lower(email) = $1::text)",
@@ -348,7 +350,7 @@ authRouter.get("/admin/auth-codes", async (req, res) => {
       `SELECT id, email, auth_code_plain, created_at, is_active
        FROM auth_codes
        WHERE ${where}
-       ORDER BY created_at DESC
+       ORDER BY created_at ${order}
        LIMIT $3 OFFSET $4`,
       [email || "", active, limit, offset]
     );
@@ -373,9 +375,10 @@ authRouter.get("/admin/auth-codes", async (req, res) => {
       count: items.length,
       total,
       offset,
-      active: active === null ? "all" : active
+      active: active === null ? "all" : active,
+      order: order.toLowerCase()
     });
-    res.json({ items, total, limit, offset, active: active === null ? "all" : active, email: email || "" });
+    res.json({ items, total, limit, offset, active: active === null ? "all" : active, email: email || "", order: order.toLowerCase() });
   } catch (e) {
     const msg = typeof e?.message === "string" ? e.message : "Failed";
     res.status(500).json({ error: msg });

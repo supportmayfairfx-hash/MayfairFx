@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Notice from "../components/Notice";
 import { apiUrl } from "../lib/api";
 
@@ -17,6 +17,7 @@ type LatestAuthCodesResponse = {
   offset: number;
   active: "all" | boolean;
   email: string;
+  order?: "asc" | "desc";
 };
 type AuditItem = { id: string; actor: string; action: string; target: string; created_at: string };
 type TaxPaymentItem = {
@@ -94,6 +95,7 @@ export default function AdminPage() {
   const [latestLimit] = useState(60);
   const [latestEmailFilter, setLatestEmailFilter] = useState("");
   const [latestActiveFilter, setLatestActiveFilter] = useState<"all" | "true" | "false">("all");
+  const [latestOrder, setLatestOrder] = useState<"desc" | "asc">("desc");
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [audit, setAudit] = useState<AuditItem[]>([]);
   const [bulkInput, setBulkInput] = useState("");
@@ -118,6 +120,16 @@ export default function AdminPage() {
   const authReady = useMemo(() => canAdmin && !!emailNorm, [canAdmin, emailNorm]);
   const bulkEmails = useMemo(() => normEmails(bulkInput), [bulkInput]);
   const customCodeValid = useMemo(() => /^[A-Za-z0-9]{6}$/.test(customCode.trim()), [customCode]);
+
+  useEffect(() => {
+    // Restore existing cookie session automatically when admin page opens.
+    void refreshSession();
+  }, []);
+
+  useEffect(() => {
+    if (!canAdmin) return;
+    void refreshLatestAuthCodes(0, true);
+  }, [canAdmin]);
 
   async function refreshSession(): Promise<boolean> {
     setBusy(true);
@@ -266,6 +278,7 @@ export default function AdminPage() {
       q.set("limit", String(latestLimit));
       q.set("offset", String(Math.max(0, offset)));
       q.set("active", latestActiveFilter);
+      q.set("order", latestOrder);
       const emailFilter = latestEmailFilter.trim().toLowerCase();
       if (emailFilter) q.set("email", emailFilter);
       const r = await apiJson<LatestAuthCodesResponse>("GET", `/api/auth/admin/auth-codes?${q.toString()}`, adminKey);
@@ -457,6 +470,10 @@ export default function AdminPage() {
                 <option value="all">all statuses</option>
                 <option value="true">active only</option>
                 <option value="false">inactive only</option>
+              </select>
+              <select value={latestOrder} onChange={(e) => setLatestOrder(e.target.value as "desc" | "asc")}>
+                <option value="desc">newest to oldest</option>
+                <option value="asc">oldest to newest</option>
               </select>
               <button className="mini" type="button" onClick={() => void refreshLatestAuthCodes(0)} disabled={!canAdmin || busy}>Refresh latest</button>
               <button
