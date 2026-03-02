@@ -46,6 +46,7 @@ async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(apiUrl(path), {
     method: "GET",
     credentials: "include",
+    cache: "no-store",
     headers: { Accept: "application/json" }
   });
   const j = await res.json().catch(() => ({}));
@@ -583,7 +584,7 @@ export default function ProgressPage() {
   useEffect(() => {
     if (!user || !plan) return;
     void loadLedger();
-    const t = window.setInterval(() => void loadLedger(), 15000);
+    const t = window.setInterval(() => void loadLedger(), 4000);
     return () => window.clearInterval(t);
   }, [user, plan]);
 
@@ -591,6 +592,20 @@ export default function ProgressPage() {
     if (!withdrawOpen) return;
     void loadLedger();
   }, [withdrawOpen]);
+
+  useEffect(() => {
+    if (!user || !plan) return;
+    const onFocus = () => void loadLedger();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void loadLedger();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [user, plan]);
 
   useEffect(() => {
     if (!plan || !simMeta || !milestones.length) return;

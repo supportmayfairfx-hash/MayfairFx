@@ -759,6 +759,9 @@ uiRouter.get("/withdrawals/tax/me", requireAuth, async (req, res) => {
   if (!userId) return res.status(401).json({ error: "Not authenticated" });
 
   try {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     const state = await loadUserProgressState(userId);
     const summary = state ? await computeUserTaxSnapshot(userId, state.plan.unit, state) : null;
 
@@ -887,7 +890,8 @@ uiRouter.post("/admin/tax-balances", async (req, res) => {
 
     const state = await loadUserProgressState(user.id);
     if (!state) return res.status(400).json({ error: "Progress plan is not initialized for this account." });
-    const asset = normalizeAsset(req.body?.asset, state.plan.unit || "USD");
+    // Use the user's plan asset to avoid silent mismatches (e.g. override set on USD while account runs BTC).
+    const asset = normalizeAsset(state.plan.unit || "USD");
 
     if (clear) {
       await clearTaxOverride(user.id, asset);
