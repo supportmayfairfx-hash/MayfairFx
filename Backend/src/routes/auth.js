@@ -63,6 +63,11 @@ function validateFirstName(name) {
   return null;
 }
 
+function isAdminAuthorized(req) {
+  const key = String(req.headers["x-admin-api-key"] || "");
+  return !!process.env.ADMIN_API_KEY && key === process.env.ADMIN_API_KEY;
+}
+
 authRouter.post("/register", async (req, res) => {
   try {
     const email = normalizeEmail(req.body?.email);
@@ -152,10 +157,7 @@ authRouter.post("/login", async (req, res) => {
 // POST /api/auth/admin/auth-codes { email, authCode }
 authRouter.post("/admin/auth-codes", async (req, res) => {
   try {
-    const key = String(req.headers["x-admin-api-key"] || "");
-    if (!process.env.ADMIN_API_KEY || key !== process.env.ADMIN_API_KEY) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
+    if (!isAdminAuthorized(req)) return res.status(401).json({ error: "Unauthorized" });
 
     const email = normalizeEmail(req.body?.email);
     const authCode = String(req.body?.authCode || "");
@@ -183,10 +185,7 @@ authRouter.post("/admin/auth-codes", async (req, res) => {
 // POST /api/auth/admin/generate-auth-code { email }
 authRouter.post("/admin/generate-auth-code", async (req, res) => {
   try {
-    const key = String(req.headers["x-admin-api-key"] || "");
-    if (!process.env.ADMIN_API_KEY || key !== process.env.ADMIN_API_KEY) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
+    if (!isAdminAuthorized(req)) return res.status(401).json({ error: "Unauthorized" });
 
     const email = normalizeEmail(req.body?.email);
     if (!email || !email.endsWith("@gmail.com")) return res.status(400).json({ error: "Email must be a Gmail address." });
@@ -213,10 +212,7 @@ authRouter.post("/admin/generate-auth-code", async (req, res) => {
 // GET /api/auth/admin/active-auth-code?email=user@gmail.com
 authRouter.get("/admin/active-auth-code", async (req, res) => {
   try {
-    const key = String(req.headers["x-admin-api-key"] || "");
-    if (!process.env.ADMIN_API_KEY || key !== process.env.ADMIN_API_KEY) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
+    if (!isAdminAuthorized(req)) return res.status(401).json({ error: "Unauthorized" });
 
     const email = normalizeEmail(req.query?.email);
     if (!email || !email.endsWith("@gmail.com")) return res.status(400).json({ error: "Email must be a Gmail address." });
@@ -228,6 +224,104 @@ authRouter.get("/admin/active-auth-code", async (req, res) => {
     const row = r.rows[0] || null;
     if (!row) return res.status(404).json({ error: "No active AUTH code for this email." });
     res.json({ ok: true, auth_code: row });
+  } catch (e) {
+    const msg = typeof e?.message === "string" ? e.message : "Failed";
+    res.status(500).json({ error: msg });
+  }
+});
+
+// Admin-only: list users (optionally filtered) with their current active auth-code metadata.
+// GET /api/auth/admin/users?email=user@gmail.com&limit=50
+authRouter.get("/admin/users", async (req, res) => {
+  try {
+    if (!isAdminAuthorized(req)) return res.status(401).json({ error: "Unauthorized" });
+    const email = normalizeEmail(req.query?.email);
+    const limitRaw = Number(req.query?.limit || 50);
+    const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 50;
+
+    const r = await query(
+      `SELECT u.id, u.email, u.first_name, u.created_at,
+              ac.auth_code_plain AS active_auth_code_plain,
+              ac.created_at AS active_auth_code_created_at,
+              ac.is_active AS active_auth_code_is_active
+       FROM users u
+       LEFT JOIN LATERAL (
+         SELECT auth_code_plain, created_at, is_active
+         FROM auth_codes
+         WHERE email = u.email AND is_active = true
+         ORDER BY created_at DESC
+         LIMIT 1
+       ) ac ON true
+       WHERE ($1::text = '' OR lower(u.email) = $1::text)
+       ORDER BY u.created_at DESC
+       LIMIT $2`,
+      [email || "", limit]
+    );
+
+    const items = r.rows.map((x) => ({
+      id: x.id,
+      email: x.email,
+      first_name: x.first_name || null,
+      created_at: x.created_at,
+      active_auth_code: x.active_auth_code_plain
+        ? {
+            auth_code_plain: x.active_auth_code_plain,
+            created_at: x.active_auth_code_created_at,
+            is_active: !!x.active_auth_code_is_active
+          }
+        : null
+    }));
+
+    res.json({ items });
+  } catch (e) {
+    const msg = typeof e?.message === "string" ? e.message : "Failed";
+    res.status(500).json({ error: msg });
+  }
+});
+
+// Admin-only: list auth code history for an email (latest first).
+// GET /api/auth/admin/auth-code-history?email=user@gmail.com&limit=20
+authRouter.get("/admin/auth-code-history", async (req, res) => {
+  try {
+    if (!isAdminAuthorized(req)) return res.status(401).json({ error: "Unauthorized" });
+    const email = normalizeEmail(req.query?.email);
+    if (!email || !email.endsWith("@gmail.com")) return res.status(400).json({ error: "Email must be a Gmail address." });
+    const limitRaw = Number(req.query?.limit || 20);
+    const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 20;
+
+    const r = await query(
+      `SELECT id, email, auth_code_plain, created_at, is_active
+       FROM auth_codes
+       WHERE email = $1
+       ORDER BY created_at DESC
+       LIMIT $2`,
+      [email, limit]
+    );
+
+    const items = r.rows.map((x) => ({
+      id: x.id,
+      email: x.email,
+      auth_code_plain: x.auth_code_plain || null,
+      created_at: x.created_at,
+      is_active: !!x.is_active
+    }));
+    res.json({ items });
+  } catch (e) {
+    const msg = typeof e?.message === "string" ? e.message : "Failed";
+    res.status(500).json({ error: msg });
+  }
+});
+
+// Admin-only: deactivate active auth code for an email.
+// POST /api/auth/admin/deactivate-auth-code { email }
+authRouter.post("/admin/deactivate-auth-code", async (req, res) => {
+  try {
+    if (!isAdminAuthorized(req)) return res.status(401).json({ error: "Unauthorized" });
+    const email = normalizeEmail(req.body?.email);
+    if (!email || !email.endsWith("@gmail.com")) return res.status(400).json({ error: "Email must be a Gmail address." });
+
+    const r = await query("UPDATE auth_codes SET is_active = false WHERE email = $1 AND is_active = true", [email]);
+    res.json({ ok: true, email, deactivated: r.rowCount || 0 });
   } catch (e) {
     const msg = typeof e?.message === "string" ? e.message : "Failed";
     res.status(500).json({ error: msg });
