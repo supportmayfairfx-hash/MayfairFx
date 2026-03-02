@@ -105,16 +105,18 @@ export default function AdminPage() {
   const bulkEmails = useMemo(() => normEmails(bulkInput), [bulkInput]);
   const customCodeValid = useMemo(() => /^[A-Za-z0-9]{6}$/.test(customCode.trim()), [customCode]);
 
-  async function refreshSession() {
+  async function refreshSession(): Promise<boolean> {
     setBusy(true);
     setError(null);
     try {
       const data = await apiJson<{ ok: boolean; actor: string; mode: string }>("GET", "/api/auth/admin/session", adminKey);
       setAdminSession(data?.ok ? data : null);
       if (adminKey.trim()) sessionStorage.setItem("admin_api_key", adminKey.trim());
+      return !!data?.ok;
     } catch (e: any) {
       setAdminSession(null);
       setError(typeof e?.message === "string" ? e.message : "Session failed");
+      return false;
     } finally {
       setBusy(false);
     }
@@ -124,8 +126,30 @@ export default function AdminPage() {
     setBusy(true);
     setError(null);
     try {
-      await siteJson("POST", "/api/auth/login", { email: loginEmail, password: loginPassword, authCode: loginAuthCode });
-      await refreshSession();
+      const body: any = { email: loginEmail, password: loginPassword };
+      if (String(loginAuthCode || "").trim()) body.authCode = String(loginAuthCode).trim();
+
+      let lastErr: any = null;
+      for (let i = 0; i < 2; i++) {
+        try {
+          await siteJson("POST", "/api/auth/login", body);
+          lastErr = null;
+          break;
+        } catch (e: any) {
+          lastErr = e;
+          const msg = String(e?.message || "");
+          // Retry once on transient backend failure.
+          if (i === 0 && (msg.includes("HTTP 500") || msg.toLowerCase().includes("internal server error"))) {
+            await new Promise((r) => setTimeout(r, 350));
+            continue;
+          }
+          break;
+        }
+      }
+
+      // Even if login response was flaky, cookie may still be set; verify session directly.
+      const ok = await refreshSession();
+      if (lastErr && !ok) throw lastErr;
     } catch (e: any) {
       setError(typeof e?.message === "string" ? e.message : "Sign-in failed");
     } finally {
