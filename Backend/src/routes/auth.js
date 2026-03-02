@@ -323,6 +323,9 @@ authRouter.get("/admin/auth-code-history", async (req, res) => {
 // GET /api/auth/admin/auth-codes?limit=100&offset=0&email=&active=all|true|false&order=desc|asc
 authRouter.get("/admin/auth-codes", async (req, res) => {
   try {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     const admin = getAdminContext(req);
     if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
 

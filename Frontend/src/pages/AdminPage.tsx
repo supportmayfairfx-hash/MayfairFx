@@ -122,6 +122,7 @@ async function apiJson<T>(method: Method, path: string, adminKey: string, body?:
   const res = await fetch(apiUrl(path), {
     method,
     credentials: "include",
+    cache: "no-store",
     headers,
     body: method !== "GET" ? JSON.stringify(body || {}) : undefined
   });
@@ -136,6 +137,7 @@ async function siteJson<T>(method: Method, path: string, body?: any): Promise<T>
   const res = await fetch(apiUrl(path), {
     method,
     credentials: "include",
+    cache: "no-store",
     headers,
     body: method !== "GET" ? JSON.stringify(body || {}) : undefined
   });
@@ -272,9 +274,23 @@ export default function AdminPage() {
     if (!canAdmin || !latestAutoRefresh) return;
     const t = window.setInterval(() => {
       void refreshLatestAuthCodes(0, true);
-    }, 12000);
+    }, 4000);
     return () => window.clearInterval(t);
   }, [canAdmin, latestAutoRefresh, latestEmailFilter, latestActiveFilter, latestOrder, latestLimit]);
+
+  useEffect(() => {
+    if (!canAdmin) return;
+    const onFocus = () => void refreshLatestAuthCodes(0, true);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refreshLatestAuthCodes(0, true);
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [canAdmin, latestEmailFilter, latestActiveFilter, latestOrder, latestLimit]);
 
   async function refreshSession(silent = false): Promise<boolean> {
     setBusy(true);
@@ -428,6 +444,7 @@ export default function AdminPage() {
       q.set("offset", String(Math.max(0, offset)));
       q.set("active", latestActiveFilter);
       q.set("order", latestOrder);
+      q.set("ts", String(Date.now()));
       const emailFilter = latestEmailFilter.trim().toLowerCase();
       if (emailFilter) q.set("email", emailFilter);
       const r = await apiJson<LatestAuthCodesResponse>("GET", `/api/auth/admin/auth-codes?${q.toString()}`, adminKey);
