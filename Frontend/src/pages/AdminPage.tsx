@@ -3,7 +3,7 @@ import Notice from "../components/Notice";
 import { apiUrl } from "../lib/api";
 
 type Method = "GET" | "POST" | "PUT";
-type ConfirmAction = "deactivate" | "bulk_destructive" | "tax_update" | null;
+type ConfirmAction = "deactivate" | "bulk_destructive" | "tax_update" | "latest_bulk_deactivate" | null;
 type BulkAction = "generate" | "deactivate" | "lookup";
 type KeyStatus = "idle" | "ok" | "error";
 
@@ -96,6 +96,12 @@ export default function AdminPage() {
   const [latestEmailFilter, setLatestEmailFilter] = useState("");
   const [latestActiveFilter, setLatestActiveFilter] = useState<"all" | "true" | "false">("all");
   const [latestOrder, setLatestOrder] = useState<"desc" | "asc">("desc");
+  const [latestTotalAll, setLatestTotalAll] = useState(0);
+  const [latestTotalActive, setLatestTotalActive] = useState(0);
+  const [latestTotalInactive, setLatestTotalInactive] = useState(0);
+  const [latestShowCodes, setLatestShowCodes] = useState(false);
+  const [latestAutoRefresh, setLatestAutoRefresh] = useState(false);
+  const [selectedLatestIds, setSelectedLatestIds] = useState<string[]>([]);
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [audit, setAudit] = useState<AuditItem[]>([]);
   const [bulkInput, setBulkInput] = useState("");
@@ -120,10 +126,11 @@ export default function AdminPage() {
   const authReady = useMemo(() => canAdmin && !!emailNorm, [canAdmin, emailNorm]);
   const bulkEmails = useMemo(() => normEmails(bulkInput), [bulkInput]);
   const customCodeValid = useMemo(() => /^[A-Za-z0-9]{6}$/.test(customCode.trim()), [customCode]);
+  const selectedLatestCount = useMemo(() => selectedLatestIds.length, [selectedLatestIds]);
 
   useEffect(() => {
     // Restore existing cookie session automatically when admin page opens.
-    void refreshSession();
+    void refreshSession(true);
   }, []);
 
   useEffect(() => {
@@ -131,9 +138,17 @@ export default function AdminPage() {
     void refreshLatestAuthCodes(0, true);
   }, [canAdmin]);
 
-  async function refreshSession(): Promise<boolean> {
+  useEffect(() => {
+    if (!canAdmin || !latestAutoRefresh) return;
+    const t = window.setInterval(() => {
+      void refreshLatestAuthCodes(0, true);
+    }, 12000);
+    return () => window.clearInterval(t);
+  }, [canAdmin, latestAutoRefresh, latestEmailFilter, latestActiveFilter, latestOrder, latestLimit]);
+
+  async function refreshSession(silent = false): Promise<boolean> {
     setBusy(true);
-    setError(null);
+    if (!silent) setError(null);
     try {
       const data = await apiJson<{ ok: boolean; actor: string; mode: string }>("GET", "/api/auth/admin/session", adminKey);
       setAdminSession(data?.ok ? data : null);
@@ -141,7 +156,7 @@ export default function AdminPage() {
       return !!data?.ok;
     } catch (e: any) {
       setAdminSession(null);
-      setError(typeof e?.message === "string" ? e.message : "Session failed");
+      if (!silent) setError(typeof e?.message === "string" ? e.message : "Session failed");
       return false;
     } finally {
       setBusy(false);
@@ -285,8 +300,109 @@ export default function AdminPage() {
       setLatestCodes(Array.isArray(r.items) ? r.items : []);
       setLatestTotal(Number.isFinite(Number(r.total)) ? Number(r.total) : 0);
       setLatestOffset(Number.isFinite(Number(r.offset)) ? Number(r.offset) : 0);
+      setSelectedLatestIds((prev) => prev.filter((id) => (Array.isArray(r.items) ? r.items.some((x) => x.id === id) : false)));
+
+      const qBase = new URLSearchParams();
+      qBase.set("limit", "1");
+      qBase.set("offset", "0");
+      qBase.set("order", latestOrder);
+      if (emailFilter) qBase.set("email", emailFilter);
+      const [allR, activeR, inactiveR] = await Promise.all([
+        apiJson<LatestAuthCodesResponse>("GET", `/api/auth/admin/auth-codes?${qBase.toString()}&active=all`, adminKey),
+        apiJson<LatestAuthCodesResponse>("GET", `/api/auth/admin/auth-codes?${qBase.toString()}&active=true`, adminKey),
+        apiJson<LatestAuthCodesResponse>("GET", `/api/auth/admin/auth-codes?${qBase.toString()}&active=false`, adminKey)
+      ]);
+      setLatestTotalAll(Number(allR?.total || 0));
+      setLatestTotalActive(Number(activeR?.total || 0));
+      setLatestTotalInactive(Number(inactiveR?.total || 0));
     } catch (e: any) {
       setError(typeof e?.message === "string" ? e.message : "Latest AUTH codes fetch failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function toggleLatestSelected(id: string) {
+    setSelectedLatestIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function toggleLatestSelectAllCurrent() {
+    const pageIds = latestCodes.map((x) => x.id);
+    const allSelected = pageIds.length > 0 && pageIds.every((id) => selectedLatestIds.includes(id));
+    setSelectedLatestIds((prev) => {
+      if (allSelected) return prev.filter((id) => !pageIds.includes(id));
+      return Array.from(new Set([...prev, ...pageIds]));
+    });
+  }
+
+  function maskCode(code?: string | null) {
+    const raw = String(code || "");
+    if (!raw) return "--";
+    if (latestShowCodes) return raw;
+    return `${raw.slice(0, 2)}****`;
+  }
+
+  async function copyText(v: string) {
+    try {
+      await navigator.clipboard.writeText(v);
+    } catch {
+      setError("Clipboard write failed");
+    }
+  }
+
+  function exportLatestCsv() {
+    const rows = [
+      ["created_at", "email", "auth_code_plain", "is_active"].join(","),
+      ...latestCodes.map((x) =>
+        [x.created_at, x.email, x.auth_code_plain || "", x.is_active ? "true" : "false"]
+          .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+          .join(",")
+      )
+    ];
+    const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8" });
+    const u = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = u;
+    a.download = `auth-codes-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(u);
+  }
+
+  async function deactivateLatestByEmail(emailToDeactivate: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      await apiJson("POST", "/api/auth/admin/deactivate-auth-code", adminKey, { email: emailToDeactivate.trim().toLowerCase() });
+      await refreshLatestAuthCodes(latestOffset, true);
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Deactivate failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deactivateSelectedLatest() {
+    if (!selectedLatestIds.length) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const emails = Array.from(
+        new Set(
+          latestCodes
+            .filter((x) => selectedLatestIds.includes(x.id) && x.is_active)
+            .map((x) => String(x.email || "").trim().toLowerCase())
+            .filter(Boolean)
+        )
+      );
+      for (const em of emails) {
+        await apiJson("POST", "/api/auth/admin/deactivate-auth-code", adminKey, { email: em });
+      }
+      setSelectedLatestIds([]);
+      await refreshLatestAuthCodes(latestOffset, true);
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Bulk deactivate failed");
     } finally {
       setBusy(false);
     }
@@ -364,6 +480,7 @@ export default function AdminPage() {
     if (c === "deactivate") await runAuth("deactivate", true);
     if (c === "bulk_destructive") await runBulk(true);
     if (c === "tax_update") await saveTax(true);
+    if (c === "latest_bulk_deactivate") await deactivateSelectedLatest();
   }
 
   return (
@@ -498,11 +615,84 @@ export default function AdminPage() {
                 showing {latestCodes.length ? latestOffset + 1 : 0}-{Math.min(latestOffset + latestCodes.length, latestTotal)} of {latestTotal}
               </span>
             </div>
+            <div className="pairsNote">
+              <span className="mono">all: {latestTotalAll}</span> | <span className="mono">active: {latestTotalActive}</span> |{" "}
+              <span className="mono">inactive: {latestTotalInactive}</span> | <span className="mono">selected: {selectedLatestCount}</span>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button className="mini" type="button" onClick={() => setLatestShowCodes((v) => !v)} disabled={!canAdmin || busy}>
+                {latestShowCodes ? "Mask codes" : "Show codes"}
+              </button>
+              <button className="mini" type="button" onClick={() => setLatestAutoRefresh((v) => !v)} disabled={!canAdmin || busy}>
+                {latestAutoRefresh ? "Auto refresh: ON" : "Auto refresh: OFF"}
+              </button>
+              <button className="mini" type="button" onClick={toggleLatestSelectAllCurrent} disabled={!canAdmin || busy || !latestCodes.length}>
+                Select page
+              </button>
+              <button className="mini" type="button" onClick={exportLatestCsv} disabled={!canAdmin || busy || !latestCodes.length}>
+                Export CSV
+              </button>
+              <button
+                className="mini"
+                type="button"
+                onClick={() => {
+                  setConfirmAction("latest_bulk_deactivate");
+                  setConfirmBody(`Deactivate active AUTH codes for selected rows (${selectedLatestCount})?`);
+                }}
+                disabled={!canAdmin || busy || !selectedLatestCount}
+              >
+                Deactivate selected
+              </button>
+            </div>
             {latestCodes.map((row) => (
               <div key={row.id} className="pairsNote">
+                <input
+                  type="checkbox"
+                  checked={selectedLatestIds.includes(row.id)}
+                  onChange={() => toggleLatestSelected(row.id)}
+                  style={{ marginRight: 8 }}
+                />
                 <span className="mono">{fmt(row.created_at)}</span> | <span className="mono">{row.email}</span> |{" "}
-                <span className="mono">{row.auth_code_plain || "--"}</span> |{" "}
-                <span className="mono">{row.is_active ? "active" : "inactive"}</span>
+                <span className="mono">{maskCode(row.auth_code_plain)}</span> |{" "}
+                <span className="mono">{row.is_active ? "active" : "inactive"}</span> |{" "}
+                <button className="mini" type="button" onClick={() => void copyText(row.auth_code_plain || "")} disabled={!row.auth_code_plain}>
+                  Copy
+                </button>{" "}
+                <button
+                  className="mini"
+                  type="button"
+                  onClick={() => void deactivateLatestByEmail(row.email)}
+                  disabled={!row.is_active || busy}
+                >
+                  Deactivate
+                </button>{" "}
+                <button
+                  className="mini"
+                  type="button"
+                  onClick={async () => {
+                    const targetEmail = String(row.email || "").trim().toLowerCase();
+                    if (!targetEmail) return;
+                    setEmail(targetEmail);
+                    setBusy(true);
+                    setError(null);
+                    try {
+                      const data = await apiJson<{ auth_code?: ActiveAuthCode }>(
+                        "GET",
+                        `/api/auth/admin/active-auth-code?email=${encodeURIComponent(targetEmail)}`,
+                        adminKey
+                      );
+                      setActiveCode(data?.auth_code || null);
+                      sessionStorage.setItem("admin_last_email", targetEmail);
+                    } catch (e: any) {
+                      setError(typeof e?.message === "string" ? e.message : "Lookup failed");
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                  disabled={busy}
+                >
+                  Focus user
+                </button>
               </div>
             ))}
           </div>
