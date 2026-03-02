@@ -47,9 +47,19 @@ app.use(
           .map((s) => s.trim())
           .filter(Boolean)
       );
+      const isAllowedVercelOrigin = (() => {
+        try {
+          if (!origin) return false;
+          const u = new URL(origin);
+          return u.protocol === "https:" && u.hostname.endsWith(".vercel.app");
+        } catch {
+          return false;
+        }
+      })();
       if (!origin) return cb(null, true); // curl/Invoke-WebRequest
       if (origin === "http://localhost:5173") return cb(null, true);
       if (origin === "http://127.0.0.1:5173") return cb(null, true);
+      if (isAllowedVercelOrigin) return cb(null, true);
       if (allow.has(origin)) return cb(null, true);
       return cb(new Error("CORS blocked"), false);
     },
