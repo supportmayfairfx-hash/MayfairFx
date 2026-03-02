@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import cors from "cors";
 import morgan from "morgan";
 import { getDbMode } from "./db.js";
+import { ensureDefaultAdminUser } from "./defaultAdmin.js";
 import { portfolioRouter } from "./routes/portfolio.js";
 import { profileRouter } from "./routes/profile.js";
 import { uiRouter } from "./routes/ui.js";
@@ -21,6 +22,15 @@ const app = express();
 app.disable("x-powered-by");
 app.use(express.json({ limit: "1mb" }));
 app.use(morgan("dev"));
+
+// Ensure default admin account exists for first-time operations login.
+ensureDefaultAdminUser()
+  .then(() => {
+    console.log("[backend] default admin ready");
+  })
+  .catch((e) => {
+    console.warn("[backend] default admin bootstrap failed:", e?.message || e);
+  });
 // When deployed behind a proxy/load balancer (Render/Fly/Railway/Nginx), this allows
 // `req.secure` and `x-forwarded-*` to behave correctly for cookies and URLs.
 if (String(process.env.TRUST_PROXY || "").trim()) {

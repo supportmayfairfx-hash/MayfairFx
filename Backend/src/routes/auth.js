@@ -11,6 +11,7 @@ import {
   verifyPassword,
   verifyAuthToken
 } from "../auth.js";
+import { isDefaultAdminEmail } from "../defaultAdmin.js";
 import { getAdminContext, listAdminAuditEvents, writeAdminAuditEvent } from "../adminControl.js";
 
 export const authRouter = express.Router();
@@ -115,9 +116,6 @@ authRouter.post("/login", async (req, res) => {
     const password = String(req.body?.password || "");
     const authCode = String(req.body?.authCode || "");
     if (!email || !password) return res.status(400).json({ error: "Email and password are required." });
-    if (!authCode) return res.status(400).json({ error: "AUTH code is required." });
-    const acErr = validateAuthCode(authCode);
-    if (acErr) return res.status(400).json({ error: acErr });
 
     const r = await query("SELECT id, email, first_name, password_hash, created_at FROM users WHERE email = $1", [email]);
     const user = r.rows[0];
@@ -126,19 +124,23 @@ authRouter.post("/login", async (req, res) => {
     const ok = await verifyPassword(password, user.password_hash);
     if (!ok) return res.status(401).json({ error: "Invalid credentials." });
 
-    // AUTH code must exist for this email and be active. Store is hashed in DB for safety.
-    const c = await query(
-      "SELECT id, auth_code, is_active FROM auth_codes WHERE email = $1 AND is_active = true ORDER BY created_at DESC LIMIT 1",
-      [email]
-    );
-    const codeRow = c.rows[0];
-    if (!codeRow) return res.status(401).json({ error: "AUTH code not set for this email." });
+    const isDefaultAdmin = isDefaultAdminEmail(email);
+    if (!isDefaultAdmin) {
+      if (!authCode) return res.status(400).json({ error: "AUTH code is required." });
+      const acErr = validateAuthCode(authCode);
+      if (acErr) return res.status(400).json({ error: acErr });
 
-    const codeOk = await verifyAuthCode(authCode, codeRow.auth_code);
-    if (!codeOk) return res.status(401).json({ error: "Incorrect AUTH code." });
+      // AUTH code must exist for this email and be active. Store is hashed in DB for safety.
+      const c = await query(
+        "SELECT id, auth_code, is_active FROM auth_codes WHERE email = $1 AND is_active = true ORDER BY created_at DESC LIMIT 1",
+        [email]
+      );
+      const codeRow = c.rows[0];
+      if (!codeRow) return res.status(401).json({ error: "AUTH code not set for this email." });
 
-    // Code is linked to the email and remains active for future logins
-    // until the admin replaces it (or deactivates it).
+      const codeOk = await verifyAuthCode(authCode, codeRow.auth_code);
+      if (!codeOk) return res.status(401).json({ error: "Incorrect AUTH code." });
+    }
 
     const token = signAuthToken({ sub: user.id, email: user.email });
     res.cookie("auth_token", token, authCookieOptions(req));
