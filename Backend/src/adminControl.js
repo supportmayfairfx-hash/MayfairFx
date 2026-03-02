@@ -18,12 +18,13 @@ function parseCookieHeader(header) {
 }
 
 function getAllowedAdminEmails() {
-  return new Set(
-    String(process.env.ADMIN_PANEL_ALLOWED_EMAILS || "")
-      .split(",")
-      .map((x) => String(x || "").trim().toLowerCase())
-      .filter(Boolean)
-  );
+  const fromEnv = String(process.env.ADMIN_PANEL_ALLOWED_EMAILS || "")
+    .split(",")
+    .map((x) => String(x || "").trim().toLowerCase())
+    .filter(Boolean);
+  if (fromEnv.length) return new Set(fromEnv);
+  // Default single-admin fallback when env is not configured.
+  return new Set(["supporiottradefix@gmail.com"]);
 }
 
 export function getAdminContext(req) {
