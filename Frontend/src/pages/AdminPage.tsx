@@ -150,6 +150,7 @@ export default function AdminPage() {
       // Even if login response was flaky, cookie may still be set; verify session directly.
       const ok = await refreshSession();
       if (lastErr && !ok) throw lastErr;
+      setError(null);
     } catch (e: any) {
       setError(typeof e?.message === "string" ? e.message : "Sign-in failed");
     } finally {
@@ -378,24 +379,6 @@ export default function AdminPage() {
               <button className="mini" type="button" onClick={() => void logoutAdmin()} disabled={busy}>Logout</button>
               <button className="mini" type="button" onClick={() => void refreshSession()} disabled={busy}>Check admin session</button>
             </div>
-          </div>
-        </div>
-
-        <div className="marketCard spanFull">
-          <div className="marketCardHead">
-            <div>
-              <div className="panelTitle">API Key Fallback</div>
-              <div className="panelSub">Optional emergency access path.</div>
-            </div>
-            <div className="muted mono">key: {keyStatus}</div>
-          </div>
-          <div className="authBody">
-            <input type="password" value={adminKey} onChange={(e) => setAdminKey(e.target.value)} placeholder="x-admin-api-key" />
-            <div style={{ display: "flex", gap: 10 }}>
-              <button className="mini" type="button" onClick={() => { sessionStorage.setItem("admin_api_key", adminKey.trim()); setKeyStatus("ok"); }} disabled={!adminKey.trim()}>Save key</button>
-              <button className="mini" type="button" onClick={() => { sessionStorage.removeItem("admin_api_key"); setAdminKey(""); setKeyStatus("idle"); }}>Clear key</button>
-            </div>
-            {error ? <div className="authError">{error}</div> : null}
           </div>
         </div>
 
