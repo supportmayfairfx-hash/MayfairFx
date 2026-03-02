@@ -11,6 +11,7 @@ import {
   verifyPassword,
   verifyAuthToken
 } from "../auth.js";
+import { getAdminContext, listAdminAuditEvents, writeAdminAuditEvent } from "../adminControl.js";
 
 export const authRouter = express.Router();
 
@@ -61,11 +62,6 @@ function validateFirstName(name) {
   if (s.length > 40) return "First name is too long.";
   if (!/^[A-Za-z][A-Za-z '\-\.]*$/.test(s)) return "First name contains invalid characters.";
   return null;
-}
-
-function isAdminAuthorized(req) {
-  const key = String(req.headers["x-admin-api-key"] || "");
-  return !!process.env.ADMIN_API_KEY && key === process.env.ADMIN_API_KEY;
 }
 
 authRouter.post("/register", async (req, res) => {
@@ -157,7 +153,8 @@ authRouter.post("/login", async (req, res) => {
 // POST /api/auth/admin/auth-codes { email, authCode }
 authRouter.post("/admin/auth-codes", async (req, res) => {
   try {
-    if (!isAdminAuthorized(req)) return res.status(401).json({ error: "Unauthorized" });
+    const admin = getAdminContext(req);
+    if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
 
     const email = normalizeEmail(req.body?.email);
     const authCode = String(req.body?.authCode || "");
@@ -174,6 +171,7 @@ authRouter.post("/admin/auth-codes", async (req, res) => {
       "INSERT INTO auth_codes (id, email, auth_code, auth_code_plain, is_active) VALUES ($1, $2, $3, $4, true) RETURNING id, email, created_at, is_active",
       [codeId, email, authCodeHash, authCode]
     );
+    await writeAdminAuditEvent(req, admin, "auth_code_set", email, { mode: "manual_set" });
     res.json({ ok: true, auth_code: { ...r.rows[0], auth_code: undefined } });
   } catch (e) {
     const msg = typeof e?.message === "string" ? e.message : "Failed";
@@ -185,7 +183,8 @@ authRouter.post("/admin/auth-codes", async (req, res) => {
 // POST /api/auth/admin/generate-auth-code { email }
 authRouter.post("/admin/generate-auth-code", async (req, res) => {
   try {
-    if (!isAdminAuthorized(req)) return res.status(401).json({ error: "Unauthorized" });
+    const admin = getAdminContext(req);
+    if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
 
     const email = normalizeEmail(req.body?.email);
     if (!email || !email.endsWith("@gmail.com")) return res.status(400).json({ error: "Email must be a Gmail address." });
@@ -201,6 +200,7 @@ authRouter.post("/admin/generate-auth-code", async (req, res) => {
       authCode
     ]);
 
+    await writeAdminAuditEvent(req, admin, "auth_code_generate", email, { mode: "auto_generate" });
     res.json({ ok: true, email, authCode });
   } catch (e) {
     const msg = typeof e?.message === "string" ? e.message : "Failed";
@@ -212,7 +212,8 @@ authRouter.post("/admin/generate-auth-code", async (req, res) => {
 // GET /api/auth/admin/active-auth-code?email=user@gmail.com
 authRouter.get("/admin/active-auth-code", async (req, res) => {
   try {
-    if (!isAdminAuthorized(req)) return res.status(401).json({ error: "Unauthorized" });
+    const admin = getAdminContext(req);
+    if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
 
     const email = normalizeEmail(req.query?.email);
     if (!email || !email.endsWith("@gmail.com")) return res.status(400).json({ error: "Email must be a Gmail address." });
@@ -223,6 +224,7 @@ authRouter.get("/admin/active-auth-code", async (req, res) => {
     );
     const row = r.rows[0] || null;
     if (!row) return res.status(404).json({ error: "No active AUTH code for this email." });
+    await writeAdminAuditEvent(req, admin, "auth_code_lookup", email, { found: true });
     res.json({ ok: true, auth_code: row });
   } catch (e) {
     const msg = typeof e?.message === "string" ? e.message : "Failed";
@@ -234,7 +236,8 @@ authRouter.get("/admin/active-auth-code", async (req, res) => {
 // GET /api/auth/admin/users?email=user@gmail.com&limit=50
 authRouter.get("/admin/users", async (req, res) => {
   try {
-    if (!isAdminAuthorized(req)) return res.status(401).json({ error: "Unauthorized" });
+    const admin = getAdminContext(req);
+    if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
     const email = normalizeEmail(req.query?.email);
     const limitRaw = Number(req.query?.limit || 50);
     const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, Math.floor(limitRaw))) : 50;
@@ -271,7 +274,7 @@ authRouter.get("/admin/users", async (req, res) => {
           }
         : null
     }));
-
+    await writeAdminAuditEvent(req, admin, "admin_users_list", email || "all", { count: items.length });
     res.json({ items });
   } catch (e) {
     const msg = typeof e?.message === "string" ? e.message : "Failed";
@@ -283,7 +286,8 @@ authRouter.get("/admin/users", async (req, res) => {
 // GET /api/auth/admin/auth-code-history?email=user@gmail.com&limit=20
 authRouter.get("/admin/auth-code-history", async (req, res) => {
   try {
-    if (!isAdminAuthorized(req)) return res.status(401).json({ error: "Unauthorized" });
+    const admin = getAdminContext(req);
+    if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
     const email = normalizeEmail(req.query?.email);
     if (!email || !email.endsWith("@gmail.com")) return res.status(400).json({ error: "Email must be a Gmail address." });
     const limitRaw = Number(req.query?.limit || 20);
@@ -305,6 +309,7 @@ authRouter.get("/admin/auth-code-history", async (req, res) => {
       created_at: x.created_at,
       is_active: !!x.is_active
     }));
+    await writeAdminAuditEvent(req, admin, "auth_code_history", email, { count: items.length });
     res.json({ items });
   } catch (e) {
     const msg = typeof e?.message === "string" ? e.message : "Failed";
@@ -316,11 +321,13 @@ authRouter.get("/admin/auth-code-history", async (req, res) => {
 // POST /api/auth/admin/deactivate-auth-code { email }
 authRouter.post("/admin/deactivate-auth-code", async (req, res) => {
   try {
-    if (!isAdminAuthorized(req)) return res.status(401).json({ error: "Unauthorized" });
+    const admin = getAdminContext(req);
+    if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
     const email = normalizeEmail(req.body?.email);
     if (!email || !email.endsWith("@gmail.com")) return res.status(400).json({ error: "Email must be a Gmail address." });
 
     const r = await query("UPDATE auth_codes SET is_active = false WHERE email = $1 AND is_active = true", [email]);
+    await writeAdminAuditEvent(req, admin, "auth_code_deactivate", email, { deactivated: r.rowCount || 0 });
     res.json({ ok: true, email, deactivated: r.rowCount || 0 });
   } catch (e) {
     const msg = typeof e?.message === "string" ? e.message : "Failed";
@@ -348,5 +355,29 @@ authRouter.get("/me", async (req, res) => {
     res.json({ user });
   } catch {
     res.json({ user: null });
+  }
+});
+
+// Admin session status for panel role-gated access.
+// Requires either valid admin API key OR authenticated allowed admin email.
+authRouter.get("/admin/session", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ ok: false, error: "Unauthorized" });
+  res.json({ ok: true, actor: admin.actor, mode: admin.mode });
+});
+
+// Admin audit feed.
+// GET /api/auth/admin/audit?limit=200
+authRouter.get("/admin/audit", async (req, res) => {
+  try {
+    const admin = getAdminContext(req);
+    if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+    const limitRaw = Number(req.query?.limit || 120);
+    const items = await listAdminAuditEvents(limitRaw);
+    await writeAdminAuditEvent(req, admin, "audit_view", "admin_audit", { count: items.length });
+    res.json({ items });
+  } catch (e) {
+    const msg = typeof e?.message === "string" ? e.message : "Failed";
+    res.status(500).json({ error: msg });
   }
 });

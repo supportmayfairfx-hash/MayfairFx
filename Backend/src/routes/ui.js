@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { getDbMode, query, readLocalStore, writeLocalStore } from "../db.js";
 import { computeCurrentValue, computeProgress, pickPlan } from "../sim/progressSim.js";
+import { getAdminContext, writeAdminAuditEvent } from "../adminControl.js";
 
 export const uiRouter = express.Router();
 
@@ -47,11 +48,6 @@ function validateAddressByChain(chain, address) {
   if (chain === "TRC20") return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(a);
   if (chain === "SOL") return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a);
   return false;
-}
-
-function isAdminAuthorized(req) {
-  const key = String(req.headers["x-admin-api-key"] || "");
-  return !!process.env.ADMIN_API_KEY && key === process.env.ADMIN_API_KEY;
 }
 
 function normalizeTaxStatus(v) {
@@ -591,7 +587,8 @@ uiRouter.get("/withdrawals/tax/me", requireAuth, async (req, res) => {
 
 // Admin tax management
 uiRouter.get("/admin/tax-payments", async (req, res) => {
-  if (!isAdminAuthorized(req)) return res.status(401).json({ error: "Unauthorized" });
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
 
   const email = clampStr(req.query?.email, 160).toLowerCase();
   const limitRaw = Number(req.query?.limit || 100);
@@ -623,7 +620,9 @@ uiRouter.get("/admin/tax-payments", async (req, res) => {
         .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
 
       if (email) items = items.filter((x) => String(x.email || "").toLowerCase() === email);
-      return res.json({ items: items.slice(0, limit) });
+      const out = items.slice(0, limit);
+      await writeAdminAuditEvent(req, admin, "tax_payments_list", email || "all", { count: out.length });
+      return res.json({ items: out });
     }
 
     const hasEmail = !!email;
@@ -649,6 +648,7 @@ uiRouter.get("/admin/tax-payments", async (req, res) => {
       created_at: x.created_at,
       updated_at: x.updated_at || x.created_at
     }));
+    await writeAdminAuditEvent(req, admin, "tax_payments_list", email || "all", { count: items.length });
     res.json({ items });
   } catch (e) {
     res.status(500).json({ error: e?.message || "Failed" });
@@ -656,7 +656,8 @@ uiRouter.get("/admin/tax-payments", async (req, res) => {
 });
 
 uiRouter.post("/admin/tax-payments", async (req, res) => {
-  if (!isAdminAuthorized(req)) return res.status(401).json({ error: "Unauthorized" });
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
 
   const userIdInput = clampStr(req.body?.userId, 80);
   const email = clampStr(req.body?.email, 160).toLowerCase();
@@ -696,6 +697,11 @@ uiRouter.post("/admin/tax-payments", async (req, res) => {
       };
       store.tax_payments.unshift(row);
       writeLocalStore(store);
+      await writeAdminAuditEvent(req, admin, "tax_payment_create", user.email || user.id, {
+        amount: Number(row.amount),
+        asset: row.asset,
+        status: row.status
+      });
       return res.status(201).json({
         payment: {
           id: row.id,
@@ -738,6 +744,11 @@ uiRouter.post("/admin/tax-payments", async (req, res) => {
       [id, userId, amount, asset || "USD", method, reference || null, note || null, status, createdAt]
     );
     const row = r.rows?.[0];
+    await writeAdminAuditEvent(req, admin, "tax_payment_create", userEmail || userId, {
+      amount: Number(row.amount),
+      asset: row.asset,
+      status: row.status || "confirmed"
+    });
     res.status(201).json({
       payment: {
         id: row.id,
@@ -759,7 +770,8 @@ uiRouter.post("/admin/tax-payments", async (req, res) => {
 });
 
 uiRouter.put("/admin/tax-payments/:id", async (req, res) => {
-  if (!isAdminAuthorized(req)) return res.status(401).json({ error: "Unauthorized" });
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
   const id = clampStr(req.params?.id, 80);
   if (!id) return res.status(400).json({ error: "Invalid id." });
 
@@ -800,6 +812,12 @@ uiRouter.put("/admin/tax-payments/:id", async (req, res) => {
       writeLocalStore(store);
 
       const u = users.find((x) => x.id === row.user_id) || null;
+      await writeAdminAuditEvent(req, admin, "tax_payment_update", row.id, {
+        user_id: row.user_id,
+        amount: Number(row.amount),
+        asset: row.asset,
+        status: row.status || "confirmed"
+      });
       return res.json({
         payment: {
           id: row.id,
@@ -843,6 +861,12 @@ uiRouter.put("/admin/tax-payments/:id", async (req, res) => {
     const row = r.rows?.[0];
     const u = await query("SELECT email FROM users WHERE id = $1 LIMIT 1", [row.user_id]);
     const email = u.rows?.[0]?.email || null;
+    await writeAdminAuditEvent(req, admin, "tax_payment_update", row.id, {
+      user_id: row.user_id,
+      amount: Number(row.amount),
+      asset: row.asset,
+      status: row.status || "confirmed"
+    });
     res.json({
       payment: {
         id: row.id,

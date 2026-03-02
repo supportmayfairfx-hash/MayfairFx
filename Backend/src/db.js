@@ -28,7 +28,8 @@ function ensureStore() {
           search_history: [],
           analytics: [],
           withdrawals: [],
-          tax_payments: []
+          tax_payments: [],
+          admin_audit: []
         },
         null,
         2
@@ -54,6 +55,7 @@ function readStore() {
     if (!Array.isArray(j.analytics)) j.analytics = [];
     if (!Array.isArray(j.withdrawals)) j.withdrawals = [];
     if (!Array.isArray(j.tax_payments)) j.tax_payments = [];
+    if (!Array.isArray(j.admin_audit)) j.admin_audit = [];
     return j;
   } catch {
     // Reset if corrupted.
@@ -67,7 +69,8 @@ function readStore() {
       search_history: [],
       analytics: [],
       withdrawals: [],
-      tax_payments: []
+      tax_payments: [],
+      admin_audit: []
     };
     fs.writeFileSync(STORE_PATH, JSON.stringify(j, null, 2), "utf8");
     return j;
@@ -356,6 +359,21 @@ async function ensureSchemaPg(p) {
 
       CREATE INDEX IF NOT EXISTS tax_payments_user_created_idx
         ON tax_payments(user_id, created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS admin_audit_events (
+        id uuid PRIMARY KEY,
+        actor text NOT NULL,
+        actor_mode text NOT NULL,
+        action text NOT NULL,
+        target text,
+        meta jsonb,
+        ip text,
+        ua text,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+
+      CREATE INDEX IF NOT EXISTS admin_audit_events_created_idx
+        ON admin_audit_events(created_at DESC);
     `;
     await p.query(ddl);
   })()
