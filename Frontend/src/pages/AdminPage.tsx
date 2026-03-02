@@ -32,6 +32,23 @@ type TaxPaymentItem = {
   status: string;
   created_at: string;
 };
+type TaxBalanceItem = {
+  user_id: string;
+  email?: string | null;
+  asset: string;
+  current_value: number;
+  progress01: number;
+  tax_rate: number;
+  tax_due: number;
+  tax_paid: number;
+  tax_remaining: number;
+  formula_tax_due: number;
+  formula_tax_remaining: number;
+  override_active: boolean;
+  override_remaining?: number | null;
+  override_note?: string | null;
+  override_updated_at?: string | null;
+};
 
 async function apiJson<T>(method: Method, path: string, adminKey: string, body?: any): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
@@ -109,6 +126,12 @@ export default function AdminPage() {
   const [bulkResults, setBulkResults] = useState<string[]>([]);
   const [keyStatus, setKeyStatus] = useState<KeyStatus>("idle");
   const [taxItems, setTaxItems] = useState<TaxPaymentItem[]>([]);
+  const [taxBalances, setTaxBalances] = useState<TaxBalanceItem[]>([]);
+  const [taxBalanceFilter, setTaxBalanceFilter] = useState("");
+  const [taxBalanceEmail, setTaxBalanceEmail] = useState("");
+  const [taxBalanceRemaining, setTaxBalanceRemaining] = useState("");
+  const [taxBalanceAsset, setTaxBalanceAsset] = useState("USD");
+  const [taxBalanceNote, setTaxBalanceNote] = useState("");
   const [editingTaxId, setEditingTaxId] = useState("");
   const [editAmount, setEditAmount] = useState("");
   const [editAsset, setEditAsset] = useState("USD");
@@ -136,6 +159,7 @@ export default function AdminPage() {
   useEffect(() => {
     if (!canAdmin) return;
     void refreshLatestAuthCodes(0, true);
+    void refreshTaxBalances();
   }, [canAdmin]);
 
   useEffect(() => {
@@ -436,6 +460,57 @@ export default function AdminPage() {
     }
   }
 
+  async function refreshTaxBalances() {
+    if (!canAdmin) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const q = new URLSearchParams();
+      q.set("limit", "180");
+      const em = taxBalanceFilter.trim().toLowerCase();
+      if (em) q.set("email", em);
+      const r = await apiJson<{ items: TaxBalanceItem[] }>("GET", `/api/admin/tax-balances?${q.toString()}`, adminKey);
+      setTaxBalances(Array.isArray(r.items) ? r.items : []);
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Tax balance fetch failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function applyTaxBalance(clear = false) {
+    if (!canAdmin || !taxBalanceEmail.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const body: any = {
+        email: taxBalanceEmail.trim().toLowerCase(),
+        asset: taxBalanceAsset.trim().toUpperCase(),
+        note: taxBalanceNote.trim()
+      };
+      if (clear) {
+        body.clear = true;
+      } else {
+        const remaining = Number(taxBalanceRemaining);
+        if (!Number.isFinite(remaining) || remaining < 0) throw new Error("Remaining tax must be a non-negative number.");
+        body.remaining = Number(remaining.toFixed(8));
+      }
+      await apiJson("POST", "/api/admin/tax-balances", adminKey, body);
+      await refreshTaxBalances();
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Tax balance update failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function pickTaxBalanceRow(item: TaxBalanceItem) {
+    setTaxBalanceEmail(String(item.email || ""));
+    setTaxBalanceAsset(String(item.asset || "USD"));
+    setTaxBalanceRemaining(String(item.override_active ? item.override_remaining ?? item.tax_remaining : item.tax_remaining));
+    setTaxBalanceNote(String(item.override_note || ""));
+  }
+
   function beginTaxEdit(item: TaxPaymentItem) {
     setEditingTaxId(item.id);
     setEditAmount(String(item.amount || ""));
@@ -717,6 +792,47 @@ export default function AdminPage() {
           <div className="authBody">
             <button className="mini" type="button" onClick={() => void refreshAudit()} disabled={!canAdmin || busy}>Refresh audit</button>
             {audit.map((a) => <div key={a.id} className="pairsNote"><span className="mono">{fmt(a.created_at)}</span> | <span className="mono">{a.actor}</span> | <span className="mono">{a.action}</span> | <span className="mono">{a.target || "--"}</span></div>)}
+          </div>
+        </div>
+
+        <div className="marketCard spanFull">
+          <div className="marketCardHead">
+            <div>
+              <div className="panelTitle">Tax Balance Control</div>
+              <div className="panelSub">Set per-user remaining tax due. Changes sync to DB and user frontend.</div>
+            </div>
+            <div className="muted mono">{taxBalances.length} users</div>
+          </div>
+          <div className="authBody">
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
+              <input value={taxBalanceFilter} onChange={(e) => setTaxBalanceFilter(e.target.value)} placeholder="filter list by email" />
+              <button className="mini" type="button" onClick={() => void refreshTaxBalances()} disabled={!canAdmin || busy}>Refresh balances</button>
+              <input value={taxBalanceEmail} onChange={(e) => setTaxBalanceEmail(e.target.value)} placeholder="user email" />
+              <input value={taxBalanceAsset} onChange={(e) => setTaxBalanceAsset(e.target.value)} placeholder="asset (USD/BTC)" />
+              <input value={taxBalanceRemaining} onChange={(e) => setTaxBalanceRemaining(e.target.value)} placeholder="remaining tax amount" />
+              <input value={taxBalanceNote} onChange={(e) => setTaxBalanceNote(e.target.value)} placeholder="note (optional)" />
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button className="mini" type="button" onClick={() => void applyTaxBalance(false)} disabled={!canAdmin || busy}>
+                Apply remaining tax
+              </button>
+              <button className="mini" type="button" onClick={() => void applyTaxBalance(true)} disabled={!canAdmin || busy}>
+                Clear override
+              </button>
+            </div>
+            {taxBalances.map((x) => (
+              <button
+                key={`${x.user_id}:${x.asset}`}
+                type="button"
+                className="pairsNote"
+                style={{ textAlign: "left", cursor: "pointer" }}
+                onClick={() => pickTaxBalanceRow(x)}
+              >
+                <span className="mono">{x.email || x.user_id}</span> | <span className="mono">{x.asset}</span> |{" "}
+                <span className="mono">remaining {x.tax_remaining.toFixed(2)}</span> | <span className="mono">paid {x.tax_paid.toFixed(2)}</span> |{" "}
+                <span className="mono">{x.override_active ? `override ${Number(x.override_remaining || 0).toFixed(2)}` : "formula mode"}</span>
+              </button>
+            ))}
           </div>
         </div>
 

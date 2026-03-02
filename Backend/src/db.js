@@ -29,6 +29,7 @@ function ensureStore() {
           analytics: [],
           withdrawals: [],
           tax_payments: [],
+          tax_balances: [],
           admin_audit: []
         },
         null,
@@ -55,6 +56,7 @@ function readStore() {
     if (!Array.isArray(j.analytics)) j.analytics = [];
     if (!Array.isArray(j.withdrawals)) j.withdrawals = [];
     if (!Array.isArray(j.tax_payments)) j.tax_payments = [];
+    if (!Array.isArray(j.tax_balances)) j.tax_balances = [];
     if (!Array.isArray(j.admin_audit)) j.admin_audit = [];
     return j;
   } catch {
@@ -70,6 +72,7 @@ function readStore() {
       analytics: [],
       withdrawals: [],
       tax_payments: [],
+      tax_balances: [],
       admin_audit: []
     };
     fs.writeFileSync(STORE_PATH, JSON.stringify(j, null, 2), "utf8");
@@ -359,6 +362,19 @@ async function ensureSchemaPg(p) {
 
       CREATE INDEX IF NOT EXISTS tax_payments_user_created_idx
         ON tax_payments(user_id, created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS tax_balance_overrides (
+        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        asset text NOT NULL,
+        remaining_override numeric NOT NULL DEFAULT 0,
+        note text,
+        updated_by text,
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (user_id, asset)
+      );
+
+      CREATE INDEX IF NOT EXISTS tax_balance_overrides_updated_idx
+        ON tax_balance_overrides(updated_at DESC);
 
       CREATE TABLE IF NOT EXISTS admin_audit_events (
         id uuid PRIMARY KEY,

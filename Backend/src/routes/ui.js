@@ -57,6 +57,17 @@ function normalizeTaxStatus(v) {
   return allow.has(s) ? s : null;
 }
 
+function normalizeAsset(v, fallback = "USD") {
+  const s = clampStr(v || fallback, 12).toUpperCase();
+  return s || fallback;
+}
+
+function clampNonNegativeAmount(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Number(n.toFixed(8));
+}
+
 async function loadUserProgressState(userId) {
   if (getDbMode() === "local") {
     const store = readLocalStore();
@@ -107,6 +118,182 @@ async function loadUserProgressState(userId) {
   });
   const { progress01, taxRate } = computeProgress({ plan, currentValue });
   return { plan, currentValue, progress01, taxRate };
+}
+
+async function resolveUserForAdmin(userIdInput, emailInput) {
+  const userId = clampStr(userIdInput, 80);
+  const email = clampStr(emailInput, 160).toLowerCase();
+  if (!userId && !email) return null;
+
+  if (getDbMode() === "local") {
+    const store = readLocalStore();
+    const users = Array.isArray(store.users) ? store.users : [];
+    const row = userId ? users.find((u) => u.id === userId) : users.find((u) => String(u.email || "").toLowerCase() === email);
+    if (!row) return null;
+    return { id: row.id, email: row.email || null };
+  }
+
+  if (userId) {
+    const r = await query("SELECT id, email FROM users WHERE id = $1 LIMIT 1", [userId]);
+    const row = r.rows?.[0] || null;
+    return row ? { id: row.id, email: row.email || null } : null;
+  }
+  const r = await query("SELECT id, email FROM users WHERE lower(email) = $1 LIMIT 1", [email]);
+  const row = r.rows?.[0] || null;
+  return row ? { id: row.id, email: row.email || null } : null;
+}
+
+async function readTaxOverride(userId, asset) {
+  const normalizedAsset = normalizeAsset(asset);
+  if (getDbMode() === "local") {
+    const store = readLocalStore();
+    store.tax_balances = Array.isArray(store.tax_balances) ? store.tax_balances : [];
+    const row = store.tax_balances.find((x) => x.user_id === userId && String(x.asset || "").toUpperCase() === normalizedAsset) || null;
+    if (!row) return null;
+    return {
+      user_id: row.user_id,
+      asset: normalizedAsset,
+      remaining_override: Number(row.remaining_override || 0),
+      note: row.note || null,
+      updated_by: row.updated_by || null,
+      updated_at: row.updated_at || row.created_at || nowIso()
+    };
+  }
+
+  const r = await query(
+    `SELECT user_id, asset, remaining_override::float8 AS remaining_override, note, updated_by, updated_at
+     FROM tax_balance_overrides
+     WHERE user_id = $1 AND asset = $2
+     LIMIT 1`,
+    [userId, normalizedAsset]
+  );
+  return r.rows?.[0] || null;
+}
+
+async function upsertTaxOverride(userId, asset, remaining, note, updatedBy) {
+  const normalizedAsset = normalizeAsset(asset);
+  const normalizedRemaining = Number(Number(remaining || 0).toFixed(8));
+  const normalizedNote = clampStr(note, 280) || null;
+  const actor = clampStr(updatedBy, 160) || null;
+
+  if (getDbMode() === "local") {
+    const store = readLocalStore();
+    store.tax_balances = Array.isArray(store.tax_balances) ? store.tax_balances : [];
+    const idx = store.tax_balances.findIndex((x) => x.user_id === userId && String(x.asset || "").toUpperCase() === normalizedAsset);
+    const row = {
+      user_id: userId,
+      asset: normalizedAsset,
+      remaining_override: normalizedRemaining,
+      note: normalizedNote,
+      updated_by: actor,
+      updated_at: nowIso()
+    };
+    if (idx >= 0) store.tax_balances[idx] = row;
+    else store.tax_balances.unshift(row);
+    writeLocalStore(store);
+    return row;
+  }
+
+  const r = await query(
+    `INSERT INTO tax_balance_overrides (user_id, asset, remaining_override, note, updated_by, updated_at)
+     VALUES ($1, $2, $3, $4, $5, now())
+     ON CONFLICT (user_id, asset)
+     DO UPDATE SET remaining_override = EXCLUDED.remaining_override, note = EXCLUDED.note, updated_by = EXCLUDED.updated_by, updated_at = now()
+     RETURNING user_id, asset, remaining_override::float8 AS remaining_override, note, updated_by, updated_at`,
+    [userId, normalizedAsset, normalizedRemaining, normalizedNote, actor]
+  );
+  return r.rows?.[0] || null;
+}
+
+async function clearTaxOverride(userId, asset) {
+  const normalizedAsset = normalizeAsset(asset);
+  if (getDbMode() === "local") {
+    const store = readLocalStore();
+    store.tax_balances = Array.isArray(store.tax_balances) ? store.tax_balances : [];
+    const before = store.tax_balances.length;
+    store.tax_balances = store.tax_balances.filter(
+      (x) => !(x.user_id === userId && String(x.asset || "").toUpperCase() === normalizedAsset)
+    );
+    writeLocalStore(store);
+    return before !== store.tax_balances.length;
+  }
+
+  const r = await query("DELETE FROM tax_balance_overrides WHERE user_id = $1 AND asset = $2", [userId, normalizedAsset]);
+  return (r.rowCount || 0) > 0;
+}
+
+async function applyTaxPaymentToOverride(userId, asset, amount) {
+  const normalizedAsset = normalizeAsset(asset);
+  const n = Number(amount || 0);
+  if (!Number.isFinite(n) || n <= 0) return;
+  const row = await readTaxOverride(userId, normalizedAsset);
+  if (!row) return;
+  const next = Math.max(0, Number(Number(row.remaining_override || 0).toFixed(8)) - n);
+  await upsertTaxOverride(userId, normalizedAsset, Number(next.toFixed(8)), row.note || null, row.updated_by || "system");
+}
+
+async function computeUserTaxSnapshot(userId, assetInput, stateInput = null) {
+  const state = stateInput || (await loadUserProgressState(userId));
+  if (!state) return null;
+  const asset = normalizeAsset(assetInput, state.plan.unit || "USD");
+
+  let withdrawnLocked = 0;
+  let taxPaid = 0;
+
+  if (getDbMode() === "local") {
+    const store = readLocalStore();
+    store.withdrawals = Array.isArray(store.withdrawals) ? store.withdrawals : [];
+    store.tax_payments = Array.isArray(store.tax_payments) ? store.tax_payments : [];
+    withdrawnLocked = store.withdrawals
+      .filter((w) => w.user_id === userId && String(w.asset || "").toUpperCase() === asset)
+      .reduce((sum, w) => (isLockedWithdrawalStatus(w.status) ? sum + Number(w.amount || 0) : sum), 0);
+    taxPaid = store.tax_payments
+      .filter((p) => p.user_id === userId && String(p.asset || "").toUpperCase() === asset)
+      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  } else {
+    const [wR, tR] = await Promise.all([
+      query(
+        `SELECT amount::float8 AS amount, status
+         FROM withdrawal_requests
+         WHERE user_id = $1 AND asset = $2`,
+        [userId, asset]
+      ),
+      query(
+        `SELECT amount::float8 AS amount
+         FROM tax_payments
+         WHERE user_id = $1 AND asset = $2`,
+        [userId, asset]
+      )
+    ]);
+    withdrawnLocked = wR.rows.reduce((sum, w) => (isLockedWithdrawalStatus(w.status) ? sum + Number(w.amount || 0) : sum), 0);
+    taxPaid = tR.rows.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  }
+
+  const effectiveCurrent = Math.max(0, Number((state.currentValue - withdrawnLocked).toFixed(8)));
+  const formulaTaxDue = Number((effectiveCurrent * state.taxRate).toFixed(8));
+  const formulaTaxRemaining = Math.max(0, Number((formulaTaxDue - taxPaid).toFixed(8)));
+
+  const override = await readTaxOverride(userId, asset);
+  const overrideRemaining = override ? Math.max(0, Number(Number(override.remaining_override || 0).toFixed(8))) : null;
+  const taxRemaining = overrideRemaining != null ? overrideRemaining : formulaTaxRemaining;
+  const taxDue = overrideRemaining != null ? Number((taxPaid + taxRemaining).toFixed(8)) : formulaTaxDue;
+
+  return {
+    user_id: userId,
+    asset,
+    current_value: effectiveCurrent,
+    progress01: Number(state.progress01 || 0),
+    tax_rate: Number(state.taxRate || 0),
+    tax_due: taxDue,
+    tax_paid: Number(taxPaid.toFixed(8)),
+    tax_remaining: Number(taxRemaining.toFixed(8)),
+    formula_tax_due: formulaTaxDue,
+    formula_tax_remaining: formulaTaxRemaining,
+    override_active: overrideRemaining != null,
+    override_remaining: overrideRemaining,
+    override_note: override?.note || null,
+    override_updated_at: override?.updated_at || null
+  };
 }
 
 function scoreResult(query, title) {
@@ -423,20 +610,15 @@ uiRouter.post("/withdrawals/tax-pay", requireAuth, async (req, res) => {
     if (state.plan.unit !== asset) return res.status(400).json({ error: `Invalid asset for this account. Use ${state.plan.unit}.` });
     if (state.progress01 < 1 - eps) return res.status(400).json({ error: "Tax payment opens after 100% progress." });
 
+    const snapshot = await computeUserTaxSnapshot(userId, asset, state);
+    if (!snapshot) return res.status(400).json({ error: "Tax context is unavailable." });
+    const taxRemaining = snapshot.tax_remaining;
+    const taxDue = snapshot.tax_due;
+    const taxPaidBefore = snapshot.tax_paid;
+
     if (getDbMode() === "local") {
       const store = readLocalStore();
-      store.withdrawals = Array.isArray(store.withdrawals) ? store.withdrawals : [];
       store.tax_payments = Array.isArray(store.tax_payments) ? store.tax_payments : [];
-
-      const withdrawnLocked = store.withdrawals
-        .filter((w) => w.user_id === userId && w.asset === asset)
-        .reduce((sum, w) => (isLockedWithdrawalStatus(w.status) ? sum + Number(w.amount || 0) : sum), 0);
-      const taxPaidBefore = store.tax_payments
-        .filter((p) => p.user_id === userId && p.asset === asset)
-        .reduce((sum, p) => sum + Number(p.amount || 0), 0);
-      const effectiveCurrent = Math.max(0, Number((state.currentValue - withdrawnLocked).toFixed(8)));
-      const taxDue = Number((effectiveCurrent * state.taxRate).toFixed(8));
-      const taxRemaining = Math.max(0, Number((taxDue - taxPaidBefore).toFixed(8)));
       if (taxRemaining <= eps) {
         return res.status(400).json({ error: "Tax is already settled.", taxRemaining, taxDue, taxPaid: taxPaidBefore });
       }
@@ -463,6 +645,12 @@ uiRouter.post("/withdrawals/tax-pay", requireAuth, async (req, res) => {
       };
       store.tax_payments.unshift(row);
       writeLocalStore(store);
+      if (snapshot.override_active) {
+        await applyTaxPaymentToOverride(userId, asset, amount);
+      }
+      const taxPaidAfter = Number((taxPaidBefore + amount).toFixed(8));
+      const taxRemainingAfter = Math.max(0, Number((taxRemaining - amount).toFixed(8)));
+      const taxDueAfter = snapshot.override_active ? Number((taxPaidAfter + taxRemainingAfter).toFixed(8)) : taxDue;
       return res.status(201).json({
         payment: {
           id: row.id,
@@ -474,29 +662,10 @@ uiRouter.post("/withdrawals/tax-pay", requireAuth, async (req, res) => {
           status: row.status,
           created_at: row.created_at
         },
-        tax: { taxDue, taxPaid: Number((taxPaidBefore + amount).toFixed(8)), taxRemaining: Math.max(0, Number((taxRemaining - amount).toFixed(8))) }
+        tax: { taxDue: taxDueAfter, taxPaid: taxPaidAfter, taxRemaining: taxRemainingAfter, overrideActive: snapshot.override_active }
       });
     }
 
-    const wR = await query(
-      `SELECT amount::float8 AS amount, status
-       FROM withdrawal_requests
-       WHERE user_id = $1 AND asset = $2`,
-      [userId, asset]
-    );
-    const withdrawnLocked = wR.rows.reduce((sum, w) => {
-      return isLockedWithdrawalStatus(w.status) ? sum + Number(w.amount || 0) : sum;
-    }, 0);
-    const tBeforeR = await query(
-      `SELECT amount::float8 AS amount
-       FROM tax_payments
-       WHERE user_id = $1 AND asset = $2`,
-      [userId, asset]
-    );
-    const taxPaidBefore = tBeforeR.rows.reduce((sum, t) => sum + Number(t.amount || 0), 0);
-    const effectiveCurrent = Math.max(0, Number((state.currentValue - withdrawnLocked).toFixed(8)));
-    const taxDue = Number((effectiveCurrent * state.taxRate).toFixed(8));
-    const taxRemaining = Math.max(0, Number((taxDue - taxPaidBefore).toFixed(8)));
     if (taxRemaining <= eps) {
       return res.status(400).json({ error: "Tax is already settled.", taxRemaining, taxDue, taxPaid: taxPaidBefore });
     }
@@ -517,6 +686,12 @@ uiRouter.post("/withdrawals/tax-pay", requireAuth, async (req, res) => {
       [id, userId, amount, asset || "USD", method, reference || null, note || null, createdAt]
     );
     const row = r.rows?.[0];
+    if (snapshot.override_active) {
+      await applyTaxPaymentToOverride(userId, asset, amount);
+    }
+    const taxPaidAfter = Number((taxPaidBefore + amount).toFixed(8));
+    const taxRemainingAfter = Math.max(0, Number((taxRemaining - amount).toFixed(8)));
+    const taxDueAfter = snapshot.override_active ? Number((taxPaidAfter + taxRemainingAfter).toFixed(8)) : taxDue;
     res.status(201).json({
       payment: {
         id: row.id,
@@ -528,7 +703,7 @@ uiRouter.post("/withdrawals/tax-pay", requireAuth, async (req, res) => {
         status: row.status,
         created_at: row.created_at
       },
-      tax: { taxDue, taxPaid: Number((taxPaidBefore + amount).toFixed(8)), taxRemaining: Math.max(0, Number((taxRemaining - amount).toFixed(8))) }
+      tax: { taxDue: taxDueAfter, taxPaid: taxPaidAfter, taxRemaining: taxRemainingAfter, overrideActive: snapshot.override_active }
     });
   } catch (e) {
     res.status(500).json({ error: e?.message || "Failed" });
@@ -540,6 +715,9 @@ uiRouter.get("/withdrawals/tax/me", requireAuth, async (req, res) => {
   if (!userId) return res.status(401).json({ error: "Not authenticated" });
 
   try {
+    const state = await loadUserProgressState(userId);
+    const summary = state ? await computeUserTaxSnapshot(userId, state.plan.unit, state) : null;
+
     if (getDbMode() === "local") {
       const store = readLocalStore();
       store.tax_payments = Array.isArray(store.tax_payments) ? store.tax_payments : [];
@@ -558,7 +736,7 @@ uiRouter.get("/withdrawals/tax/me", requireAuth, async (req, res) => {
           status: w.status || "confirmed",
           created_at: w.created_at
         }));
-      return res.json({ items });
+      return res.json({ items, summary });
     }
 
     const r = await query(
@@ -579,7 +757,112 @@ uiRouter.get("/withdrawals/tax/me", requireAuth, async (req, res) => {
       status: x.status || "confirmed",
       created_at: x.created_at
     }));
+    res.json({ items, summary });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.get("/admin/tax-balances", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+
+  const email = clampStr(req.query?.email, 160).toLowerCase();
+  const limitRaw = Number(req.query?.limit || 120);
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(500, Math.floor(limitRaw))) : 120;
+
+  try {
+    const users = [];
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      const source = Array.isArray(store.users) ? store.users : [];
+      for (const u of source) {
+        const em = String(u.email || "").toLowerCase();
+        if (email && em !== email) continue;
+        users.push({ id: u.id, email: u.email || null, created_at: u.created_at || nowIso() });
+      }
+      users.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    } else {
+      const r = await query(
+        `SELECT id, email, created_at
+         FROM users
+         WHERE ($1::text = '' OR lower(email) = $1::text)
+         ORDER BY created_at DESC
+         LIMIT $2`,
+        [email || "", limit]
+      );
+      users.push(...r.rows);
+    }
+
+    const slice = users.slice(0, limit);
+    const items = [];
+    for (const u of slice) {
+      const state = await loadUserProgressState(u.id);
+      if (!state) continue;
+      const snap = await computeUserTaxSnapshot(u.id, state.plan.unit, state);
+      if (!snap) continue;
+      items.push({
+        user_id: u.id,
+        email: u.email || null,
+        asset: snap.asset,
+        current_value: snap.current_value,
+        progress01: snap.progress01,
+        tax_rate: snap.tax_rate,
+        tax_due: snap.tax_due,
+        tax_paid: snap.tax_paid,
+        tax_remaining: snap.tax_remaining,
+        formula_tax_due: snap.formula_tax_due,
+        formula_tax_remaining: snap.formula_tax_remaining,
+        override_active: snap.override_active,
+        override_remaining: snap.override_remaining,
+        override_note: snap.override_note,
+        override_updated_at: snap.override_updated_at
+      });
+    }
+
+    items.sort((a, b) => Number(b.tax_remaining || 0) - Number(a.tax_remaining || 0));
+    await writeAdminAuditEvent(req, admin, "tax_balances_list", email || "all", { count: items.length });
     res.json({ items });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.post("/admin/tax-balances", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+
+  const userIdInput = clampStr(req.body?.userId, 80);
+  const emailInput = clampStr(req.body?.email, 160).toLowerCase();
+  const clear = String(req.body?.clear || "").trim().toLowerCase() === "true" || req.body?.clear === true;
+  const note = clampStr(req.body?.note, 280);
+
+  try {
+    const user = await resolveUserForAdmin(userIdInput, emailInput);
+    if (!user) return res.status(404).json({ error: "User not found." });
+
+    const state = await loadUserProgressState(user.id);
+    if (!state) return res.status(400).json({ error: "Progress plan is not initialized for this account." });
+    const asset = normalizeAsset(req.body?.asset, state.plan.unit || "USD");
+
+    if (clear) {
+      await clearTaxOverride(user.id, asset);
+      const snap = await computeUserTaxSnapshot(user.id, asset, state);
+      await writeAdminAuditEvent(req, admin, "tax_balance_override_clear", user.email || user.id, { asset });
+      return res.json({ ok: true, summary: snap });
+    }
+
+    const remaining = clampNonNegativeAmount(req.body?.remaining);
+    if (remaining == null) return res.status(400).json({ error: "remaining must be a non-negative number." });
+
+    await upsertTaxOverride(user.id, asset, remaining, note || null, admin.actor || "admin");
+    const snap = await computeUserTaxSnapshot(user.id, asset, state);
+    await writeAdminAuditEvent(req, admin, "tax_balance_override_set", user.email || user.id, {
+      asset,
+      remaining,
+      note: note || null
+    });
+    res.json({ ok: true, summary: snap });
   } catch (e) {
     res.status(500).json({ error: e?.message || "Failed" });
   }
@@ -916,20 +1199,16 @@ uiRouter.post("/withdrawals", requireAuth, async (req, res) => {
     if (state.plan.unit !== asset) return res.status(400).json({ error: `Invalid asset for this account. Use ${state.plan.unit}.` });
     if (state.progress01 < 1 - eps) return res.status(400).json({ error: "Withdrawal unlocks only at 100% progress." });
 
+    const snapshot = await computeUserTaxSnapshot(userId, asset, state);
+    if (!snapshot) return res.status(400).json({ error: "Tax context is unavailable." });
+    const taxPaid = snapshot.tax_paid;
+    const taxDue = snapshot.tax_due;
+    const taxRemaining = snapshot.tax_remaining;
+    const effectiveCurrent = snapshot.current_value;
+
     if (getDbMode() === "local") {
       const store = readLocalStore();
       store.withdrawals = Array.isArray(store.withdrawals) ? store.withdrawals : [];
-      store.tax_payments = Array.isArray(store.tax_payments) ? store.tax_payments : [];
-
-      const userWithdrawals = store.withdrawals.filter((w) => w.user_id === userId && w.asset === asset);
-      const withdrawnLocked = userWithdrawals.reduce((sum, w) => {
-        return isLockedWithdrawalStatus(w.status) ? sum + Number(w.amount || 0) : sum;
-      }, 0);
-      const userTax = store.tax_payments.filter((p) => p.user_id === userId && p.asset === asset);
-      const taxPaid = userTax.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-      const effectiveCurrent = Math.max(0, Number((state.currentValue - withdrawnLocked).toFixed(8)));
-      const taxDue = Number((effectiveCurrent * state.taxRate).toFixed(8));
-      const taxRemaining = Math.max(0, Number((taxDue - taxPaid).toFixed(8)));
       if (taxRemaining > eps) {
         return res.status(400).json({
           error: `Tax payment is required before withdrawal. Remaining tax due: ${taxRemaining.toFixed(2)} ${asset}.`,
@@ -984,25 +1263,6 @@ uiRouter.post("/withdrawals", requireAuth, async (req, res) => {
       });
     }
 
-    const wR = await query(
-      `SELECT amount::float8 AS amount, status
-       FROM withdrawal_requests
-       WHERE user_id = $1 AND asset = $2`,
-      [userId, asset]
-    );
-    const withdrawnLocked = wR.rows.reduce((sum, w) => {
-      return isLockedWithdrawalStatus(w.status) ? sum + Number(w.amount || 0) : sum;
-    }, 0);
-    const tR = await query(
-      `SELECT amount::float8 AS amount
-       FROM tax_payments
-       WHERE user_id = $1 AND asset = $2`,
-      [userId, asset]
-    );
-    const taxPaid = tR.rows.reduce((sum, t) => sum + Number(t.amount || 0), 0);
-    const effectiveCurrent = Math.max(0, Number((state.currentValue - withdrawnLocked).toFixed(8)));
-    const taxDue = Number((effectiveCurrent * state.taxRate).toFixed(8));
-    const taxRemaining = Math.max(0, Number((taxDue - taxPaid).toFixed(8)));
     if (taxRemaining > eps) {
       return res.status(400).json({
         error: `Tax payment is required before withdrawal. Remaining tax due: ${taxRemaining.toFixed(2)} ${asset}.`,

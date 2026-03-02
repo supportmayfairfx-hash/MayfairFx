@@ -31,6 +31,17 @@ type TaxPaymentItem = {
   status: string;
   created_at: string;
 };
+type TaxSummary = {
+  asset: string;
+  tax_rate: number;
+  tax_due: number;
+  tax_paid: number;
+  tax_remaining: number;
+  override_active?: boolean;
+  override_remaining?: number | null;
+  override_note?: string | null;
+  override_updated_at?: string | null;
+};
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(apiUrl(path), {
     method: "GET",
@@ -528,13 +539,18 @@ export default function ProgressPage() {
   const [taxPopup, setTaxPopup] = useState<string | null>(null);
   const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
   const [taxPayments, setTaxPayments] = useState<TaxPaymentItem[]>([]);
+  const [taxSummary, setTaxSummary] = useState<TaxSummary | null>(null);
   const loadLedger = () =>
     Promise.all([
       getJson<{ items: WithdrawalItem[] }>("/api/withdrawals/me").catch(() => ({ items: [] as WithdrawalItem[] })),
-      getJson<{ items: TaxPaymentItem[] }>("/api/withdrawals/tax/me").catch(() => ({ items: [] as TaxPaymentItem[] }))
+      getJson<{ items: TaxPaymentItem[]; summary?: TaxSummary | null }>("/api/withdrawals/tax/me").catch(() => ({
+        items: [] as TaxPaymentItem[],
+        summary: null
+      }))
     ]).then(([w, t]) => {
       setWithdrawals(Array.isArray(w.items) ? w.items : []);
       setTaxPayments(Array.isArray(t.items) ? t.items : []);
+      setTaxSummary(t.summary && typeof t.summary === "object" ? t.summary : null);
     });
 
   useEffect(() => {
@@ -783,12 +799,16 @@ export default function ProgressPage() {
   const reachedTarget = progressPct >= 100;
   const timeLeftLabel = simMeta.done ? "Completed" : `${hoursLeft}h ${minsLeft}m ${secsLeft}s`;
   const durationHours = Math.round(plan.durationSec / 3600);
-  const taxRate = 0.2 * progress01; // ramps up to 20% by plan end
-  const taxDue = effectiveCurrent * taxRate; // tax is handled separately from holdings and must be settled before withdrawal.
-  const taxPaid = taxPayments
-    .filter((p) => String(p.asset || "").toUpperCase() === plan.unit)
-    .reduce((s, p) => s + Number(p.amount || 0), 0);
-  const taxRemaining = Math.max(0, taxDue - taxPaid);
+  const taxRate = typeof taxSummary?.tax_rate === "number" ? taxSummary.tax_rate : 0.2 * progress01; // ramps up to 20% by plan end
+  const taxDue =
+    typeof taxSummary?.tax_due === "number" ? Number(taxSummary.tax_due) : effectiveCurrent * taxRate; // tax is handled separately from holdings and must be settled before withdrawal.
+  const taxPaid =
+    typeof taxSummary?.tax_paid === "number"
+      ? Number(taxSummary.tax_paid)
+      : taxPayments
+          .filter((p) => String(p.asset || "").toUpperCase() === plan.unit)
+          .reduce((s, p) => s + Number(p.amount || 0), 0);
+  const taxRemaining = typeof taxSummary?.tax_remaining === "number" ? Number(taxSummary.tax_remaining) : Math.max(0, taxDue - taxPaid);
   const taxRateLabel = `${(taxRate * 100).toFixed(2)}%`;
   const taxDueLabel = plan.unit === "USD" ? fmtMoney(taxDue) : fmtBtc(taxDue);
   const taxPaidLabel = plan.unit === "USD" ? fmtMoney(taxPaid) : fmtBtc(taxPaid);
