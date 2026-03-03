@@ -67,8 +67,8 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     currentValue: 6400,
     taxRate: 0.165,
     taxDue: 1056,
-    taxRemaining: 298,
-    taxPaid: 758,
+    taxRemaining: 0,
+    taxPaid: 1056,
     initialHoldings: 500,
     currency: "GBP"
   },
