@@ -115,8 +115,11 @@ function normal01(rng: () => number) {
 }
 
 function fmtMoney(n: number, currency: "USD" | "GBP" = "USD") {
-  const symbol = currency === "GBP" ? "£" : "$";
-  return `${symbol}${Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  return new Intl.NumberFormat(currency === "GBP" ? "en-GB" : "en-US", {
+    style: "currency",
+    currency: currency === "GBP" ? "GBP" : "USD",
+    maximumFractionDigits: 2
+  }).format(Number(n));
 }
 
 function fmtBtc(n: number) {
@@ -1552,5 +1555,6 @@ export default function ProgressPage() {
     </>
   );
 }
+
 
 
