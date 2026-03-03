@@ -57,8 +57,8 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
   "imdadfamy@gmail.com": {
     currentValue: 6944,
     taxRate: 0.165,
-    taxRemaining: 1145.76,
-    taxPaid: 0,
+    taxRemaining: 572.88,
+    taxPaid: 572.88,
     initialHoldings: 1120,
     currency: "GBP"
   },
