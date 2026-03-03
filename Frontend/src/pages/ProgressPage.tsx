@@ -52,11 +52,12 @@ type DepositItem = {
 
 const MANUAL_PROGRESS_OVERRIDES: Record<
   string,
-  { currentValue: number; taxRate: number; taxRemaining: number; taxPaid?: number; initialHoldings: number; currency: "GBP" | "USD" }
+  { currentValue: number; taxRate: number; taxRemaining: number; taxPaid?: number; taxDue?: number; initialHoldings: number; currency: "GBP" | "USD" }
 > = {
   "imdadfamy@gmail.com": {
     currentValue: 6944,
     taxRate: 0.165,
+    taxDue: 1145.76,
     taxRemaining: 572.88,
     taxPaid: 572.88,
     initialHoldings: 1120,
@@ -924,7 +925,11 @@ export default function ProgressPage() {
           .filter((p) => String(p.asset || "").toUpperCase() === plan.unit)
           .reduce((s, p) => s + Number(p.amount || 0), 0);
   const baseTaxDue =
-    typeof taxSummary?.tax_due === "number" ? Number(taxSummary.tax_due) : effectiveCurrent * baseTaxRate; // tax is handled separately from holdings and must be settled before withdrawal.
+    typeof manualOverride?.taxDue === "number"
+      ? Number(manualOverride.taxDue)
+      : typeof taxSummary?.tax_due === "number"
+      ? Number(taxSummary.tax_due)
+      : effectiveCurrent * baseTaxRate; // tax is handled separately from holdings and must be settled before withdrawal.
   const taxRemaining =
     typeof manualOverride?.taxRemaining === "number"
       ? Number(manualOverride.taxRemaining)
