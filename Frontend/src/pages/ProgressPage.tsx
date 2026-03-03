@@ -69,7 +69,7 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     taxDue: 1056,
     taxRemaining: 298,
     taxPaid: 758,
-    initialHoldings: 1000,
+    initialHoldings: 500,
     currency: "GBP"
   },
   "n.s.992004@gmail.com": {
