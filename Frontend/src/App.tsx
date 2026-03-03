@@ -225,6 +225,16 @@ export default function App() {
       const a = el?.closest?.("a") as HTMLAnchorElement | null;
       if (!a) return;
       const href = a.getAttribute("href") || "";
+      if (href.startsWith("/") && href.includes("?")) {
+        if (a.target && a.target !== "_self") return;
+        e.preventDefault();
+        window.history.pushState(null, "", href);
+        setPage(parseLocationPage(window.location));
+        setMobileOpen(false);
+        setProfileOpen(false);
+        setSearchOpen(false);
+        return;
+      }
       const next = hrefToPage(href);
       if (!next) return;
       if (a.target && a.target !== "_self") return;

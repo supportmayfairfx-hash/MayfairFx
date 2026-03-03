@@ -60,6 +60,10 @@ export default function PortfolioPage() {
 
   useEffect(() => {
     let alive = true;
+    try {
+      const modeParam = new URLSearchParams(window.location.search).get("mode");
+      if (modeParam === "login" || modeParam === "register") setMode(modeParam);
+    } catch {}
     // Bootstrap user session first so Services doesn't flash login/register for signed-in users.
     const cached = getCachedUser() as any;
     if (cached) setUser(cached);
@@ -116,8 +120,11 @@ export default function PortfolioPage() {
 
   function fmtMoney(n: number, currency: "USD" | "GBP" = "USD") {
     if (!Number.isFinite(n)) return "--";
-    const symbol = currency === "GBP" ? "£" : "$";
-    return `${symbol}${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    return new Intl.NumberFormat(currency === "GBP" ? "en-GB" : "en-US", {
+      style: "currency",
+      currency: currency === "GBP" ? "GBP" : "USD",
+      maximumFractionDigits: 2
+    }).format(n);
   }
 
   const holdingsSummary = useMemo(() => {
@@ -450,3 +457,4 @@ export default function PortfolioPage() {
     </>
   );
 }
+

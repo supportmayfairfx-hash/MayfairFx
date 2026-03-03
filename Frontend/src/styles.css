@@ -3108,6 +3108,31 @@ html[data-theme="dark"] .themeKnob { transform: translateX(26px); }
   transform: translateY(-1px);
 }
 
+.depositHeroAuthBtn {
+  min-width: 120px;
+  justify-content: center;
+  font-weight: 900;
+  border-color: rgba(142, 224, 255, 0.55);
+  background: linear-gradient(135deg, #58c2ff, #2f7bff);
+  color: #f6fbff;
+  box-shadow: 0 12px 30px rgba(47, 123, 255, 0.3);
+}
+
+.depositHeroAuthBtn:hover {
+  background: linear-gradient(135deg, #7fd0ff, #4e93ff);
+  transform: translateY(-1px);
+}
+
+.depositHeroAuthBtnGhost {
+  border-color: rgba(142, 255, 196, 0.55);
+  background: linear-gradient(135deg, #1fbe74, #129b56);
+  box-shadow: 0 12px 30px rgba(18, 155, 86, 0.28);
+}
+
+.depositHeroAuthBtnGhost:hover {
+  background: linear-gradient(135deg, #34cd88, #1db76a);
+}
+
 .depositHeroPrimeStats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4511,6 +4536,11 @@ html[data-theme="light"] .ripple {
   }
 
   .depositHeroPrimeActions .mini {
+    width: 100%;
+    text-align: center;
+  }
+
+  .depositHeroAuthBtn {
     width: 100%;
     text-align: center;
   }

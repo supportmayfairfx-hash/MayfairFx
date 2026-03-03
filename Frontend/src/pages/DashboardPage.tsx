@@ -961,6 +961,12 @@ export default function DashboardPage({
               <a className="calloutPrimary depositHeroPrimeCta" href="/checkout">
                 Open Deposit Gateway
               </a>
+              <a className="calloutPrimary depositHeroAuthBtn" href="/portfolio?mode=login">
+                Login
+              </a>
+              <a className="calloutPrimary depositHeroAuthBtn depositHeroAuthBtnGhost" href="/portfolio?mode=register">
+                Sign Up
+              </a>
               <a className="mini" href="#contact">Need payment assistance?</a>
             </div>
           </div>
