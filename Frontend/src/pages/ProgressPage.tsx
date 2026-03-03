@@ -519,13 +519,13 @@ export default function ProgressPage() {
   // Stable provider: TradingChart polls per-second and expects the provider identity to stay stable.
   // We compute "now" at call time and support endTimeSec so the last candle updates smoothly.
   const progressProvider = useMemo(() => {
-    if (!user || !plan || startSec == null || !seedBase) return null;
+    if (!user || !plan || startSec == null || !seedBase) return null; 
     const seed = seedBase;
     const totalSec = plan.durationSec;
     const startValue = plan.startValue;
     const targetValue = plan.targetValue;
 
-    return async ({
+    return async ({   
       interval,
       limit,
       endTimeSec
@@ -984,7 +984,6 @@ export default function ProgressPage() {
   const effectiveCurrentRaw = manualOverride ? Number(manualOverride.currentValue || 0) : simMeta.current;
   const effectiveCurrent = Math.max(0, effectiveCurrentRaw - withdrawnLocked);
   const displayedCurrent = Math.max(0, effectiveCurrent - wdPendingAmount);
-  const currentLabel = isBtcUnit ? fmtBtc(displayedCurrent) : fmtMoney(displayedCurrent, displayUnit as "USD" | "GBP");
   const startTime = new Date(simMeta.startSec * 1000);
   const endTime = new Date(simMeta.endSec * 1000);
   const startShort = Number.isFinite(startTime.getTime()) ? startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--:--";
@@ -1032,6 +1031,8 @@ export default function ProgressPage() {
   const taxRate = shouldResetDashboard ? 0 : baseTaxRate;
   const taxDue = shouldResetDashboard ? 0 : baseTaxDue;
   const taxPaid = shouldResetDashboard ? 0 : baseTaxPaid;
+  const visibleCurrent = shouldResetDashboard ? 0 : displayedCurrent;
+  const currentLabel = isBtcUnit ? fmtBtc(visibleCurrent) : fmtMoney(visibleCurrent, displayUnit as "USD" | "GBP");
   const taxRateLabel = `${(taxRate * 100).toFixed(2)}%`;
   const taxDueLabel = isBtcUnit ? fmtBtc(taxDue) : fmtMoney(taxDue, displayUnit as "USD" | "GBP");
   const taxPaidLabel = isBtcUnit ? fmtBtc(taxPaid) : fmtMoney(taxPaid, displayUnit as "USD" | "GBP");
