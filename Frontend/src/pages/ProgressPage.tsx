@@ -975,6 +975,10 @@ export default function ProgressPage() {
   const hasConfirmedWithdrawalForPlan = withdrawals.some(
     (w) => String(w.asset || "").toUpperCase() === plan.unit && String(w.status || "").toLowerCase() === "confirmed"
   );
+  const pendingWithdrawalAmountForPlan = withdrawals
+    .filter((w) => String(w.asset || "").toUpperCase() === plan.unit && String(w.status || "").toLowerCase() === "pending")
+    .reduce((s, w) => s + Number(w.amount || 0), 0);
+  const hasPendingWithdrawalForPlan = pendingWithdrawalAmountForPlan > 0.00000001;
   const withdrawnLockedRaw = withdrawals
     .filter((w) => String(w.asset || "").toUpperCase() === plan.unit && isLockedWithdrawal(w.status))
     .reduce((s, w) => s + Number(w.amount || 0), 0);
@@ -1058,6 +1062,9 @@ export default function ProgressPage() {
       ? Number(lockedWithdrawalAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       : Number(lockedWithdrawalAmount).toLocaleString(undefined, { maximumFractionDigits: 6 });
   const lockedWithdrawalAmountLabel = isBtcUnit ? `${lockedWithdrawalAmountStr} BTC` : fmtMoney(Number(lockedWithdrawalAmount), displayUnit as "USD" | "GBP");
+  const pendingWithdrawalLabel = isBtcUnit
+    ? fmtBtc(pendingWithdrawalAmountForPlan)
+    : fmtMoney(pendingWithdrawalAmountForPlan, displayUnit as "USD" | "GBP");
 
   const compatSvg = (() => {
     if (!compatChart) return null;
@@ -1192,6 +1199,11 @@ export default function ProgressPage() {
             </div>
           </div>
           <div className="progressBody">
+            {hasPendingWithdrawalForPlan ? (
+              <Notice tone="info" title="Withdrawal Pending">
+                A withdrawal request is pending admin approval. Pending amount: <span className="mono">{pendingWithdrawalLabel}</span>.
+              </Notice>
+            ) : null}
             <div className="progressKpis">
               <div className="kpi">
                 <div className="kpiLabel">Current</div>
