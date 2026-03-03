@@ -978,6 +978,7 @@ export default function ProgressPage() {
   const withdrawnLockedRaw = withdrawals
     .filter((w) => String(w.asset || "").toUpperCase() === plan.unit && isLockedWithdrawal(w.status))
     .reduce((s, w) => s + Number(w.amount || 0), 0);
+  const hasLockedWithdrawalForPlanRaw = withdrawnLockedRaw > 0.00000001;
   // Manual profile overrides stay visible unless a withdrawal is fully confirmed.
   const withdrawnLocked = manualOverride && !hasConfirmedWithdrawalForPlan ? 0 : withdrawnLockedRaw;
   const effectiveCurrentRaw = manualOverride ? Number(manualOverride.currentValue || 0) : simMeta.current;
@@ -1025,7 +1026,7 @@ export default function ProgressPage() {
       : Math.max(0, baseTaxDue - baseTaxPaid);
   const hasLockedWithdrawalForPlan = withdrawnLocked > 0.00000001;
   const shouldResetDashboard =
-    hasConfirmedWithdrawalForPlan || (hasLockedWithdrawalForPlan && taxRemaining <= 0.00000001 && effectiveCurrent <= 0.00000001);
+    taxRemaining <= 0.00000001 && (hasConfirmedWithdrawalForPlan || hasLockedWithdrawalForPlanRaw || hasLockedWithdrawalForPlan);
   const progress01 = shouldResetDashboard ? 0 : baseProgress01;
   const progressPct = shouldResetDashboard ? 0 : baseProgressPct;
   const taxRate = shouldResetDashboard ? 0 : baseTaxRate;
