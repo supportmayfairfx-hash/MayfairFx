@@ -2,12 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiBase } from "../lib/api";
 
 const ITEMS = [
-  { id: "24h-300", icon: "24", pool: "24H POOL", name: "Starter", desc: "Deposit £300 -> Get £3,500", deposit: "£300", target: "£3,500", amountValue: "300", amountAsset: "GBP" },
-  { id: "24h-500", icon: "24", pool: "24H POOL", name: "Standard", desc: "Deposit £500 -> Get £5,000", deposit: "£500", target: "£5,000", amountValue: "500", amountAsset: "GBP" },
-  { id: "24h-1000", icon: "24", pool: "24H POOL", name: "Advanced", desc: "Deposit £1,000 -> Get £10,000", deposit: "£1,000", target: "£10,000", amountValue: "1000", amountAsset: "GBP" },
-  { id: "48h-2000", icon: "48", pool: "48H POOL", name: "Premium I", desc: "Deposit £2,000 -> Get £20,000", deposit: "£2,000", target: "£20,000", amountValue: "2000", amountAsset: "GBP" },
-  { id: "48h-5000", icon: "48", pool: "48H POOL", name: "Premium II", desc: "Deposit £5,000 -> Get £50,000", deposit: "£5,000", target: "£50,000", amountValue: "5000", amountAsset: "GBP" },
-  { id: "48h-10000", icon: "48", pool: "48H POOL", name: "Premium III", desc: "Deposit £10,000 -> Get £100,000", deposit: "£10,000", target: "£100,000", amountValue: "10000", amountAsset: "GBP" },
+  { id: "24h-300", icon: "24", pool: "24H POOL", name: "Starter", desc: "Deposit GBP 300 -> Get GBP 3,500", deposit: "GBP 300", target: "GBP 3,500", amountValue: "300", amountAsset: "GBP" },
+  { id: "24h-500", icon: "24", pool: "24H POOL", name: "Standard", desc: "Deposit GBP 500 -> Get GBP 5,000", deposit: "GBP 500", target: "GBP 5,000", amountValue: "500", amountAsset: "GBP" },
+  { id: "24h-1000", icon: "24", pool: "24H POOL", name: "Advanced", desc: "Deposit GBP 1,000 -> Get GBP 10,000", deposit: "GBP 1,000", target: "GBP 10,000", amountValue: "1000", amountAsset: "GBP" },
+  { id: "48h-2000", icon: "48", pool: "48H POOL", name: "Premium I", desc: "Deposit GBP 2,000 -> Get GBP 20,000", deposit: "GBP 2,000", target: "GBP 20,000", amountValue: "2000", amountAsset: "GBP" },
+  { id: "48h-5000", icon: "48", pool: "48H POOL", name: "Premium II", desc: "Deposit GBP 5,000 -> Get GBP 50,000", deposit: "GBP 5,000", target: "GBP 50,000", amountValue: "5000", amountAsset: "GBP" },
+  { id: "48h-10000", icon: "48", pool: "48H POOL", name: "Premium III", desc: "Deposit GBP 10,000 -> Get GBP 100,000", deposit: "GBP 10,000", target: "GBP 100,000", amountValue: "10000", amountAsset: "GBP" },
   { id: "48h-1btc", icon: "B", pool: "48H BTC", name: "Bitcoin Plan I", desc: "Deposit 1 BTC -> Get 2.5 BTC", deposit: "1 BTC", target: "2.5 BTC", amountValue: "1", amountAsset: "BTC" },
   { id: "48h-2btc", icon: "B", pool: "48H BTC", name: "Bitcoin Plan II", desc: "Deposit 2 BTC -> Get 5 BTC", deposit: "2 BTC", target: "5 BTC", amountValue: "2", amountAsset: "BTC" }
 ];
@@ -911,7 +911,7 @@ export default function CheckoutPage() {
                 <path d="M8.5 12.5l2.2 2.2 4.8-4.8" />
               </svg>
             </span>
-            <span>YourCompany</span>
+            <span>Trade Fix</span>
           </div>
           <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151" }}>Secure Checkout</div>
           <div className="checkoutNavActions">
@@ -922,7 +922,7 @@ export default function CheckoutPage() {
               </svg>
               Back to Dashboard
             </a>
-            <a href="#help" style={{ fontSize: "13px", color: "#15803d" }}>Need Help?</a>
+            <a href="/contact" style={{ fontSize: "13px", color: "#15803d" }}>Need Help?</a>
           </div>
         </div>
       </header>
@@ -982,7 +982,7 @@ export default function CheckoutPage() {
             </div>
 
             <div className="testimonial">
-              <div className="quote">"Smoothest enterprise checkout we have rolled out this quarter."</div>
+              <div className="quote">"Fast, clear, and trusted. This checkout is built for confidence."</div>
               <div className="person">
                 <div className="avatar" />
                 <div>
@@ -996,11 +996,11 @@ export default function CheckoutPage() {
           <section className="checkoutCard delay">
             {!invoiceReady ? (
               <>
-                <h1 className="serif h2">Complete Your Purchase</h1>
+                <h1 className="serif h2">Invest Today</h1>
                 <p className="subtle" style={{ fontStyle: "italic", marginTop: 4 }}>Blockchain-first, secure, and operator-verified settlement.</p>
                 <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 8, border: "1px solid #bbf7d0", background: "#f0fdf4", color: "#166534", borderRadius: 999, padding: "6px 10px", fontSize: 12, fontWeight: 700 }}>
                   <span style={{ width: 8, height: 8, borderRadius: 999, background: "#16a34a" }} />
-                  Wallet Invest Mode
+                  Professional Invest Mode
                 </div>
                 <div className="checkoutProgressWrap" aria-label="Checkout progress">
                   <div className="checkoutProgressHead">
@@ -1240,7 +1240,8 @@ export default function CheckoutPage() {
         </div>
       </main>
 
-      <footer className="checkoutFooter">(c) 2025 YourCompany | Privacy Policy | Terms of Service</footer>
+      <footer className="checkoutFooter">(c) 2026 Trade Fix | Privacy Policy | Terms of Service</footer>
     </div>
   );
 }
+
