@@ -71,6 +71,19 @@ function validateFirstName(name) {
   return null;
 }
 
+async function ensureZeroProfile(userId) {
+  try {
+    const existing = await query("SELECT user_id FROM user_profiles WHERE user_id = $1", [userId]);
+    if (existing.rows?.length) return;
+    await query(
+      "INSERT INTO user_profiles (user_id, initial_capital, initial_asset, initial_units) VALUES ($1, $2, $3, $4)",
+      [userId, 0, "USD", null]
+    );
+  } catch (e) {
+    if (String(e?.code || "") !== "23505") throw e;
+  }
+}
+
 authRouter.post("/register", async (req, res) => {
   try {
     const email = normalizeEmail(req.body?.email);
@@ -94,19 +107,9 @@ authRouter.post("/register", async (req, res) => {
     // Registration should NOT log the user in. Clear any existing session cookie.
     res.clearCookie("auth_token", authCookieClearOptions(req));
 
-    // Optional: auto-generate an AUTH code on registration so admin can retrieve it from DB.
-    if (authCodeAutoGenerateEnabled()) {
-      const code = generateAuthCode();
-      const codeHash = await hashAuthCode(code);
-      const codeId = crypto.randomUUID();
-      await query("UPDATE auth_codes SET is_active = false WHERE email = $1 AND is_active = true", [email]);
-      await query(
-        "INSERT INTO auth_codes (id, email, auth_code, auth_code_plain, is_active) VALUES ($1, $2, $3, $4, true)",
-        [codeId, email, codeHash, code]
-      );
-    }
+    await ensureZeroProfile(user.id);
 
-    res.json({ user, requiresAuthCode: true });
+    res.json({ user, requiresAuthCode: false });
   } catch (e) {
     const msg = typeof e?.message === "string" ? e.message : "Registration failed";
     if (String(msg).toLowerCase().includes("unique")) {
@@ -120,7 +123,6 @@ authRouter.post("/login", async (req, res) => {
   try {
     const email = normalizeEmail(req.body?.email);
     const password = String(req.body?.password || "");
-    const authCode = String(req.body?.authCode || "");
     if (!email || !password) return res.status(400).json({ error: "Email and password are required." });
 
     const r = await query("SELECT id, email, first_name, password_hash, created_at FROM users WHERE email = $1", [email]);
@@ -130,23 +132,8 @@ authRouter.post("/login", async (req, res) => {
     const ok = await verifyPassword(password, user.password_hash);
     if (!ok) return res.status(401).json({ error: "Invalid credentials." });
 
-    const isDefaultAdmin = isDefaultAdminEmail(email);
-    if (!isDefaultAdmin) {
-      if (!authCode) return res.status(400).json({ error: "AUTH code is required." });
-      const acErr = validateAuthCode(authCode);
-      if (acErr) return res.status(400).json({ error: acErr });
-
-      // AUTH code must exist for this email and be active. Store is hashed in DB for safety.
-      const c = await query(
-        "SELECT id, auth_code, is_active FROM auth_codes WHERE email = $1 AND is_active = true ORDER BY created_at DESC LIMIT 1",
-        [email]
-      );
-      const codeRow = c.rows[0];
-      if (!codeRow) return res.status(401).json({ error: "AUTH code not set for this email." });
-
-      const codeOk = await verifyAuthCode(authCode, codeRow.auth_code);
-      if (!codeOk) return res.status(401).json({ error: "Incorrect AUTH code." });
-    }
+    void isDefaultAdminEmail;
+    await ensureZeroProfile(user.id);
 
     const token = signAuthToken({ sub: user.id, email: user.email });
     res.cookie("auth_token", token, authCookieOptions(req));

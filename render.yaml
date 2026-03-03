@@ -21,6 +21,24 @@ services:
         sync: false
       - key: FREECRYPTOAPI_KEY
         sync: false
+      - key: BITCART_ENABLED
+        sync: false
+      - key: BITCART_API_URL
+        sync: false
+      - key: BITCART_API_KEY
+        sync: false
+      - key: BITCART_STORE_ID
+        sync: false
+      - key: BITCART_INVOICE_PATH
+        sync: false
+      - key: BITCART_AUTH_SCHEME
+        sync: false
+      - key: BITCART_WEBHOOK_URL
+        sync: false
+      - key: BITCART_WEBHOOK_SECRET
+        sync: false
+      - key: BITCART_REDIRECT_URL
+        sync: false
       - key: AUTH_COOKIE_SAMESITE
         value: none
       - key: AUTH_COOKIE_SECURE

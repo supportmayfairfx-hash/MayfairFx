@@ -3,7 +3,7 @@ import Notice from "../components/Notice";
 import { apiUrl } from "../lib/api";
 
 type Method = "GET" | "POST" | "PUT";
-type ConfirmAction = "deactivate" | "bulk_destructive" | "tax_update" | "latest_bulk_deactivate" | null;
+type ConfirmAction = "deactivate" | "bulk_destructive" | "tax_update" | "deposit_update" | "latest_bulk_deactivate" | null;
 type BulkAction = "generate" | "deactivate" | "lookup";
 type KeyStatus = "idle" | "ok" | "error";
 
@@ -48,6 +48,24 @@ type TaxBalanceItem = {
   override_remaining?: number | null;
   override_note?: string | null;
   override_updated_at?: string | null;
+};
+type DepositAdminItem = {
+  id: string;
+  user_id: string;
+  email?: string | null;
+  amount: number;
+  asset: string;
+  method: string;
+  chain?: string | null;
+  reference?: string | null;
+  note?: string | null;
+  provider?: string | null;
+  invoice_id?: string | null;
+  payment_url?: string | null;
+  qr_code?: string | null;
+  status: string;
+  created_at: string;
+  updated_at?: string;
 };
 type TaxResetUndo = {
   user_id: string;
@@ -203,6 +221,7 @@ export default function AdminPage() {
   const [bulkResults, setBulkResults] = useState<string[]>([]);
   const [keyStatus, setKeyStatus] = useState<KeyStatus>("idle");
   const [taxItems, setTaxItems] = useState<TaxPaymentItem[]>([]);
+  const [depositItems, setDepositItems] = useState<DepositAdminItem[]>([]);
   const [taxBalances, setTaxBalances] = useState<TaxBalanceItem[]>([]);
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [overviewAutoRefresh, setOverviewAutoRefresh] = useState(true);
@@ -245,6 +264,12 @@ export default function AdminPage() {
   const [editStatus, setEditStatus] = useState("confirmed");
   const [editReference, setEditReference] = useState("");
   const [editNote, setEditNote] = useState("");
+  const [depositFilterEmail, setDepositFilterEmail] = useState("");
+  const [depositFilterStatus, setDepositFilterStatus] = useState("all");
+  const [editingDepositId, setEditingDepositId] = useState("");
+  const [editDepositStatus, setEditDepositStatus] = useState("awaiting_payment");
+  const [editDepositReference, setEditDepositReference] = useState("");
+  const [editDepositNote, setEditDepositNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
@@ -265,6 +290,25 @@ export default function AdminPage() {
     if (!undoTaxReset) return 0;
     return Math.max(0, Math.ceil((undoTaxReset.expires_at - undoNowTick) / 1000));
   }, [undoNowTick, undoTaxReset]);
+  const pendingDeposits = useMemo(
+    () =>
+      depositItems
+        .filter((x) => {
+          const s = String(x.status || "").toLowerCase();
+          return s === "pending" || s === "awaiting_payment";
+        })
+        .slice()
+        .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))),
+    [depositItems]
+  );
+  const confirmedDeposits = useMemo(
+    () =>
+      depositItems
+        .filter((x) => String(x.status || "").toLowerCase() === "confirmed")
+        .slice()
+        .sort((a, b) => String(b.updated_at || b.created_at || "").localeCompare(String(a.updated_at || a.created_at || ""))),
+    [depositItems]
+  );
 
   function closeConfirm() {
     setConfirmAction(null);
@@ -317,6 +361,7 @@ export default function AdminPage() {
     if (!adminSession?.ok) return;
     void refreshLatestAuthCodes(0, true);
     void refreshTaxBalances();
+    void refreshDeposits();
     void refreshOverview();
     void refreshAutomations();
     void refreshComms();
@@ -673,6 +718,26 @@ export default function AdminPage() {
       setTaxItems(Array.isArray(r.items) ? r.items : []);
     } catch (e: any) {
       setError(typeof e?.message === "string" ? e.message : "Tax fetch failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function refreshDeposits() {
+    if (!canAdmin) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const q = new URLSearchParams();
+      q.set("limit", "180");
+      const em = depositFilterEmail.trim().toLowerCase();
+      if (em) q.set("email", em);
+      const st = depositFilterStatus.trim().toLowerCase();
+      if (st && st !== "all") q.set("status", st);
+      const r = await apiJson<{ items: DepositAdminItem[] }>("GET", `/api/admin/deposits?${q.toString()}`, adminKey);
+      setDepositItems(Array.isArray(r.items) ? r.items : []);
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Deposit fetch failed");
     } finally {
       setBusy(false);
     }
@@ -1119,6 +1184,13 @@ export default function AdminPage() {
     setEditNote(item.note || "");
   }
 
+  function beginDepositEdit(item: DepositAdminItem) {
+    setEditingDepositId(item.id);
+    setEditDepositStatus(item.status || "awaiting_payment");
+    setEditDepositReference(item.reference || "");
+    setEditDepositNote(item.note || "");
+  }
+
   async function saveTax(force = false) {
     if (!canAdmin || !editingTaxId) return;
     if (!force) {
@@ -1146,12 +1218,60 @@ export default function AdminPage() {
     }
   }
 
+  async function saveDeposit(force = false) {
+    if (!canAdmin || !editingDepositId) return;
+    if (!force) {
+      setConfirmAction("deposit_update");
+      setConfirmBody(`Apply updates to deposit ${editingDepositId}?`);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await apiJson("PUT", `/api/admin/deposits/${encodeURIComponent(editingDepositId)}`, adminKey, {
+        status: editDepositStatus,
+        reference: editDepositReference,
+        note: editDepositNote
+      });
+      setEditingDepositId("");
+      await refreshDeposits();
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Deposit update failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function quickUpdateDeposit(item: DepositAdminItem, status: "confirmed" | "rejected") {
+    if (!canAdmin || !item?.id) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await apiJson("PUT", `/api/admin/deposits/${encodeURIComponent(item.id)}`, adminKey, {
+        status,
+        reference: item.reference || "",
+        note: item.note || ""
+      });
+      await refreshDeposits();
+      pushToast(
+        status === "confirmed"
+          ? `Deposit approved for ${item.email || item.user_id}. Progress profile synced.`
+          : `Deposit rejected for ${item.email || item.user_id}.`
+      );
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Deposit approval failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function confirmNow() {
     const c = confirmAction;
     closeConfirm();
     if (c === "deactivate") await runAuth("deactivate", true);
     if (c === "bulk_destructive") await runBulk(true);
     if (c === "tax_update") await saveTax(true);
+    if (c === "deposit_update") await saveDeposit(true);
     if (c === "latest_bulk_deactivate") await deactivateSelectedLatest();
   }
 
@@ -1695,6 +1815,143 @@ export default function AdminPage() {
                 </div>
               </div>
             ) : null}
+          </div>
+        </div>
+
+        <div className="marketCard spanFull">
+          <div className="marketCardHead">
+            <div>
+              <div className="panelTitle">Deposit Admin (Bitcart)</div>
+              <div className="panelSub">Track invoice flow and update statuses with confirmation.</div>
+            </div>
+            <div className="muted mono">{depositItems.length} rows</div>
+          </div>
+          <div className="authBody">
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
+              <input value={depositFilterEmail} onChange={(e) => setDepositFilterEmail(e.target.value)} placeholder="filter by user email" />
+              <select value={depositFilterStatus} onChange={(e) => setDepositFilterStatus(e.target.value)}>
+                <option value="all">all statuses</option>
+                <option value="awaiting_payment">awaiting_payment</option>
+                <option value="pending">pending</option>
+                <option value="confirmed">confirmed</option>
+                <option value="failed">failed</option>
+                <option value="expired">expired</option>
+                <option value="cancelled">cancelled</option>
+                <option value="rejected">rejected</option>
+              </select>
+              <button className="mini" type="button" onClick={() => void refreshDeposits()} disabled={!canAdmin || busy}>Refresh deposits</button>
+            </div>
+            {depositItems.map((it) => (
+              <button key={it.id} type="button" className="pairsNote" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => beginDepositEdit(it)}>
+                <span className="mono">{it.email || it.user_id}</span> | <span className="mono">{it.amount} {it.asset}</span> |{" "}
+                <span className="mono">{it.status}</span> | <span className="mono">{it.provider || "manual"}</span> |{" "}
+                <span className="mono">{it.invoice_id || "--"}</span>
+              </button>
+            ))}
+            {editingDepositId ? (
+              <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                <select value={editDepositStatus} onChange={(e) => setEditDepositStatus(e.target.value)}>
+                  <option value="awaiting_payment">awaiting_payment</option>
+                  <option value="pending">pending</option>
+                  <option value="confirmed">confirmed</option>
+                  <option value="failed">failed</option>
+                  <option value="expired">expired</option>
+                  <option value="cancelled">cancelled</option>
+                  <option value="rejected">rejected</option>
+                </select>
+                <input value={editDepositReference} onChange={(e) => setEditDepositReference(e.target.value)} placeholder="reference / tx hash" />
+                <input value={editDepositNote} onChange={(e) => setEditDepositNote(e.target.value)} placeholder="admin note" />
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <button className="mini" type="button" onClick={() => void saveDeposit()} disabled={busy}>Save deposit update</button>
+                  <button className="mini" type="button" onClick={() => setEditingDepositId("")}>Cancel</button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="marketCard spanFull">
+          <div className="marketCardHead">
+            <div>
+              <div className="panelTitle">Checkout Deposit Approval Queue</div>
+              <div className="panelSub">Approve requests from checkout. Approved requests unlock user progress data.</div>
+            </div>
+            <div className="muted mono">{pendingDeposits.length} pending</div>
+          </div>
+          <div className="authBody">
+            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))" }}>
+              <div className="pairsNote">
+                <span className="mono">Pending (no movement): {pendingDeposits.length}</span>
+              </div>
+              <div className="pairsNote">
+                <span className="mono">Approved (position active): {confirmedDeposits.length}</span>
+              </div>
+              <div className="pairsNote">
+                <span className="mono">Rule: Progress stays 0 until status = confirmed</span>
+              </div>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 980 }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: "left", padding: "10px 8px" }}>Date</th>
+                    <th style={{ textAlign: "left", padding: "10px 8px" }}>User</th>
+                    <th style={{ textAlign: "left", padding: "10px 8px" }}>Amount</th>
+                    <th style={{ textAlign: "left", padding: "10px 8px" }}>Asset</th>
+                    <th style={{ textAlign: "left", padding: "10px 8px" }}>Network</th>
+                    <th style={{ textAlign: "left", padding: "10px 8px" }}>Status</th>
+                    <th style={{ textAlign: "left", padding: "10px 8px" }}>Progress Impact</th>
+                    <th style={{ textAlign: "left", padding: "10px 8px" }}>Reference</th>
+                    <th style={{ textAlign: "left", padding: "10px 8px" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingDeposits.length ? (
+                    pendingDeposits.map((it) => (
+                      <tr key={it.id} style={{ borderTop: "1px solid rgba(255,255,255,.08)" }}>
+                        <td style={{ padding: "10px 8px" }} className="mono">{fmt(it.created_at)}</td>
+                        <td style={{ padding: "10px 8px" }} className="mono">{it.email || it.user_id}</td>
+                        <td style={{ padding: "10px 8px" }} className="mono">{Number(it.amount || 0).toFixed(8)}</td>
+                        <td style={{ padding: "10px 8px" }} className="mono">{it.asset || "--"}</td>
+                        <td style={{ padding: "10px 8px" }} className="mono">{it.chain || "--"}</td>
+                        <td style={{ padding: "10px 8px" }} className="mono">{it.status || "--"}</td>
+                        <td style={{ padding: "10px 8px" }} className="mono">No movement until approved</td>
+                        <td style={{ padding: "10px 8px" }} className="mono">{it.reference || "--"}</td>
+                        <td style={{ padding: "10px 8px", display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button
+                            className="mini"
+                            type="button"
+                            onClick={() => void quickUpdateDeposit(it, "confirmed")}
+                            disabled={busy}
+                            style={{ borderColor: "rgba(60,210,120,.65)", color: "#aaf5c7" }}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            className="mini"
+                            type="button"
+                            onClick={() => void quickUpdateDeposit(it, "rejected")}
+                            disabled={busy}
+                            style={{ borderColor: "rgba(255,90,90,.65)", color: "#ffd3d3" }}
+                          >
+                            Reject
+                          </button>
+                          <button className="mini" type="button" onClick={() => beginDepositEdit(it)} disabled={busy}>
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={9} style={{ padding: "12px 8px" }} className="pairsNote">
+                        No pending checkout deposit requests.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>

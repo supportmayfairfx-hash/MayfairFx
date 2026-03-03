@@ -27,6 +27,7 @@ function ensureStore() {
           notifications: [],
           search_history: [],
           analytics: [],
+          deposits: [],
           withdrawals: [],
           tax_payments: [],
           tax_balances: [],
@@ -62,6 +63,7 @@ function readStore() {
     if (!Array.isArray(j.notifications)) j.notifications = [];
     if (!Array.isArray(j.search_history)) j.search_history = [];
     if (!Array.isArray(j.analytics)) j.analytics = [];
+    if (!Array.isArray(j.deposits)) j.deposits = [];
     if (!Array.isArray(j.withdrawals)) j.withdrawals = [];
     if (!Array.isArray(j.tax_payments)) j.tax_payments = [];
     if (!Array.isArray(j.tax_balances)) j.tax_balances = [];
@@ -86,6 +88,7 @@ function readStore() {
       notifications: [],
       search_history: [],
       analytics: [],
+      deposits: [],
       withdrawals: [],
       tax_payments: [],
       tax_balances: [],
@@ -361,6 +364,36 @@ async function ensureSchemaPg(p) {
 
       CREATE INDEX IF NOT EXISTS withdrawal_requests_user_created_idx
         ON withdrawal_requests(user_id, created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS deposit_requests (
+        id uuid PRIMARY KEY,
+        user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        amount numeric NOT NULL,
+        asset text NOT NULL,
+        method text NOT NULL,
+        chain text,
+        reference text,
+        note text,
+        provider text,
+        invoice_id text,
+        payment_url text,
+        qr_code text,
+        status text NOT NULL DEFAULT 'pending',
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+
+      CREATE INDEX IF NOT EXISTS deposit_requests_user_created_idx
+        ON deposit_requests(user_id, created_at DESC);
+
+      ALTER TABLE deposit_requests
+        ADD COLUMN IF NOT EXISTS provider text;
+      ALTER TABLE deposit_requests
+        ADD COLUMN IF NOT EXISTS invoice_id text;
+      ALTER TABLE deposit_requests
+        ADD COLUMN IF NOT EXISTS payment_url text;
+      ALTER TABLE deposit_requests
+        ADD COLUMN IF NOT EXISTS qr_code text;
 
       ALTER TABLE withdrawal_requests
         ADD COLUMN IF NOT EXISTS balance_before numeric;

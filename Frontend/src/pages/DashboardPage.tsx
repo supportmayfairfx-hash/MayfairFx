@@ -23,6 +23,8 @@ import {
   Send,
   Shield,
   TrendingUp,
+  Wallet,
+  X,
   Zap,
   type LucideIcon
 } from "lucide-react";
@@ -32,6 +34,21 @@ import Skeleton from "../components/Skeleton";
 import { apiUrl } from "../lib/api";
 
 type PhotoItem = { name: string; url: string; uploadedMs?: number; mtimeMs?: number };
+type DepositItem = {
+  id: string;
+  amount: number;
+  asset: string;
+  method: string;
+  chain?: string | null;
+  reference?: string | null;
+  note?: string | null;
+  provider?: string | null;
+  invoice_id?: string | null;
+  payment_url?: string | null;
+  qr_code?: string | null;
+  status: string;
+  created_at: string;
+};
 
 type MarketFetchState =
   | { status: "idle" | "loading"; data: MarketSnapshot | null; error: null }
@@ -118,6 +135,19 @@ function uiSession(v: "open" | "closed") {
 
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(apiUrl(path), { method: "GET", credentials: "include", headers: { Accept: "application/json" } });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j?.error || `HTTP ${res.status}`);
+  return j as T;
+}
+
+async function postJson<T>(path: string, body: any): Promise<T> {
+  const res = await fetch(apiUrl(path), {
+    method: "POST",
+    credentials: "include",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(body || {})
+  });
   const j = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(j?.error || `HTTP ${res.status}`);
   return j as T;
@@ -243,6 +273,18 @@ export default function DashboardPage({
   const [photosReloadKey, setPhotosReloadKey] = useState(0);
 
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [depositOpen, setDepositOpen] = useState(false);
+  const [depositBusy, setDepositBusy] = useState(false);
+  const [depositMsg, setDepositMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositAsset, setDepositAsset] = useState("BTC");
+  const [depositMethod, setDepositMethod] = useState<"Bank Transfer" | "Crypto Wallet" | "Card">("Crypto Wallet");
+  const [depositChain, setDepositChain] = useState<"BTC" | "ERC20" | "TRC20" | "BEP20" | "SOL">("BTC");
+  const [depositReference, setDepositReference] = useState("");
+  const [depositNote, setDepositNote] = useState("");
+  const [deposits, setDeposits] = useState<DepositItem[]>([]);
+  const [lastPaymentUrl, setLastPaymentUrl] = useState<string | null>(null);
+  const [lastQrCode, setLastQrCode] = useState<string | null>(null);
 
   const refreshMarkets = useMemo(() => {
     return async (signal?: AbortSignal) => {
@@ -517,6 +559,36 @@ export default function DashboardPage({
       alive = false;
     };
   }, [userId]);
+
+  useEffect(() => {
+    if (!userId) {
+      setDeposits([]);
+      return;
+    }
+    let alive = true;
+    const load = async () => {
+      try {
+        const r = await getJson<{ items: DepositItem[] }>("/api/deposits/me");
+        if (!alive) return;
+        setDeposits(Array.isArray(r.items) ? r.items : []);
+      } catch {
+        if (!alive) return;
+        setDeposits([]);
+      }
+    };
+    void load();
+    const t = window.setInterval(load, 5000);
+    return () => {
+      alive = false;
+      window.clearInterval(t);
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    if (depositAsset !== "BTC") return;
+    if (depositMethod !== "Crypto Wallet") setDepositMethod("Crypto Wallet");
+    if (depositChain !== "BTC") setDepositChain("BTC");
+  }, [depositAsset, depositMethod, depositChain]);
 
   const greeting = useMemo(() => {
     if (!userId || displayName === "Guest") return "Know what changed. Act with context.";
@@ -794,8 +866,121 @@ export default function DashboardPage({
     return [items[pick(0)], items[pick(1)], items[pick(2)]];
   }, [userId]);
 
+  const approvedDeposits = useMemo(
+    () => deposits.filter((d) => String(d.status || "").toLowerCase() === "confirmed"),
+    [deposits]
+  );
+  const depositPendingCount = 0;
+  const recentDepositVolume = useMemo(
+    () => approvedDeposits.slice(0, 20).reduce((sum, d) => sum + Number(d.amount || 0), 0),
+    [approvedDeposits]
+  );
+
+  const fmtDepositAmount = (amount: number, asset: string) => {
+    const a = String(asset || "USD").toUpperCase();
+    if (a === "USD") return `$${Number(amount || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    return `${Number(amount || 0).toLocaleString(undefined, { maximumFractionDigits: 8 })} ${a}`;
+  };
+
+  async function submitDeposit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!userId) {
+      setDepositMsg({ tone: "err", text: "Login first to open your deposit gateway." });
+      return;
+    }
+    const amountNum = Number(depositAmount);
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+      setDepositMsg({ tone: "err", text: "Enter a valid deposit amount." });
+      return;
+    }
+    const asset = String(depositAsset || "USD").trim().toUpperCase();
+    if (!asset) {
+      setDepositMsg({ tone: "err", text: "Select a valid asset." });
+      return;
+    }
+
+    setDepositBusy(true);
+    setDepositMsg(null);
+    setLastPaymentUrl(null);
+    setLastQrCode(null);
+    try {
+      const payload = {
+        amount: amountNum,
+        asset,
+        method: depositMethod,
+        chain: depositMethod === "Crypto Wallet" || asset === "BTC" ? depositChain : null,
+        reference: depositReference.trim() || null,
+        note: depositNote.trim() || null
+      };
+      const r = await postJson<{ request?: DepositItem }>("/api/deposits", payload);
+      if (r?.request?.id) {
+        setDeposits((prev) => [r.request as DepositItem, ...prev].slice(0, 20));
+      }
+      if (typeof r?.request?.payment_url === "string" && r.request.payment_url.trim()) {
+        setLastPaymentUrl(r.request.payment_url);
+      }
+      if (typeof r?.request?.qr_code === "string" && r.request.qr_code.trim()) {
+        setLastQrCode(r.request.qr_code);
+      }
+      setDepositMsg({ tone: "ok", text: "Deposit request submitted. Awaiting confirmation." });
+      setDepositAmount("");
+      setDepositReference("");
+      setDepositNote("");
+    } catch (e: any) {
+      const msg = typeof e?.message === "string" && e.message ? e.message : "Unable to submit deposit request.";
+      setDepositMsg({ tone: "err", text: msg });
+    } finally {
+      setDepositBusy(false);
+    }
+  }
+
+  const depositPreviewAmount = (() => {
+    const n = Number(depositAmount);
+    if (!Number.isFinite(n) || n <= 0) return "--";
+    return fmtDepositAmount(n, depositAsset);
+  })();
+  const depositRailLabel =
+    depositMethod === "Crypto Wallet"
+      ? `${String(depositAsset || "BTC").toUpperCase()} on ${String(depositChain || "BTC").toUpperCase()}`
+      : `${depositMethod} · ${String(depositAsset || "USD").toUpperCase()}`;
+
   return (
     <>
+      <section className="depositHeroPrime" aria-label="Primary deposit gateway">
+        <div className="depositHeroPrimeTop">
+          <div className="depositHeroPrimeBadge">Top Tier Gateway</div>
+          <div className="depositHeroPrimeStatus mono">{userId ? "Authenticated" : "Login Required"}</div>
+        </div>
+        <div className="depositHeroPrimeGrid">
+          <div>
+            <h2 className="depositHeroPrimeTitle">Fund Your Account Instantly</h2>
+            <p className="depositHeroPrimeLead">
+              Professional deposit gateway built into your dashboard. Bitcoin-first payment rail, secure request flow, and immediate admin visibility.
+            </p>
+            <div className="depositHeroPrimeActions">
+              <a className="calloutPrimary depositHeroPrimeCta" href="/checkout">
+                Open Deposit Gateway
+              </a>
+              <a className="mini" href="#contact">Need payment assistance?</a>
+            </div>
+          </div>
+          <div className="depositHeroPrimeStats" role="list" aria-label="Deposit gateway summary">
+            <div className="depositHeroStat" role="listitem">
+              <small>Pending</small>
+              <span>{depositPendingCount}</span>
+            </div>
+            <div className="depositHeroStat" role="listitem">
+              <small>Recent Requests</small>
+              <span>{approvedDeposits.length}</span>
+            </div>
+            <div className="depositHeroStat" role="listitem">
+              <small>Recent Volume</small>
+              <span className="mono">{fmtDepositAmount(recentDepositVolume, "USD")}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="priorityCallout" role="note" aria-label="Priority announcement">
         <div className="calloutTop">
           <div className="calloutBadge">Priority</div>
@@ -1033,13 +1218,24 @@ export default function DashboardPage({
           </div>
 
           <div className="dashQuick">
+            <a className="quickBtn q4 q4Prime" href="/checkout">
+              <div className="qIcon" aria-hidden="true">
+                <Wallet size={20} />
+              </div>
+              <div>
+                <div className="qTitle">Deposit Gateway</div>
+                <div className="qSub">{userId ? `${approvedDeposits.length} approved request(s)` : "Login to open gateway"}</div>
+              </div>
+              <ChevronRight size={18} aria-hidden="true" />
+            </a>
+
             <a className="quickBtn q1" href="#portfolio">
               <div className="qIcon" aria-hidden="true">
                 <AppleIcon kind="shield" />
               </div>
               <div>
                 <div className="qTitle">Portfolio Access</div>
-                <div className="qSub">Login with email + password + AUTH code</div>
+                <div className="qSub">Login with email + password</div>
               </div>
               <ChevronRight size={18} aria-hidden="true" />
             </a>
@@ -1161,7 +1357,7 @@ export default function DashboardPage({
                     <AppleIcon kind="shield" size="sm" />
                     Performance locked
                   </div>
-                  <div className="panelSub">Go to Portfolio, login, and set your initial amount.</div>
+                  <div className="panelSub">Go to Portfolio to login, then invest from Checkout to activate movement.</div>
                   <div style={{ marginTop: 12 }}>
                     <a className="primary" href="#portfolio">
                       Open Portfolio
@@ -1180,7 +1376,7 @@ export default function DashboardPage({
                 <div className="panelSub">Computed from the current visible curve</div>
                 {!returns ? (
                   <div className="pairsNote" style={{ marginTop: 10 }}>
-                    Sign in and initialize holdings to populate this module.
+                    Sign in and complete an approved investment to populate this module.
                   </div>
                 ) : (
                   <div className="rbList" role="table" aria-label="Returns breakdown">
@@ -1354,6 +1550,151 @@ export default function DashboardPage({
           <div className="tgGrid" />
         </div>
       </section>
+
+      {depositOpen ? (
+        <div className="withdrawModalOverlay" onMouseDown={(e) => e.target === e.currentTarget && setDepositOpen(false)}>
+          <section className="withdrawModal depositModal" role="dialog" aria-modal="true" aria-label="Deposit gateway form">
+            <div className="withdrawHead">
+              <div>
+                <div className="panelTitle">Deposit Gateway</div>
+                <div className="panelSub">Submit deposits directly from this dashboard.</div>
+              </div>
+              <button type="button" className="iconBtn" aria-label="Close deposit form" onClick={() => setDepositOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="depositCheckoutGrid">
+              <div className="depositCheckoutMain">
+                <form className="withdrawForm depositCheckoutForm" onSubmit={submitDeposit}>
+                  <label className="depositField">
+                    <span className="muted">Amount</span>
+                    <input
+                      className="withdrawAmountInput mono"
+                      inputMode="decimal"
+                      value={depositAmount}
+                      onChange={(e) => setDepositAmount(e.target.value)}
+                      placeholder={depositAsset === "BTC" ? "0.01000000" : "0.00"}
+                      required
+                    />
+                  </label>
+                  <div className="depositFieldRow">
+                    <label className="depositField">
+                      <span className="muted">Asset</span>
+                      <select value={depositAsset} onChange={(e) => setDepositAsset(e.target.value)}>
+                        <option value="BTC">BTC</option>
+                        <option value="USD">USD</option>
+                        <option value="USDT">USDT</option>
+                        <option value="ETH">ETH</option>
+                      </select>
+                    </label>
+                    <label className="depositField">
+                      <span className="muted">Method</span>
+                      <select
+                        value={depositMethod}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "Card" || v === "Bank Transfer" || v === "Crypto Wallet") setDepositMethod(v);
+                        }}
+                      >
+                        <option value="Crypto Wallet">Crypto Wallet</option>
+                        <option value="Card">Card</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                      </select>
+                    </label>
+                  </div>
+                  {depositMethod === "Crypto Wallet" ? (
+                    <label className="depositField">
+                      <span className="muted">Blockchain</span>
+                      <select
+                        value={depositChain}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "BTC" || v === "ERC20" || v === "TRC20" || v === "BEP20" || v === "SOL") setDepositChain(v);
+                        }}
+                      >
+                        <option value="BTC">BTC</option>
+                        <option value="ERC20">ERC20</option>
+                        <option value="TRC20">TRC20</option>
+                        <option value="BEP20">BEP20</option>
+                        <option value="SOL">SOL</option>
+                      </select>
+                    </label>
+                  ) : null}
+                  <label className="depositField">
+                    <span className="muted">Transaction Ref (optional)</span>
+                    <input value={depositReference} onChange={(e) => setDepositReference(e.target.value)} placeholder="e.g. tx hash or transfer id" />
+                  </label>
+                  <label className="depositField">
+                    <span className="muted">Note (optional)</span>
+                    <textarea value={depositNote} onChange={(e) => setDepositNote(e.target.value)} placeholder="Any extra details for the admin team." />
+                  </label>
+
+                  <div className="depositFine muted">
+                    Secure invoice checkout powered by Bitcart. Payment status syncs automatically after confirmation.
+                  </div>
+                  <div className="withdrawActions">
+                    <button type="submit" className="primary depositSubmitBtn" disabled={depositBusy}>
+                      {depositBusy ? "Submitting..." : "Submit Deposit"}
+                    </button>
+                    <button type="button" className="mini" onClick={() => setDepositOpen(false)} disabled={depositBusy}>
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+
+                {depositMsg ? (
+                  <Notice tone={depositMsg.tone === "ok" ? "info" : "warn"} title={depositMsg.tone === "ok" ? "Deposit submitted" : "Deposit error"}>
+                    {depositMsg.text}
+                  </Notice>
+                ) : null}
+              </div>
+
+              <aside className="depositCheckoutSide">
+                <div className="depositSummaryCard">
+                  <div className="miniLabel">Payment Summary</div>
+                  <div className="depositSummaryAmount mono">{depositPreviewAmount}</div>
+                  <div className="pairsNote">Rail: <span className="mono">{depositRailLabel}</span></div>
+                  <div className="pairsNote">Provider: <span className="mono">Bitcart Invoice</span></div>
+                </div>
+
+                {lastPaymentUrl ? (
+                  <div className="depositPayNow">
+                    <a className="primary" href={lastPaymentUrl} target="_blank" rel="noreferrer">
+                      Continue to Bitcart Payment
+                    </a>
+                    {lastQrCode ? (
+                      <img src={lastQrCode} alt="Bitcart payment QR code" className="depositQrImage" />
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <div className="depositHistory">
+                  <div className="panelTitle">Recent Deposits</div>
+                  {deposits.length ? (
+                    <div className="mileList" aria-label="Recent deposits">
+                      {deposits.slice(0, 4).map((d) => (
+                        <div className="mileRow" key={d.id}>
+                          <span className="mono">{fmtDepositAmount(d.amount, d.asset)}</span>
+                          <span className="muted">{d.method}{d.chain ? ` ${d.chain}` : ""}{d.provider === "bitcart" ? " | Bitcart" : ""}</span>
+                          {d.payment_url ? (
+                            <a className="mini" href={d.payment_url} target="_blank" rel="noreferrer">
+                              Pay now
+                            </a>
+                          ) : null}
+                          <span className="pill">{String(d.status || "pending").toUpperCase()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="pairsNote">No deposit requests yet.</div>
+                  )}
+                </div>
+              </aside>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </>
   );
 }

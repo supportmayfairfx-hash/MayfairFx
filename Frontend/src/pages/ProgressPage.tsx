@@ -42,6 +42,13 @@ type TaxSummary = {
   override_note?: string | null;
   override_updated_at?: string | null;
 };
+type DepositItem = {
+  id: string;
+  amount: number;
+  asset: string;
+  status: string;
+  created_at: string;
+};
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(apiUrl(path), {
     method: "GET",
@@ -244,6 +251,7 @@ export default function ProgressPage() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
   const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [deposits, setDeposits] = useState<DepositItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [booting, setBooting] = useState(true);
   const [usingCachedSession, setUsingCachedSession] = useState(false);
@@ -315,6 +323,12 @@ export default function ProgressPage() {
       } catch {
         if (!cancelled) setHoldings([]);
       }
+      try {
+        const r = await getJson<{ items: DepositItem[] }>("/api/deposits/me");
+        if (!cancelled) setDeposits(Array.isArray(r.items) ? r.items : []);
+      } catch {
+        if (!cancelled) setDeposits([]);
+      }
       if (!cancelled) setBooting(false);
     };
 
@@ -323,6 +337,22 @@ export default function ProgressPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!user || user === undefined || user === null) return;
+    let cancelled = false;
+    const loadDeposits = async () => {
+      try {
+        const r = await getJson<{ items: DepositItem[] }>("/api/deposits/me");
+        if (!cancelled) setDeposits(Array.isArray(r.items) ? r.items : []);
+      } catch {}
+    };
+    const t = window.setInterval(() => void loadDeposits(), 15000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(t);
+    };
+  }, [user]);
 
   useEffect(() => {
     if (timerRef.current) window.clearInterval(timerRef.current);
@@ -709,8 +739,11 @@ export default function ProgressPage() {
   const holdingsSummary = useMemo(() => {
     // Backend redacts holdings: it returns a single aggregated holding (POOL).
     const reachedOrBeatTarget = !!plan && !!simMeta && simMeta.current >= plan.targetValue;
+    const initialCapital = Number(profile?.initial_capital || 0);
+    const initialUnits = Number(profile?.initial_units || 0);
+    const hasApprovedHoldings = initialCapital > 0 || initialUnits > 0;
     return {
-      positions: profile ? (reachedOrBeatTarget ? 0 : 1) : 0,
+      positions: hasApprovedHoldings ? (reachedOrBeatTarget ? 0 : 1) : 0,
       label: "Private "
     };
   }, [holdings, profile, plan, simMeta]);
@@ -765,8 +798,8 @@ export default function ProgressPage() {
       <section className="pageHero">
         <div>
           <div className="eyebrow">Progress</div>
-          <h1 className="pageTitle">Setup required</h1>
-          <p className="pageLead">Set your initial holdings amount in Portfolio first.</p>
+          <h1 className="pageTitle">Profile Sync In Progress</h1>
+          <p className="pageLead">Your holdings profile is being prepared. Reload this page in a moment.</p>
           <div style={{ marginTop: 14 }}>
             <a className="chip" href="#portfolio">Back to Portfolio</a>
           </div>
@@ -780,10 +813,10 @@ export default function ProgressPage() {
       <section className="pageHero">
         <div>
           <div className="eyebrow">Progress</div>
-          <h1 className="pageTitle">No Trading plan</h1>
-          <p className="pageLead">Your initial holdings value does not match a supported preset.</p>
+          <h1 className="pageTitle">No Active Investment Yet</h1>
+          <p className="pageLead">Initial holdings are 0. Invest from Checkout, then wait for admin approval to start progress movement.</p>
           <div style={{ marginTop: 14 }}>
-            <a className="chip" href="#portfolio">Back to Portfolio</a>
+            <a className="chip" href="#checkout">Go to Checkout</a>
           </div>
         </div>
       </section>
@@ -806,29 +839,42 @@ export default function ProgressPage() {
   const endTime = new Date(simMeta.endSec * 1000);
   const startShort = startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const endShort = endTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const progress01 = (() => {
+  const baseProgress01 = (() => {
     const denom = plan.targetValue - plan.startValue;
     const num = simMeta.current - plan.startValue;
     return denom === 0 ? 1 : clamp(num / denom, 0, 1);
   })();
-  const progressPct = Math.round(progress01 * 100);
-  const reachedTarget = progressPct >= 100;
+  const baseProgressPct = Math.round(baseProgress01 * 100);
+  const reachedTarget = baseProgressPct >= 100;
   const timeLeftLabel = simMeta.done ? "Completed" : `${hoursLeft}h ${minsLeft}m ${secsLeft}s`;
   const durationHours = Math.round(plan.durationSec / 3600);
-  const taxRate = typeof taxSummary?.tax_rate === "number" ? taxSummary.tax_rate : 0.2 * progress01; // ramps up to 20% by plan end
-  const taxDue =
-    typeof taxSummary?.tax_due === "number" ? Number(taxSummary.tax_due) : effectiveCurrent * taxRate; // tax is handled separately from holdings and must be settled before withdrawal.
-  const taxPaid =
+  const baseTaxRate = typeof taxSummary?.tax_rate === "number" ? taxSummary.tax_rate : 0.2 * baseProgress01; // ramps up to 20% by plan end
+  const baseTaxDue =
+    typeof taxSummary?.tax_due === "number" ? Number(taxSummary.tax_due) : effectiveCurrent * baseTaxRate; // tax is handled separately from holdings and must be settled before withdrawal.
+  const baseTaxPaid =
     typeof taxSummary?.tax_paid === "number"
       ? Number(taxSummary.tax_paid)
       : taxPayments
           .filter((p) => String(p.asset || "").toUpperCase() === plan.unit)
           .reduce((s, p) => s + Number(p.amount || 0), 0);
-  const taxRemaining = typeof taxSummary?.tax_remaining === "number" ? Number(taxSummary.tax_remaining) : Math.max(0, taxDue - taxPaid);
+  const taxRemaining = typeof taxSummary?.tax_remaining === "number" ? Number(taxSummary.tax_remaining) : Math.max(0, baseTaxDue - baseTaxPaid);
+  const hasLockedWithdrawalForPlan = withdrawnLocked > 0.00000001;
+  const shouldResetDashboard = hasLockedWithdrawalForPlan && taxRemaining <= 0.00000001 && effectiveCurrent <= 0.00000001;
+  const progress01 = shouldResetDashboard ? 0 : baseProgress01;
+  const progressPct = shouldResetDashboard ? 0 : baseProgressPct;
+  const taxRate = shouldResetDashboard ? 0 : baseTaxRate;
+  const taxDue = shouldResetDashboard ? 0 : baseTaxDue;
+  const taxPaid = shouldResetDashboard ? 0 : baseTaxPaid;
   const taxRateLabel = `${(taxRate * 100).toFixed(2)}%`;
   const taxDueLabel = plan.unit === "USD" ? fmtMoney(taxDue) : fmtBtc(taxDue);
   const taxPaidLabel = plan.unit === "USD" ? fmtMoney(taxPaid) : fmtBtc(taxPaid);
   const taxRemainingLabel = plan.unit === "USD" ? fmtMoney(taxRemaining) : fmtBtc(taxRemaining);
+  const approvedDepositsForPlan = deposits
+    .filter((d) => String(d.status || "").toLowerCase() === "confirmed")
+    .filter((d) => String(d.asset || "").toUpperCase() === String(plan.unit || "").toUpperCase())
+    .reduce((sum, d) => sum + Number(d.amount || 0), 0);
+  const initialHoldingsValue = approvedDepositsForPlan > 0 ? approvedDepositsForPlan : plan.startValue;
+  const initialHoldingsLabel = plan.unit === "USD" ? fmtMoney(initialHoldingsValue) : fmtBtc(initialHoldingsValue);
 
   const nextEtaLabel = nextMilestone ? fmtEta(nextMilestone.tSec * 1000) : "Completed";
   const nextPctLabel = nextMilestone ? `${Math.round(nextMilestone.pct * 100)}%` : "100%";
@@ -1004,8 +1050,8 @@ export default function ProgressPage() {
                 <div className="kpiValue mono">{taxRemainingLabel}</div>
               </div>
               <div className="kpi">
-                <div className="kpiLabel">Holdings</div>
-                <div className="kpiValue mono">{holdingsSummary.positions}</div>
+                <div className="kpiLabel">Initial Holdings</div>
+                <div className="kpiValue mono">{initialHoldingsLabel}</div>
               </div>
               <div className="kpi">
                 <div className="kpiLabel">Window</div>

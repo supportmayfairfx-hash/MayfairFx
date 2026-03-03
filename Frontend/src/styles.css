@@ -3012,6 +3012,129 @@ html[data-theme="dark"] .themeKnob { transform: translateX(26px); }
   margin-bottom: 14px;
 }
 
+.depositHeroPrime {
+  position: relative;
+  border: 1px solid rgba(255, 184, 61, 0.42);
+  border-radius: 24px;
+  padding: 18px;
+  margin-bottom: 14px;
+  background:
+    radial-gradient(1000px 420px at 10% 18%, rgba(255, 174, 0, 0.18), transparent 62%),
+    radial-gradient(920px 360px at 92% 28%, rgba(56, 189, 248, 0.17), transparent 66%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(6, 12, 24, 0.94));
+  box-shadow:
+    0 26px 90px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.depositHeroPrime::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  border: 1px solid rgba(255, 207, 107, 0.35);
+  opacity: 0.85;
+}
+
+.depositHeroPrimeTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.depositHeroPrimeBadge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(255, 207, 107, 0.55);
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffda87;
+  background: rgba(255, 184, 61, 0.13);
+}
+
+.depositHeroPrimeStatus {
+  font-size: 12px;
+  color: rgba(231, 238, 252, 0.8);
+}
+
+.depositHeroPrimeGrid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1.3fr 0.9fr;
+  gap: 14px;
+  align-items: end;
+}
+
+.depositHeroPrimeTitle {
+  margin: 0;
+  font-size: clamp(1.65rem, 2.8vw, 2.25rem);
+  line-height: 1.08;
+  letter-spacing: 0.01em;
+  color: rgba(255, 245, 222, 0.98);
+}
+
+.depositHeroPrimeLead {
+  margin: 10px 0 0;
+  color: rgba(231, 238, 252, 0.92);
+  max-width: 62ch;
+  line-height: 1.58;
+}
+
+.depositHeroPrimeActions {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.depositHeroPrimeCta {
+  border-color: rgba(255, 228, 160, 0.62);
+  background: linear-gradient(135deg, #ffc658, #ff9f2d);
+  color: #17120a;
+  box-shadow: 0 14px 34px rgba(255, 157, 45, 0.35);
+  font-weight: 950;
+}
+
+.depositHeroPrimeCta:hover {
+  background: linear-gradient(135deg, #ffd47f, #ffab47);
+  transform: translateY(-1px);
+}
+
+.depositHeroPrimeStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.depositHeroStat {
+  border: 1px solid rgba(231, 238, 252, 0.16);
+  background: rgba(231, 238, 252, 0.05);
+  border-radius: 14px;
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.depositHeroStat small {
+  color: rgba(231, 238, 252, 0.7);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.depositHeroStat span {
+  color: rgba(231, 238, 252, 0.96);
+  font-weight: 900;
+}
+
 .calloutTop {
   display: flex;
   align-items: center;
@@ -4206,6 +4329,11 @@ html[data-theme="light"] .ripple {
   gap: 12px;
   align-items: center;
   text-decoration: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
   transition: transform 220ms ease, border-color 220ms ease, background 220ms ease;
 }
 
@@ -4226,6 +4354,25 @@ html[data-theme="light"] .ripple {
 .quickBtn.q1 .appleUiIcon { --apple-icon-bg: linear-gradient(180deg, #54d169 0%, #2fb94a 100%); }
 .quickBtn.q2 .appleUiIcon { --apple-icon-bg: linear-gradient(180deg, #44c7ff 0%, #1696ff 100%); }
 .quickBtn.q3 .appleUiIcon { --apple-icon-bg: linear-gradient(180deg, #7f79ff 0%, #5a4dff 100%); }
+.quickBtn.q4 .qIcon {
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffb24c 0%, #ff8a3d 100%);
+  color: #111827;
+}
+.quickBtn.q4Prime {
+  border-color: rgba(255, 194, 92, 0.58);
+  background:
+    radial-gradient(240px 90px at 10% 50%, rgba(255, 170, 40, 0.16), transparent 72%),
+    rgba(231, 238, 252, 0.04);
+  box-shadow: 0 12px 34px rgba(255, 138, 61, 0.22);
+}
+
+.quickBtn.q4Prime:hover {
+  border-color: rgba(255, 206, 115, 0.75);
+  background:
+    radial-gradient(260px 100px at 12% 50%, rgba(255, 170, 40, 0.22), transparent 72%),
+    rgba(231, 238, 252, 0.06);
+}
 
 .qTitle {
   font-weight: 950;
@@ -4241,6 +4388,136 @@ html[data-theme="light"] .ripple {
 
 .quickBtn > svg {
   color: var(--muted);
+}
+
+.depositModal {
+  width: min(980px, 97vw);
+}
+
+.depositCheckoutGrid {
+  display: grid;
+  grid-template-columns: 1.25fr 0.9fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.depositCheckoutMain,
+.depositCheckoutSide {
+  display: grid;
+  gap: 10px;
+}
+
+.depositCheckoutForm {
+  border: 1px solid rgba(231, 238, 252, 0.14);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(231, 238, 252, 0.03);
+}
+
+.depositField {
+  display: grid;
+  gap: 6px;
+}
+
+.depositFieldRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.depositSummaryCard {
+  border: 1px solid rgba(231, 238, 252, 0.16);
+  border-radius: 16px;
+  padding: 12px;
+  background:
+    radial-gradient(220px 80px at 10% 0%, rgba(255, 175, 63, 0.12), transparent 72%),
+    rgba(231, 238, 252, 0.03);
+}
+
+.depositSummaryAmount {
+  margin-top: 6px;
+  font-size: 28px;
+  font-weight: 900;
+  color: rgba(231, 238, 252, 0.98);
+}
+
+.depositFine {
+  border: 1px solid rgba(231, 238, 252, 0.12);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: rgba(231, 238, 252, 0.02);
+  font-size: 12.5px;
+}
+
+.depositSubmitBtn {
+  min-width: 220px;
+  font-weight: 900;
+  border: 1px solid rgba(255, 202, 94, 0.56);
+  background: linear-gradient(135deg, #ffc55e, #ff9a31);
+  color: #121212;
+  box-shadow: 0 12px 34px rgba(255, 153, 46, 0.28);
+}
+
+.depositHistory {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.depositPayNow {
+  margin-top: 10px;
+  border: 1px solid rgba(255, 194, 92, 0.45);
+  border-radius: 14px;
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+  background: rgba(255, 194, 92, 0.08);
+}
+
+.depositQrImage {
+  width: min(220px, 100%);
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(231, 238, 252, 0.18);
+  background: rgba(255, 255, 255, 0.95);
+  padding: 8px;
+}
+
+@media (max-width: 980px) {
+  .depositCheckoutGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .depositHeroPrimeGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .depositHeroPrimeStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .depositFieldRow {
+    grid-template-columns: 1fr;
+  }
+
+  .depositSubmitBtn {
+    width: 100%;
+  }
+
+  .depositHeroPrime {
+    padding: 14px;
+  }
+
+  .depositHeroPrimeActions .mini {
+    width: 100%;
+    text-align: center;
+  }
+
+  .depositHeroPrimeStats {
+    grid-template-columns: 1fr;
+  }
 }
 
 .dashWins {

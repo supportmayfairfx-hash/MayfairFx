@@ -43,17 +43,11 @@ export default function PortfolioPage() {
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [authCode, setAuthCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [authCodeError, setAuthCodeError] = useState<string | null>(null);
   const [authAvailable, setAuthAvailable] = useState(true);
-  const [registered, setRegistered] = useState(false);
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [initialCapital, setInitialCapital] = useState("");
-  const [initError, setInitError] = useState<string | null>(null);
-  const [initialPreset, setInitialPreset] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -95,7 +89,6 @@ export default function PortfolioPage() {
   useEffect(() => {
     if (!user) return;
     setProfile(null);
-    setInitError(null);
     getJson<{ holdings: Holding[] }>("/api/portfolio/holdings")
       .then((r) => setHoldings(r.holdings || []))
       .catch(() => setHoldings([]));
@@ -111,7 +104,6 @@ export default function PortfolioPage() {
     if (mode === "register") return firstName.trim().length >= 2 && email.trim().length > 3 && password.length >= 8;
     return email.trim().length > 3 && password.length >= 8;
   }, [mode, firstName, email, password]);
-  const authCodeValid = useMemo(() => /^[A-Za-z0-9]{6}$/.test(authCode), [authCode]);
 
   function fmtUsd(n: number) {
     if (!Number.isFinite(n)) return "--";
@@ -119,8 +111,11 @@ export default function PortfolioPage() {
   }
 
   const holdingsSummary = useMemo(() => {
+    const initialCapital = Number(profile?.initial_capital || 0);
+    const initialUnits = Number(profile?.initial_units || 0);
+    const hasApprovedHoldings = initialCapital > 0 || initialUnits > 0;
     return {
-      positions: profile ? 1 : 0,
+      positions: hasApprovedHoldings ? 1 : 0,
       label: "Private "
     };
   }, [holdings, profile]);
@@ -128,37 +123,36 @@ export default function PortfolioPage() {
   async function submit() {
     setBusy(true);
     setError(null);
-    setAuthCodeError(null);
     try {
       if (mode === "register") {
-        await postJson<{ user: User }>("/api/auth/register", { firstName, email, password });
-        // Registration does not log the user in. Switch to login so they can use AUTH code.
+        const reg = await postJson<{ user: User; requiresAuthCode?: boolean }>("/api/auth/register", {
+          firstName,
+          email,
+          password
+        });
+        if (reg?.requiresAuthCode) {
+          throw new Error(
+            "Login service is still running old AUTH-code mode. Please restart backend and redeploy, then try again."
+          );
+        }
+        // Registration does not log the user in. Switch to login.
         setMode("login");
         setUser(null);
-        setRegistered(true);
       } else {
-        if (!authCode) {
-          setAuthCodeError("AUTH code not entered.");
-          return;
-        }
-        if (!authCodeValid) {
-          setAuthCodeError("AUTH code must be 6 letters/numbers.");
-          return;
-        }
-        const r = await postJson<{ user: User }>("/api/auth/login", { email, password, authCode });
+        const r = await postJson<{ user: User }>("/api/auth/login", { email, password });
         setUser(r.user);
         cacheUser(r.user as any);
         window.dispatchEvent(new Event("auth:changed"));
-        setRegistered(false);
       }
       setPassword("");
-      setAuthCode("");
       setFirstName("");
     } catch (e: any) {
-      const msg = typeof e?.message === "string" ? e.message : "Failed";
-      // Route AUTH code related backend errors under the auth code field.
-      if (mode === "login" && msg.toLowerCase().includes("auth code")) setAuthCodeError(msg);
-      else setError(msg);
+      const raw = typeof e?.message === "string" ? e.message : "Failed";
+      const msg =
+        /auth code is required/i.test(raw) || /requiresauthcode/i.test(raw)
+          ? "This backend is still on old AUTH-code login mode. Contact support to restart/redeploy the backend auth service."
+          : raw;
+      setError(msg);
     } finally {
       setBusy(false);
     }
@@ -174,55 +168,6 @@ export default function PortfolioPage() {
       window.dispatchEvent(new Event("auth:changed"));
     } catch (e: any) {
       setError(typeof e?.message === "string" ? e.message : "Failed");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function initialize() {
-    if (!user) return;
-    setBusy(true);
-    setInitError(null);
-    try {
-      const v = initialPreset || initialCapital;
-      const m = String(v).trim();
-      const btcMatch = m.match(/^(\d+(?:\.\d+)?)\s*BTC$/i);
-      if (btcMatch) {
-        const units = Number(btcMatch[1]);
-        if (!Number.isFinite(units) || units <= 0) throw new Error("Invalid BTC amount.");
-        const snap = await getJson<{ crypto: Array<{ symbol: string; price: number | null }> }>(
-          "/api/markets/snapshot?symbols=BTC"
-        );
-        const btc = (snap.crypto || []).find((c) => String(c.symbol).toUpperCase() === "BTC");
-        const px = typeof btc?.price === "number" ? btc.price : null;
-        if (px == null) throw new Error("BTC price unavailable.");
-        const usd = units * px;
-        const r = await postJson<{ profile: Profile }>("/api/profile/initialize", {
-          initialCapital: usd,
-          initialAsset: "BTC",
-          initialUnits: units
-        });
-        setProfile(r.profile);
-        cacheProfile(r.profile as any);
-        setInitialCapital("");
-        setInitialPreset("");
-      } else {
-        const r = await postJson<{ profile: Profile }>("/api/profile/initialize", {
-          initialCapital: m,
-          initialAsset: "USD"
-        });
-        setProfile(r.profile);
-        cacheProfile(r.profile as any);
-        setInitialCapital("");
-        setInitialPreset("");
-      }
-    } catch (e: any) {
-      const msg = typeof e?.message === "string" ? e.message : "Failed";
-      if (msg.toLowerCase().includes("already initialized")) {
-        setInitError("Initial holdings are already set and cannot be changed.");
-      } else {
-        setInitError(msg);
-      }
     } finally {
       setBusy(false);
     }
@@ -255,7 +200,7 @@ export default function PortfolioPage() {
                   ? "Checking your session..."
                   : user
                   ? "You can now access portfolio setup and progress."
-                  : "Login requires email, password, and your 6-character AUTH code."}
+                  : "Login with your email and password."}
               </div>
             </div>
             <div className="muted mono">{user === undefined ? "loading" : user ? user.email : "auth"}</div>
@@ -271,14 +216,6 @@ export default function PortfolioPage() {
               <div className="authOk">
                 <div className="panelTitle">Loading session</div>
                 <div className="panelSub">Please wait...</div>
-              </div>
-            ) : null}
-            {registered ? (
-              <div className="authOk">
-                <div className="panelTitle">Registered</div>
-                <div className="panelSub">
-                  Ask admin for your AUTH code, then login with email + password + AUTH code.
-                </div>
               </div>
             ) : null}
             {user ? (
@@ -329,21 +266,6 @@ export default function PortfolioPage() {
                   />
                 </label>
 
-                {mode === "login" ? (
-                  <label className="authField">
-                    <span className="muted">AUTH code</span>
-                    <input
-                      value={authCode}
-                      onChange={(e) => setAuthCode(e.target.value)}
-                      placeholder="6 characters (A-Z, a-z, 0-9)"
-                      inputMode="text"
-                      autoCapitalize="off"
-                      autoCorrect="off"
-                    />
-                  </label>
-                ) : null}
-
-                {mode === "login" && authCodeError ? <div className="authError">{authCodeError}</div> : null}
                 {error ? (
                   <Notice
                     tone="warn"
@@ -374,67 +296,38 @@ export default function PortfolioPage() {
 
       {user ? (
         <section className="marketGrid" aria-label="Portfolio data">
-          {!profile ? (
-            <div className="marketCard">
-              <div className="marketCardHead">
-                <div>
-                  <div className="panelTitle">First Time Setup</div>
-                  <div className="panelSub">Enter your initial holdings amount to begin</div>
-                </div>
-                <div className="muted mono">required</div>
-              </div>
-              <div className="authBody">
-                <label className="authField">
-                  <span className="muted">Quick select</span>
-                  <select value={initialPreset} onChange={(e) => setInitialPreset(e.target.value)}>
-                    <option value="">Choose...</option>
-                    <option value="300">$300</option>
-                    <option value="500">$500</option>
-                    <option value="1000">$1,000</option>
-                    <option value="2000">$2,000</option>
-                    <option value="5000">$5,000</option>
-                    <option value="10000">$10,000</option>
-                    <option value="1 BTC">1 BTC</option>
-                    <option value="2 BTC">2 BTC</option>
-                  </select>
-                </label>
-                <label className="authField">
-                  <span className="muted">Initial holdings amount (USD)</span>
-                  <input
-                    value={initialCapital}
-                    onChange={(e) => setInitialCapital(e.target.value)}
-                    placeholder="e.g. 1000"
-                    inputMode="decimal"
-                  />
-                </label>
-                {initError ? <div className="authError">{initError}</div> : null}
-                <button className="primary" type="button" onClick={initialize} disabled={busy}>
-                  {busy ? "Working..." : "Save"}
-                </button>
-              </div>
-            </div>
-          ) : null}
-
           {profile ? (
             <div className="marketCard">
               <div className="marketCardHead">
                 <div>
-                  <div className="panelTitle">Initial Amount</div>
-                  <div className="panelSub">Saved to your profile</div>
+                  <div className="panelTitle">Initial Holdings</div>
+                  <div className="panelSub">System-managed (starts at 0 and updates from approved investments)</div>
                 </div>
-                <div className="muted mono">
-                  {profile.initial_asset === "BTC" && profile.initial_units != null
-                    ? `${profile.initial_units} BTC`
-                    : "USD"}
-                </div>
+                <div className="muted mono">Locked</div>
               </div>
               <div className="authBody">
                 <div className="pairsNote">
-                  Initial holdings (USD):{" "}
+                  Initial holdings:{" "}
                   <span className="mono">
-                    ${Number(profile.initial_capital).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    {String(profile.initial_asset || "USD").toUpperCase() === "BTC" && Number.isFinite(Number(profile.initial_units))
+                      ? `${Number(profile.initial_units).toLocaleString(undefined, { maximumFractionDigits: 6 })} BTC`
+                      : fmtUsd(Number(profile.initial_capital || 0))}
                   </span>
                 </div>
+                <div className="pairsNote">
+                  To start movement, make an investment on Checkout and wait for admin confirmation.
+                </div>
+                <button
+                  className="success"
+                  type="button"
+                  onClick={() => {
+                    window.history.pushState(null, "", "/checkout");
+                    window.dispatchEvent(new PopStateEvent("popstate"));
+                  }}
+                  disabled={busy}
+                >
+                  Deposit
+                </button>
                 <button
                   className="success"
                   type="button"
@@ -448,7 +341,20 @@ export default function PortfolioPage() {
                 </button>
               </div>
             </div>
-          ) : null}
+          ) : (
+            <div className="marketCard">
+              <div className="marketCardHead">
+                <div>
+                  <div className="panelTitle">Initial Holdings</div>
+                  <div className="panelSub">Creating your profile...</div>
+                </div>
+                <div className="muted mono">sync</div>
+              </div>
+              <div className="authBody">
+                <div className="pairsNote">Your account profile is being prepared. Reload in a moment.</div>
+              </div>
+            </div>
+          )}
 
           <div className="marketCard">
             <div className="marketCardHead">

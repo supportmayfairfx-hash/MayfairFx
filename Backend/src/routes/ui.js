@@ -36,7 +36,7 @@ function isLockedWithdrawalStatus(status) {
 
 function normalizeChain(v) {
   const s = String(v || "").trim().toUpperCase();
-  const allow = new Set(["BTC", "ERC20", "TRC20", "BEP20", "SOL"]);
+  const allow = new Set(["BTC", "LTC", "ERC20", "TRC20", "BEP20", "SOL"]);
   return allow.has(s) ? s : null;
 }
 
@@ -44,6 +44,7 @@ function validateAddressByChain(chain, address) {
   const a = String(address || "").trim();
   if (!a) return false;
   if (chain === "BTC") return /^(bc1[ac-hj-np-z02-9]{11,71}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/.test(a);
+  if (chain === "LTC") return /^(ltc1[ac-hj-np-z02-9]{39,59}|[LM3][a-km-zA-HJ-NP-Z1-9]{26,34})$/.test(a);
   if (chain === "ERC20" || chain === "BEP20") return /^0x[a-fA-F0-9]{40}$/.test(a);
   if (chain === "TRC20") return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(a);
   if (chain === "SOL") return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a);
@@ -57,15 +58,293 @@ function normalizeTaxStatus(v) {
   return allow.has(s) ? s : null;
 }
 
+function normalizeDepositAdminStatus(v) {
+  const s = String(v || "").trim().toLowerCase();
+  if (!s) return null;
+  const allow = new Set(["awaiting_payment", "pending", "confirmed", "failed", "expired", "cancelled", "rejected"]);
+  return allow.has(s) ? s : null;
+}
+
 function normalizeAsset(v, fallback = "USD") {
   const s = clampStr(v || fallback, 12).toUpperCase();
   return s || fallback;
+}
+
+function normalizeQuoteAsset(v, fallback = "EUR") {
+  const s = clampStr(v || fallback, 12).toUpperCase();
+  const allow = new Set(["EUR", "GBP", "USD", "BTC", "LTC", "ETH", "SOL", "BNB", "USDT"]);
+  if (!allow.has(s)) return fallback;
+  return s;
 }
 
 function clampNonNegativeAmount(v) {
   const n = Number(v);
   if (!Number.isFinite(n) || n < 0) return null;
   return Number(n.toFixed(8));
+}
+
+const PACKAGE_PROFILE_MAP = {
+  "24h-300": { initial_capital: 300, initial_asset: "USD", initial_units: null },
+  "24h-500": { initial_capital: 500, initial_asset: "USD", initial_units: null },
+  "24h-1000": { initial_capital: 1000, initial_asset: "USD", initial_units: null },
+  "48h-2000": { initial_capital: 2000, initial_asset: "USD", initial_units: null },
+  "48h-5000": { initial_capital: 5000, initial_asset: "USD", initial_units: null },
+  "48h-10000": { initial_capital: 10000, initial_asset: "USD", initial_units: null },
+  "48h-1btc": { initial_capital: 1, initial_asset: "BTC", initial_units: 1 },
+  "48h-2btc": { initial_capital: 2, initial_asset: "BTC", initial_units: 2 }
+};
+
+function parsePackageIdFromNote(note) {
+  const s = String(note || "");
+  const m = s.match(/package=([a-z0-9\-]+)/i);
+  return m?.[1]?.toLowerCase() || null;
+}
+
+async function applyApprovedDepositToProfile(userId, note) {
+  const packageId = parsePackageIdFromNote(note);
+  if (!packageId) return false;
+  const m = PACKAGE_PROFILE_MAP[packageId];
+  if (!m) return false;
+
+  if (getDbMode() === "local") {
+    const store = readLocalStore();
+    store.profiles = Array.isArray(store.profiles) ? store.profiles : [];
+    const idx = store.profiles.findIndex((x) => x.user_id === userId);
+    const row = {
+      user_id: userId,
+      initial_capital: m.initial_capital,
+      initial_asset: m.initial_asset,
+      initial_units: m.initial_units,
+      created_at: idx >= 0 ? store.profiles[idx].created_at : nowIso(),
+      updated_at: nowIso()
+    };
+    if (idx >= 0) store.profiles[idx] = { ...(store.profiles[idx] || {}), ...row };
+    else store.profiles.push(row);
+    writeLocalStore(store);
+    return true;
+  }
+
+  await query(
+    `INSERT INTO user_profiles (user_id, initial_capital, initial_asset, initial_units, updated_at)
+     VALUES ($1, $2, $3, $4, now())
+     ON CONFLICT (user_id)
+     DO UPDATE SET initial_capital = EXCLUDED.initial_capital,
+                   initial_asset = EXCLUDED.initial_asset,
+                   initial_units = EXCLUDED.initial_units,
+                   updated_at = now()`,
+    [userId, m.initial_capital, m.initial_asset, m.initial_units]
+  );
+  return true;
+}
+
+const QUOTE_FALLBACK_EUR_PER_ASSET = {
+  EUR: 1,
+  GBP: 1.17,
+  USD: 0.93,
+  BTC: 70000,
+  LTC: 80,
+  ETH: 3200,
+  SOL: 130,
+  BNB: 540,
+  USDT: 0.93
+};
+
+const QUOTE_CG_ID = {
+  BTC: "bitcoin",
+  LTC: "litecoin",
+  ETH: "ethereum",
+  SOL: "solana",
+  BNB: "binancecoin",
+  USDT: "tether"
+};
+
+let quoteRateCache = {
+  updatedAt: 0,
+  rates: { ...QUOTE_FALLBACK_EUR_PER_ASSET },
+  source: "fallback"
+};
+
+async function readLiveQuoteRates() {
+  const now = Date.now();
+  if (quoteRateCache.updatedAt && now - quoteRateCache.updatedAt < 15000) return quoteRateCache;
+
+  const ids = Object.values(QUOTE_CG_ID).join(",");
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=eur`;
+  try {
+    const res = await fetch(url, { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error(`rates request failed (${res.status})`);
+    const j = await res.json();
+    const next = { ...QUOTE_FALLBACK_EUR_PER_ASSET };
+    for (const [asset, id] of Object.entries(QUOTE_CG_ID)) {
+      const eur = Number(j?.[id]?.eur);
+      if (Number.isFinite(eur) && eur > 0) next[asset] = eur;
+    }
+    quoteRateCache = { updatedAt: now, rates: next, source: "live" };
+    return quoteRateCache;
+  } catch {
+    if (!quoteRateCache.updatedAt) {
+      quoteRateCache = { updatedAt: now, rates: { ...QUOTE_FALLBACK_EUR_PER_ASSET }, source: "fallback" };
+    }
+    return quoteRateCache;
+  }
+}
+
+async function quoteConvertAmount(amountInput, fromAssetInput, toAssetInput) {
+  const amount = clampAmount(amountInput);
+  if (!amount) throw new Error("Invalid amount.");
+  const from = normalizeQuoteAsset(fromAssetInput, "EUR");
+  const to = normalizeQuoteAsset(toAssetInput, "EUR");
+  if (from === to) {
+    return {
+      amount_from: amount,
+      asset_from: from,
+      amount_to: amount,
+      asset_to: to,
+      eur_per_from: Number(QUOTE_FALLBACK_EUR_PER_ASSET[from] || 1),
+      eur_per_to: Number(QUOTE_FALLBACK_EUR_PER_ASSET[to] || 1),
+      source: "same_asset",
+      updated_at: nowIso()
+    };
+  }
+  const live = await readLiveQuoteRates();
+  const eurPerFrom = Number(live.rates[from] || QUOTE_FALLBACK_EUR_PER_ASSET[from] || 0);
+  const eurPerTo = Number(live.rates[to] || QUOTE_FALLBACK_EUR_PER_ASSET[to] || 0);
+  if (!(eurPerFrom > 0) || !(eurPerTo > 0)) throw new Error("Conversion rates unavailable.");
+  const amountEur = amount * eurPerFrom;
+  const amountTo = Number((amountEur / eurPerTo).toFixed(8));
+  return {
+    amount_from: amount,
+    asset_from: from,
+    amount_to: amountTo,
+    asset_to: to,
+    eur_per_from: eurPerFrom,
+    eur_per_to: eurPerTo,
+    source: live.source,
+    updated_at: new Date(live.updatedAt || Date.now()).toISOString()
+  };
+}
+
+function bitcartConfig() {
+  const apiUrl = clampStr(process.env.BITCART_API_URL, 300);
+  const apiKey = clampStr(process.env.BITCART_API_KEY, 300);
+  const storeId = clampStr(process.env.BITCART_STORE_ID, 120);
+  const enabled = String(process.env.BITCART_ENABLED || "").trim().toLowerCase() === "true";
+  return { enabled, apiUrl, apiKey, storeId };
+}
+
+function pickBitcartInvoiceUrl(j) {
+  if (!j || typeof j !== "object") return null;
+  const direct = [j.checkout_url, j.payment_url, j.url, j.invoice_url].find((v) => typeof v === "string" && v.trim());
+  if (direct) return direct;
+  const nested = j.links && typeof j.links === "object" ? [j.links.checkout, j.links.payment, j.links.url] : [];
+  return nested.find((v) => typeof v === "string" && v.trim()) || null;
+}
+
+function pickBitcartInvoiceId(j) {
+  if (!j || typeof j !== "object") return null;
+  const v = j.id || j.invoice_id || j.uuid;
+  return typeof v === "string" && v.trim() ? v : null;
+}
+
+function pickBitcartQrCode(j) {
+  if (!j || typeof j !== "object") return null;
+  const v = j.qr_code || j.qr || j.qrcode;
+  return typeof v === "string" && v.trim() ? v : null;
+}
+
+function normalizeDepositStatus(raw) {
+  const s = String(raw || "").trim().toLowerCase();
+  if (!s) return "awaiting_payment";
+  if (["paid", "complete", "completed", "confirmed", "success", "settled"].includes(s)) return "confirmed";
+  if (["expired", "cancelled", "canceled", "voided"].includes(s)) return "expired";
+  if (["failed", "invalid", "error"].includes(s)) return "failed";
+  if (["new", "pending", "awaiting_payment", "unpaid", "created"].includes(s)) return "awaiting_payment";
+  return "awaiting_payment";
+}
+
+function parseBitcartWebhookPayload(payload) {
+  const root = payload && typeof payload === "object" ? payload : {};
+  const data = root.data && typeof root.data === "object" ? root.data : null;
+  const invoice = root.invoice && typeof root.invoice === "object" ? root.invoice : null;
+  const source = data || invoice || root;
+  const invoiceId = pickBitcartInvoiceId(source) || pickBitcartInvoiceId(root);
+  const statusRaw = source.status || root.status || root.event || null;
+  const orderId =
+    source.order_id ||
+    source.orderId ||
+    root.order_id ||
+    root.orderId ||
+    (source.metadata && (source.metadata.order_id || source.metadata.orderId)) ||
+    null;
+  const txRef = source.txid || source.tx_hash || source.transaction_id || root.txid || root.tx_hash || root.transaction_id || null;
+  return {
+    invoiceId: typeof invoiceId === "string" ? invoiceId : null,
+    orderId: typeof orderId === "string" ? orderId : null,
+    status: normalizeDepositStatus(statusRaw),
+    txRef: typeof txRef === "string" ? txRef : null
+  };
+}
+
+function isBitcartWebhookAuthorized(req) {
+  const secret = clampStr(process.env.BITCART_WEBHOOK_SECRET, 300);
+  if (!secret) return true;
+  const headerSecret =
+    clampStr(req.headers["x-webhook-secret"], 300) ||
+    clampStr(req.headers["x-bitcart-webhook-secret"], 300) ||
+    clampStr(req.headers["x-bitcart-signature"], 300) ||
+    "";
+  const auth = clampStr(req.headers.authorization, 400);
+  const bearer = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+  const querySecret = clampStr(req.query?.secret, 300);
+  return headerSecret === secret || bearer === secret || querySecret === secret;
+}
+
+async function createBitcartInvoice(args) {
+  const { enabled, apiUrl, apiKey, storeId } = bitcartConfig();
+  if (!enabled) return { enabled: false, invoiceId: null, paymentUrl: null, qrCode: null, raw: null };
+  if (!apiUrl || !apiKey) throw new Error("Bitcart is enabled but BITCART_API_URL or BITCART_API_KEY is missing.");
+
+  const endpointPath = clampStr(process.env.BITCART_INVOICE_PATH || "", 120) || "/invoices";
+  const base = apiUrl.replace(/\/+$/, "");
+  const withStore = storeId ? `${base}/stores/${encodeURIComponent(storeId)}${endpointPath.startsWith("/") ? "" : "/"}${endpointPath}` : `${base}${endpointPath.startsWith("/") ? "" : "/"}${endpointPath}`;
+
+  const body = {
+    price: Number(args.amount),
+    currency: String(args.asset || "USD").toUpperCase(),
+    order_id: args.orderId,
+    buyer_email: args.buyerEmail || undefined,
+    metadata: {
+      user_id: args.userId,
+      method: args.method,
+      chain: args.chain || null,
+      note: args.note || null
+    },
+    notification_url: clampStr(process.env.BITCART_WEBHOOK_URL, 600) || undefined,
+    redirect_url: clampStr(process.env.BITCART_REDIRECT_URL, 600) || undefined
+  };
+
+  const authScheme = (String(process.env.BITCART_AUTH_SCHEME || "token").trim().toLowerCase() === "bearer") ? "Bearer" : "Token";
+  const res = await fetch(withStore, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `${authScheme} ${apiKey}`
+    },
+    body: JSON.stringify(body)
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = typeof j?.error === "string" ? j.error : `Bitcart invoice request failed (${res.status}).`;
+    throw new Error(msg);
+  }
+  return {
+    enabled: true,
+    invoiceId: pickBitcartInvoiceId(j),
+    paymentUrl: pickBitcartInvoiceUrl(j),
+    qrCode: pickBitcartQrCode(j),
+    raw: j
+  };
 }
 
 async function loadUserProgressState(userId) {
@@ -1925,6 +2204,9 @@ uiRouter.put("/admin/tax-payments/:id", async (req, res) => {
       if (hasReference) row.reference = reference || null;
       if (hasNote) row.note = note || null;
       row.updated_at = nowIso();
+      if (String(row.status || "").toLowerCase() === "confirmed") {
+        await applyApprovedDepositToProfile(row.user_id, row.note || null);
+      }
       writeLocalStore(store);
 
       const u = users.find((x) => x.id === row.user_id) || null;
@@ -2000,6 +2282,460 @@ uiRouter.put("/admin/tax-payments/:id", async (req, res) => {
     });
   } catch (e) {
     res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.get("/admin/deposits", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+
+  const email = clampStr(req.query?.email, 160).toLowerCase();
+  const status = normalizeDepositAdminStatus(req.query?.status);
+  const limitRaw = Number(req.query?.limit || 120);
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(500, Math.floor(limitRaw))) : 120;
+
+  try {
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      store.deposits = Array.isArray(store.deposits) ? store.deposits : [];
+      const users = Array.isArray(store.users) ? store.users : [];
+      let items = store.deposits
+        .map((d) => {
+          const u = users.find((x) => x.id === d.user_id) || null;
+          return {
+            id: d.id,
+            user_id: d.user_id,
+            email: u?.email || null,
+            amount: Number(d.amount || 0),
+            asset: d.asset,
+            method: d.method,
+            chain: d.chain || null,
+            reference: d.reference || null,
+            note: d.note || null,
+            provider: d.provider || "manual",
+            invoice_id: d.invoice_id || null,
+            payment_url: d.payment_url || null,
+            qr_code: d.qr_code || null,
+            status: d.status || "pending",
+            created_at: d.created_at,
+            updated_at: d.updated_at || d.created_at
+          };
+        })
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+      if (email) items = items.filter((x) => String(x.email || "").toLowerCase() === email);
+      if (status) items = items.filter((x) => String(x.status || "").toLowerCase() === status);
+      const out = items.slice(0, limit);
+      await writeAdminAuditEvent(req, admin, "deposits_list", `${email || "all"}:${status || "all"}`, { count: out.length });
+      return res.json({ items: out });
+    }
+
+    const r = await query(
+      `SELECT d.id, d.user_id, u.email, d.amount, d.asset, d.method, d.chain, d.reference, d.note, d.provider, d.invoice_id, d.payment_url, d.qr_code, d.status, d.created_at, d.updated_at
+       FROM deposit_requests d
+       JOIN users u ON u.id = d.user_id
+       WHERE ($1::text = '' OR lower(u.email) = $1::text)
+         AND ($2::text = '' OR lower(d.status) = $2::text)
+       ORDER BY d.created_at DESC
+       LIMIT $3`,
+      [email || "", status || "", limit]
+    );
+    const items = r.rows.map((x) => ({
+      id: x.id,
+      user_id: x.user_id,
+      email: x.email || null,
+      amount: Number(x.amount || 0),
+      asset: x.asset,
+      method: x.method,
+      chain: x.chain || null,
+      reference: x.reference || null,
+      note: x.note || null,
+      provider: x.provider || "manual",
+      invoice_id: x.invoice_id || null,
+      payment_url: x.payment_url || null,
+      qr_code: x.qr_code || null,
+      status: x.status || "pending",
+      created_at: x.created_at,
+      updated_at: x.updated_at || x.created_at
+    }));
+    await writeAdminAuditEvent(req, admin, "deposits_list", `${email || "all"}:${status || "all"}`, { count: items.length });
+    res.json({ items });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.put("/admin/deposits/:id", async (req, res) => {
+  const admin = getAdminContext(req);
+  if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+  const id = clampStr(req.params?.id, 80);
+  if (!id) return res.status(400).json({ error: "Invalid id." });
+
+  const statusRaw = req.body?.status;
+  const status = statusRaw == null ? null : normalizeDepositAdminStatus(statusRaw);
+  if (statusRaw != null && !status) return res.status(400).json({ error: "Invalid status." });
+  const hasReference = Object.prototype.hasOwnProperty.call(req.body || {}, "reference");
+  const hasNote = Object.prototype.hasOwnProperty.call(req.body || {}, "note");
+  const reference = hasReference ? clampStr(req.body?.reference, 180) : undefined;
+  const note = hasNote ? clampStr(req.body?.note, 280) : undefined;
+
+  try {
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      store.deposits = Array.isArray(store.deposits) ? store.deposits : [];
+      const users = Array.isArray(store.users) ? store.users : [];
+      const row = store.deposits.find((x) => x.id === id) || null;
+      if (!row) return res.status(404).json({ error: "Deposit not found." });
+      if (status != null) row.status = status;
+      if (hasReference) row.reference = reference || null;
+      if (hasNote) row.note = note || null;
+      row.updated_at = nowIso();
+      writeLocalStore(store);
+      const u = users.find((x) => x.id === row.user_id) || null;
+      await writeAdminAuditEvent(req, admin, "deposit_update", row.id, {
+        user_id: row.user_id,
+        status: row.status || "pending"
+      });
+      return res.json({
+        deposit: {
+          id: row.id,
+          user_id: row.user_id,
+          email: u?.email || null,
+          amount: Number(row.amount || 0),
+          asset: row.asset,
+          method: row.method,
+          chain: row.chain || null,
+          reference: row.reference || null,
+          note: row.note || null,
+          provider: row.provider || "manual",
+          invoice_id: row.invoice_id || null,
+          payment_url: row.payment_url || null,
+          qr_code: row.qr_code || null,
+          status: row.status || "pending",
+          created_at: row.created_at,
+          updated_at: row.updated_at || row.created_at
+        }
+      });
+    }
+
+    const cur = await query(
+      "SELECT id, user_id, amount::float8 AS amount, asset, method, chain, reference, note, provider, invoice_id, payment_url, qr_code, status, created_at, updated_at FROM deposit_requests WHERE id = $1 LIMIT 1",
+      [id]
+    );
+    const existing = cur.rows?.[0] || null;
+    if (!existing) return res.status(404).json({ error: "Deposit not found." });
+
+    const next = {
+      status: status != null ? status : existing.status || "pending",
+      reference: hasReference ? (reference || null) : existing.reference || null,
+      note: hasNote ? (note || null) : existing.note || null
+    };
+    const r = await query(
+      `UPDATE deposit_requests
+       SET status = $2, reference = $3, note = $4, updated_at = now()
+       WHERE id = $1
+       RETURNING id, user_id, amount, asset, method, chain, reference, note, provider, invoice_id, payment_url, qr_code, status, created_at, updated_at`,
+      [id, next.status, next.reference, next.note]
+    );
+    const row = r.rows?.[0];
+    if (String(row?.status || "").toLowerCase() === "confirmed") {
+      await applyApprovedDepositToProfile(row.user_id, row.note || null);
+    }
+    const u = await query("SELECT email FROM users WHERE id = $1 LIMIT 1", [row.user_id]);
+    const email = u.rows?.[0]?.email || null;
+    await writeAdminAuditEvent(req, admin, "deposit_update", row.id, {
+      user_id: row.user_id,
+      status: row.status || "pending"
+    });
+    res.json({
+      deposit: {
+        id: row.id,
+        user_id: row.user_id,
+        email,
+        amount: Number(row.amount || 0),
+        asset: row.asset,
+        method: row.method,
+        chain: row.chain || null,
+        reference: row.reference || null,
+        note: row.note || null,
+        provider: row.provider || "manual",
+        invoice_id: row.invoice_id || null,
+        payment_url: row.payment_url || null,
+        qr_code: row.qr_code || null,
+        status: row.status || "pending",
+        created_at: row.created_at,
+        updated_at: row.updated_at || row.created_at
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.post("/deposits", requireAuth, async (req, res) => {
+  const userId = req.user?.sub;
+  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+  const amountRaw = clampAmount(req.body?.amount);
+  const asset = clampStr(req.body?.asset || "USD", 12).toUpperCase();
+  const baseAmount = clampAmount(req.body?.base_amount);
+  const baseAsset = normalizeQuoteAsset(req.body?.base_asset || "EUR", "EUR");
+  const shouldConvert = Boolean(req.body?.convert || (baseAmount && baseAsset));
+  const method = clampStr(req.body?.method, 48);
+  const isCryptoMethod = method.toLowerCase().includes("crypto");
+  const isManualApprovalFlow = method.toLowerCase().includes("manual wallet");
+  const chain = isCryptoMethod ? normalizeChain(req.body?.chain) : null;
+  const reference = clampStr(req.body?.reference, 180);
+  const note = clampStr(req.body?.note, 280);
+  if (!amountRaw) return res.status(400).json({ error: "Invalid amount." });
+  if (!method) return res.status(400).json({ error: "Method is required." });
+  if (isCryptoMethod && !chain) return res.status(400).json({ error: "Select a valid deposit blockchain." });
+
+  const id = crypto.randomUUID();
+  const createdAt = nowIso();
+
+  try {
+    let buyerEmail = null;
+    try {
+      if (getDbMode() === "local") {
+        const s = readLocalStore();
+        const u = (s.users || []).find((x) => x.id === userId) || null;
+        buyerEmail = u?.email || null;
+      } else {
+        const r = await query("SELECT email FROM users WHERE id = $1 LIMIT 1", [userId]);
+        buyerEmail = r.rows?.[0]?.email || null;
+      }
+    } catch {}
+    let quote = null;
+    let amount = amountRaw;
+    if (shouldConvert) {
+      quote = await quoteConvertAmount(baseAmount || amountRaw, baseAsset, asset);
+      amount = clampAmount(quote.amount_to);
+      if (!amount) return res.status(400).json({ error: "Converted amount is invalid." });
+    }
+
+    const bitcart = isManualApprovalFlow
+      ? { enabled: false, invoiceId: null, paymentUrl: null, qrCode: null, raw: null }
+      : await createBitcartInvoice({
+          amount,
+          asset,
+          orderId: id,
+          buyerEmail,
+          userId,
+          method,
+          chain,
+          note
+        });
+
+    const requestStatus = isManualApprovalFlow ? "pending" : (bitcart.enabled ? "awaiting_payment" : "pending");
+    const requestProvider = isManualApprovalFlow ? "manual" : (bitcart.enabled ? "bitcart" : "manual");
+
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      store.deposits = Array.isArray(store.deposits) ? store.deposits : [];
+      const row = {
+        id,
+        user_id: userId,
+        amount,
+        asset: asset || "USD",
+        method,
+        chain,
+        reference: reference || null,
+        note: note || null,
+        status: requestStatus,
+        provider: requestProvider,
+        invoice_id: bitcart.invoiceId || null,
+        payment_url: bitcart.paymentUrl || null,
+        qr_code: bitcart.qrCode || null,
+        created_at: createdAt,
+        updated_at: createdAt
+      };
+      store.deposits.unshift(row);
+      writeLocalStore(store);
+      return res.status(201).json({
+        request: {
+          id: row.id,
+          amount: Number(row.amount),
+          asset: row.asset,
+          method: row.method,
+          chain: row.chain || null,
+          reference: row.reference,
+          note: row.note,
+          provider: row.provider,
+          invoice_id: row.invoice_id,
+          payment_url: row.payment_url,
+          qr_code: row.qr_code,
+          status: row.status,
+          created_at: row.created_at
+        },
+        quote
+      });
+    }
+
+    const r = await query(
+      `INSERT INTO deposit_requests
+        (id, user_id, amount, asset, method, chain, reference, note, provider, invoice_id, payment_url, qr_code, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $14)
+       RETURNING id, amount, asset, method, chain, reference, note, provider, invoice_id, payment_url, qr_code, status, created_at`,
+      [
+        id,
+        userId,
+        amount,
+        asset || "USD",
+        method,
+        chain,
+        reference || null,
+        note || null,
+        requestProvider,
+        bitcart.invoiceId || null,
+        bitcart.paymentUrl || null,
+        bitcart.qrCode || null,
+        requestStatus,
+        createdAt
+      ]
+    );
+    const row = r.rows?.[0];
+    res.status(201).json({
+      request: {
+        id: row.id,
+        amount: Number(row.amount),
+        asset: row.asset,
+        method: row.method,
+        chain: row.chain || null,
+        reference: row.reference || null,
+        note: row.note || null,
+        provider: row.provider || "manual",
+        invoice_id: row.invoice_id || null,
+        payment_url: row.payment_url || null,
+        qr_code: row.qr_code || null,
+        status: row.status || "pending",
+        created_at: row.created_at
+      },
+      quote
+    });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.get("/deposits/quote", requireAuth, async (req, res) => {
+  const userId = req.user?.sub;
+  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+  const amount = clampAmount(req.query?.amount);
+  const from = normalizeQuoteAsset(req.query?.from || "EUR", "EUR");
+  const to = normalizeQuoteAsset(req.query?.to || "BTC", "BTC");
+  if (!amount) return res.status(400).json({ error: "Invalid amount." });
+  try {
+    const quote = await quoteConvertAmount(amount, from, to);
+    return res.json({ quote });
+  } catch (e) {
+    return res.status(500).json({ error: e?.message || "Failed to fetch quote." });
+  }
+});
+
+uiRouter.get("/deposits/me", requireAuth, async (req, res) => {
+  const userId = req.user?.sub;
+  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+  try {
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      store.deposits = Array.isArray(store.deposits) ? store.deposits : [];
+      const items = store.deposits
+        .filter((d) => d.user_id === userId)
+        .slice()
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+        .slice(0, 20)
+        .map((d) => ({
+          id: d.id,
+          amount: Number(d.amount),
+          asset: d.asset,
+          method: d.method,
+          chain: d.chain || null,
+          reference: d.reference || null,
+          note: d.note || null,
+          provider: d.provider || "manual",
+          invoice_id: d.invoice_id || null,
+          payment_url: d.payment_url || null,
+          qr_code: d.qr_code || null,
+          status: d.status || "pending",
+          created_at: d.created_at
+        }));
+      return res.json({ items });
+    }
+
+    const r = await query(
+      `SELECT id, amount, asset, method, chain, reference, note, provider, invoice_id, payment_url, qr_code, status, created_at
+       FROM deposit_requests
+       WHERE user_id = $1
+       ORDER BY created_at DESC
+       LIMIT 20`,
+      [userId]
+    );
+    const items = r.rows.map((x) => ({
+      id: x.id,
+      amount: Number(x.amount),
+      asset: x.asset,
+      method: x.method,
+      chain: x.chain || null,
+      reference: x.reference || null,
+      note: x.note || null,
+      provider: x.provider || "manual",
+      invoice_id: x.invoice_id || null,
+      payment_url: x.payment_url || null,
+      qr_code: x.qr_code || null,
+      status: x.status || "pending",
+      created_at: x.created_at
+    }));
+    res.json({ items });
+  } catch (e) {
+    res.status(500).json({ error: e?.message || "Failed" });
+  }
+});
+
+uiRouter.post("/bitcart/webhook", async (req, res) => {
+  const cfg = bitcartConfig();
+  if (!cfg.enabled) return res.status(503).json({ error: "Bitcart is disabled." });
+  if (!isBitcartWebhookAuthorized(req)) return res.status(401).json({ error: "Unauthorized webhook." });
+
+  const parsed = parseBitcartWebhookPayload(req.body);
+  if (!parsed.invoiceId && !parsed.orderId) {
+    return res.status(400).json({ error: "Missing invoice identifier." });
+  }
+
+  const nextStatus = parsed.status;
+  const now = nowIso();
+  try {
+    if (getDbMode() === "local") {
+      const store = readLocalStore();
+      store.deposits = Array.isArray(store.deposits) ? store.deposits : [];
+      const row =
+        store.deposits.find((d) => parsed.invoiceId && String(d.invoice_id || "") === parsed.invoiceId) ||
+        store.deposits.find((d) => parsed.orderId && String(d.id || "") === parsed.orderId) ||
+        null;
+      if (!row) return res.status(404).json({ error: "Deposit request not found." });
+      row.status = nextStatus;
+      if (!row.invoice_id && parsed.invoiceId) row.invoice_id = parsed.invoiceId;
+      if (!row.reference && parsed.txRef) row.reference = parsed.txRef;
+      row.updated_at = now;
+      writeLocalStore(store);
+      return res.json({ ok: true, id: row.id, status: row.status });
+    }
+
+    const r = await query(
+      `UPDATE deposit_requests
+       SET status = $1,
+           invoice_id = COALESCE(invoice_id, $2),
+           reference = COALESCE(reference, $3),
+           updated_at = now()
+       WHERE (invoice_id = $2 AND $2 IS NOT NULL) OR (id = $4 AND $4 IS NOT NULL)
+       RETURNING id, status`,
+      [nextStatus, parsed.invoiceId, parsed.txRef, parsed.orderId]
+    );
+    const row = r.rows?.[0] || null;
+    if (!row) return res.status(404).json({ error: "Deposit request not found." });
+    return res.json({ ok: true, id: row.id, status: row.status });
+  } catch (e) {
+    return res.status(500).json({ error: e?.message || "Failed" });
   }
 });
 

@@ -12,8 +12,9 @@ const ChartPage = lazy(() => import("./pages/ChartPage"));
 const ContactPage = lazy(() => import("./pages/ContactPage"));
 const BlogPage = lazy(() => import("./pages/BlogPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
+const CheckoutPage = lazy(() => import("./pages/CheckoutPage.jsx"));
 
-type Page = "dashboard" | "markets" | "portfolio" | "progress" | "chart" | "blog" | "contact" | "admin";
+type Page = "dashboard" | "markets" | "portfolio" | "progress" | "chart" | "blog" | "contact" | "checkout" | "admin";
 type MenuItem = { id: string; label: string; icon: string; href: string };
 type AuthMe = { user: { id: string; email: string; first_name?: string | null; created_at: string } | null };
 type NotificationItem = { id: string; title: string; body: string; ts: string; read: boolean };
@@ -31,6 +32,7 @@ const PAGE_TO_PATH: Record<Page, string> = {
   chart: "/chart",
   blog: "/blog",
   contact: "/contact",
+  checkout: "/checkout",
   admin: `/${ADMIN_SECRET_SLUG}`
 };
 
@@ -42,6 +44,7 @@ function parsePageToken(token: string): Page {
   if (h === "chart" || h === "charts") return "chart";
   if (h === "blog") return "blog";
   if (h === "contact") return "contact";
+  if (h === "checkout") return "checkout";
   if (h === "admin" || h === ADMIN_SECRET_SLUG) return "admin";
   return "dashboard";
 }
@@ -127,6 +130,10 @@ const SEO_BY_PAGE: Record<Page, SEOConfig> = {
   contact: {
     title: "Trade Fix Contact",
     description: "Contact Trade Fix support for onboarding, account setup, and urgent assistance."
+  },
+  checkout: {
+    title: "Trade Fix Checkout",
+    description: "Secure, enterprise-grade checkout for fast and reliable payments."
   },
   admin: {
     title: "Trade Fix Admin",
@@ -505,6 +512,7 @@ export default function App() {
     if (page === "chart") return <ChartPage />;
     if (page === "blog") return <BlogPage />;
     if (page === "contact") return <ContactPage />;
+    if (page === "checkout") return <CheckoutPage />;
     if (page === "admin") return <AdminPage />;
     return <DashboardPage displayName={displayName} userId={me?.id || null} userCreatedAt={me?.created_at || null} />;
   }, [page, me?.first_name, me?.id]);
@@ -515,6 +523,7 @@ export default function App() {
     if (page === "portfolio" || page === "progress") return "services";
     if (page === "chart" || page === "blog") return "blog";
     if (page === "contact") return "contact";
+    if (page === "checkout") return "";
     if (page === "admin") return "";
     return "home";
   }, [page]);
@@ -603,6 +612,18 @@ export default function App() {
     window.dispatchEvent(new Event("auth:changed"));
     track("logout");
     navigateToPage("dashboard");
+  }
+
+  if (page === "checkout") {
+    return (
+      <div className={`page page-${page}`} data-page={page}>
+        <main id="main-content" tabIndex={-1} style={{ padding: 0, maxWidth: "none", margin: 0 }}>
+          <ErrorBoundary>
+            <Suspense fallback={<div className="panel"><Skeleton style={{ height: 420 }} /></div>}>{content}</Suspense>
+          </ErrorBoundary>
+        </main>
+      </div>
+    );
   }
 
   return (

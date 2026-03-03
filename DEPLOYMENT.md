@@ -56,3 +56,71 @@ Redeploy Render after updating env vars.
    - `GET https://YOUR-BACKEND.onrender.com/api/markets/snapshot`
 3. Test login flow (cookies/cors):
    - Register -> login -> refresh page -> confirm session persists.
+
+## 6) Bitcart deployment (required for live deposits)
+
+Important:
+- Bitcart cannot run on Vercel static hosting.
+- Keep this architecture:
+  - Frontend: Vercel (e.g. `app.yourdomain.com`)
+  - Backend: Render (e.g. `investment-backend.onrender.com`)
+  - Bitcart: Docker VPS (e.g. `pay.yourdomain.com`)
+
+### A) DNS
+
+1. Point `pay.yourdomain.com` to your VPS IP (A record).
+2. Keep your frontend domain on Vercel.
+
+### B) Install Bitcart on VPS
+
+Run on Ubuntu VPS:
+
+```bash
+sudo su -
+apt-get update && apt-get install -y git
+if [ -d "bitcart-docker" ]; then
+  echo "existing bitcart-docker folder found, pulling instead of cloning."
+  cd bitcart-docker && git pull && cd ..
+fi
+if [ ! -d "bitcart-docker" ]; then
+  echo "cloning bitcart-docker"
+  git clone https://github.com/bitcart/bitcart-docker bitcart-docker
+fi
+export BITCART_HOST=pay.yourdomain.com
+export BITCART_CRYPTOS=btc,bnb,eth,ltc,trx
+cd bitcart-docker
+./setup.sh
+```
+
+### C) Configure Bitcart app
+
+1. Open `https://pay.yourdomain.com`.
+2. Create wallets for enabled coins.
+3. Create a store (example: `Trade Fix`).
+4. Generate store API key.
+5. Configure webhook:
+   - URL: `https://YOUR-BACKEND-DOMAIN/api/bitcart/webhook`
+   - Secret: a strong random value
+
+### D) Render backend env vars for Bitcart
+
+Set in Render service env:
+
+- `BITCART_ENABLED=true`
+- `BITCART_API_URL=https://pay.yourdomain.com/api`
+- `BITCART_API_KEY=...`
+- `BITCART_STORE_ID=...`
+- `BITCART_INVOICE_PATH=/invoices`
+- `BITCART_AUTH_SCHEME=token` (or `bearer` if your instance requires it)
+- `BITCART_WEBHOOK_URL=https://YOUR-BACKEND-DOMAIN/api/bitcart/webhook`
+- `BITCART_WEBHOOK_SECRET=...`
+- `BITCART_REDIRECT_URL=https://YOUR-FRONTEND-DOMAIN/dashboard`
+
+Redeploy backend after setting env vars.
+
+### E) End-to-end test
+
+1. Open Home page and submit a deposit.
+2. Confirm you get `Continue to Bitcart Payment`.
+3. Complete payment in Bitcart checkout.
+4. Confirm status updates in Admin panel: `Deposit Admin (Bitcart)`.
