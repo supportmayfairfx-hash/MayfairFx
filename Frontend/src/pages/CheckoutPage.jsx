@@ -2,12 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiBase } from "../lib/api";
 
 const ITEMS = [
-  { id: "daily-500", icon: "D", pool: "DAILY POOL", name: "Capital 500", desc: "Capital GBP 500 -> Returns GBP 5,000", deposit: "GBP 500", target: "GBP 5,000", amountValue: "500", amountAsset: "GBP" },
-  { id: "daily-600", icon: "D", pool: "DAILY POOL", name: "Capital 600", desc: "Capital GBP 600 -> Returns GBP 6,000", deposit: "GBP 600", target: "GBP 6,000", amountValue: "600", amountAsset: "GBP" },
-  { id: "daily-700", icon: "D", pool: "DAILY POOL", name: "Capital 700", desc: "Capital GBP 700 -> Returns GBP 7,000", deposit: "GBP 700", target: "GBP 7,000", amountValue: "700", amountAsset: "GBP" },
-  { id: "daily-800", icon: "D", pool: "DAILY POOL", name: "Capital 800", desc: "Capital GBP 800 -> Returns GBP 8,000", deposit: "GBP 800", target: "GBP 8,000", amountValue: "800", amountAsset: "GBP" },
-  { id: "daily-900", icon: "D", pool: "DAILY POOL", name: "Capital 900", desc: "Capital GBP 900 -> Returns GBP 9,000", deposit: "GBP 900", target: "GBP 9,000", amountValue: "900", amountAsset: "GBP" },
-  { id: "daily-1000", icon: "D", pool: "DAILY POOL", name: "Capital 1,000", desc: "Capital GBP 1,000 -> Returns GBP 10,000", deposit: "GBP 1,000", target: "GBP 10,000", amountValue: "1000", amountAsset: "GBP" },
+  { id: "daily-500", icon: "48", pool: "48H POOL", name: "Capital 500", desc: "Capital GBP 500 -> Returns GBP 5,000 (48h)", deposit: "GBP 500", target: "GBP 5,000", amountValue: "500", amountAsset: "GBP" },
+  { id: "daily-600", icon: "48", pool: "48H POOL", name: "Capital 600", desc: "Capital GBP 600 -> Returns GBP 6,000 (48h)", deposit: "GBP 600", target: "GBP 6,000", amountValue: "600", amountAsset: "GBP" },
+  { id: "daily-700", icon: "48", pool: "48H POOL", name: "Capital 700", desc: "Capital GBP 700 -> Returns GBP 7,000 (48h)", deposit: "GBP 700", target: "GBP 7,000", amountValue: "700", amountAsset: "GBP" },
+  { id: "daily-800", icon: "48", pool: "48H POOL", name: "Capital 800", desc: "Capital GBP 800 -> Returns GBP 8,000 (48h)", deposit: "GBP 800", target: "GBP 8,000", amountValue: "800", amountAsset: "GBP" },
+  { id: "daily-900", icon: "48", pool: "48H POOL", name: "Capital 900", desc: "Capital GBP 900 -> Returns GBP 9,000 (48h)", deposit: "GBP 900", target: "GBP 9,000", amountValue: "900", amountAsset: "GBP" },
+  { id: "daily-1000", icon: "48", pool: "48H POOL", name: "Capital 1,000", desc: "Capital GBP 1,000 -> Returns GBP 10,000 (48h)", deposit: "GBP 1,000", target: "GBP 10,000", amountValue: "1000", amountAsset: "GBP" },
   { id: "weekly-2000", icon: "W", pool: "WEEKLY POOL", name: "Capital 2,000", desc: "Capital GBP 2,000 -> Returns GBP 20,000", deposit: "GBP 2,000", target: "GBP 20,000", amountValue: "2000", amountAsset: "GBP" },
   { id: "weekly-3000", icon: "W", pool: "WEEKLY POOL", name: "Capital 3,000", desc: "Capital GBP 3,000 -> Returns GBP 30,000", deposit: "GBP 3,000", target: "GBP 30,000", amountValue: "3000", amountAsset: "GBP" },
   { id: "weekly-4000", icon: "W", pool: "WEEKLY POOL", name: "Capital 4,000", desc: "Capital GBP 4,000 -> Returns GBP 40,000", deposit: "GBP 4,000", target: "GBP 40,000", amountValue: "4000", amountAsset: "GBP" },

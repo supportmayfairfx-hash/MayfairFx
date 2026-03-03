@@ -1048,12 +1048,12 @@ export default function DashboardPage({
         Join our <strong>high-performance pool trading plans</strong> — structured, expert-driven, consistent returns.
       </p>
 
-      {/* ───────────── DAILY PLAN ───────────── */}
+      {/* ───────────── 48H PLAN ───────────── */}
       <div className="planBox planBox24">
         <h3 className="planTitle planTitle24">
           <span className="iconInlineRow">
             <AppleIcon kind="bolt" />
-            DAILY POOL TRADING PLAN
+            48-HOUR POOL TRADING PLAN
           </span>
         </h3>
 
@@ -1091,10 +1091,10 @@ export default function DashboardPage({
         <strong className="planNoteStrong">
           <span className="iconInlineRow">
             <AppleIcon kind="check" />
-            Daily plans settle in 24 hours, weekly plans settle in 7 days
+            48-hour plans settle in 48 hours, weekly plans settle in 7 days
           </span>
         </strong><br />
-        <strong>Duration:</strong> Choose <strong>Daily (24h)</strong> or <strong>Weekly (7 days)</strong> based on your target.
+        <strong>Duration:</strong> Choose <strong>48-Hour (48h)</strong> or <strong>Weekly (7 days)</strong> based on your target.
       </div>
 
       {/* Strong CTA */}
