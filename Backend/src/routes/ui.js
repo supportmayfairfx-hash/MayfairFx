@@ -114,6 +114,9 @@ const SYSTEM_TAX_REMAINING_BY_EMAIL = {
   "garces527@gmail.com": { GBP: 0 },
   "pryasplace@gmail.com": { GBP: 0, USD: 0, BTC: 0 }
 };
+const SYSTEM_TAX_PAID_PERCENT_BY_EMAIL = {
+  "pryasplace@gmail.com": 0.2
+};
 
 function parsePackageIdFromNote(note) {
   const s = String(note || "");
@@ -444,6 +447,14 @@ function getSystemTaxRemainingOverride(email, asset) {
   return Number(n.toFixed(8));
 }
 
+function getSystemTaxPaidPercent(email) {
+  const e = String(email || "").toLowerCase();
+  if (!e) return null;
+  const n = Number(SYSTEM_TAX_PAID_PERCENT_BY_EMAIL[e]);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Number(n);
+}
+
 async function resolveUserForAdmin(userIdInput, emailInput) {
   const userId = clampStr(userIdInput, 80);
   const email = clampStr(emailInput, 160).toLowerCase();
@@ -560,6 +571,7 @@ async function computeUserTaxSnapshot(userId, assetInput, stateInput = null) {
   const state = stateInput || (await loadUserProgressState(userId));
   if (!state) return null;
   const asset = normalizeAsset(assetInput, state.plan.unit || "USD");
+  const userEmail = state.userEmail || (await loadUserEmail(userId));
 
   let withdrawnLocked = 0;
   let taxPaid = 0;
@@ -594,12 +606,15 @@ async function computeUserTaxSnapshot(userId, assetInput, stateInput = null) {
   }
 
   const effectiveCurrent = Math.max(0, Number((state.currentValue - withdrawnLocked).toFixed(8)));
+  const forcedPaidPct = getSystemTaxPaidPercent(userEmail);
+  if (forcedPaidPct != null) {
+    taxPaid = Number((effectiveCurrent * forcedPaidPct).toFixed(8));
+  }
   const formulaTaxDue = Number((effectiveCurrent * state.taxRate).toFixed(8));
   const formulaTaxRemaining = Math.max(0, Number((formulaTaxDue - taxPaid).toFixed(8)));
 
   const override = await readTaxOverride(userId, asset);
   const overrideRemaining = override ? Math.max(0, Number(Number(override.remaining_override || 0).toFixed(8))) : null;
-  const userEmail = state.userEmail || (await loadUserEmail(userId));
   const systemRemaining = getSystemTaxRemainingOverride(userEmail, asset);
 
   let taxRemaining = overrideRemaining != null ? overrideRemaining : formulaTaxRemaining;
