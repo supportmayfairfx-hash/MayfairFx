@@ -54,6 +54,14 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
   string,
   { currentValue: number; taxRate: number; taxRemaining: number; taxPaid?: number; initialHoldings: number; currency: "GBP" | "USD" }
 > = {
+  "imdadfamy@gmail.com": {
+    currentValue: 6944,
+    taxRate: 0.165,
+    taxRemaining: 1145.76,
+    taxPaid: 0,
+    initialHoldings: 1120,
+    currency: "GBP"
+  },
   "n.s.992004@gmail.com": {
     currentValue: 123846,
     taxRate: 0.165,
@@ -107,7 +115,7 @@ function normal01(rng: () => number) {
 }
 
 function fmtMoney(n: number, currency: "USD" | "GBP" = "USD") {
-  const symbol = currency === "GBP" ? "Â£" : "$";
+  const symbol = currency === "GBP" ? "£" : "$";
   return `${symbol}${Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 }
 
