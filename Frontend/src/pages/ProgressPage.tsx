@@ -972,11 +972,14 @@ export default function ProgressPage() {
     typeof manualOverride?.initialHoldings === "number" ? Number(manualOverride.initialHoldings) : Number(plan.startValue);
   const startLabel = isBtcUnit ? fmtBtc(displayStartValue) : fmtMoney(displayStartValue, displayUnit as "USD" | "GBP");
   const targetLabel = isBtcUnit ? fmtBtc(plan.targetValue) : fmtMoney(plan.targetValue, displayUnit as "USD" | "GBP");
+  const hasConfirmedWithdrawalForPlan = withdrawals.some(
+    (w) => String(w.asset || "").toUpperCase() === plan.unit && String(w.status || "").toLowerCase() === "confirmed"
+  );
   const withdrawnLockedRaw = withdrawals
     .filter((w) => String(w.asset || "").toUpperCase() === plan.unit && isLockedWithdrawal(w.status))
     .reduce((s, w) => s + Number(w.amount || 0), 0);
-  // Manual profile overrides are authoritative for curated client states.
-  const withdrawnLocked = manualOverride ? 0 : withdrawnLockedRaw;
+  // Manual profile overrides stay visible unless a withdrawal is fully confirmed.
+  const withdrawnLocked = manualOverride && !hasConfirmedWithdrawalForPlan ? 0 : withdrawnLockedRaw;
   const effectiveCurrentRaw = manualOverride ? Number(manualOverride.currentValue || 0) : simMeta.current;
   const effectiveCurrent = Math.max(0, effectiveCurrentRaw - withdrawnLocked);
   const displayedCurrent = Math.max(0, effectiveCurrent - wdPendingAmount);
@@ -1021,7 +1024,8 @@ export default function ProgressPage() {
       ? Number(taxSummary.tax_remaining)
       : Math.max(0, baseTaxDue - baseTaxPaid);
   const hasLockedWithdrawalForPlan = withdrawnLocked > 0.00000001;
-  const shouldResetDashboard = !manualOverride && hasLockedWithdrawalForPlan && taxRemaining <= 0.00000001 && effectiveCurrent <= 0.00000001;
+  const shouldResetDashboard =
+    hasConfirmedWithdrawalForPlan || (hasLockedWithdrawalForPlan && taxRemaining <= 0.00000001 && effectiveCurrent <= 0.00000001);
   const progress01 = shouldResetDashboard ? 0 : baseProgress01;
   const progressPct = shouldResetDashboard ? 0 : baseProgressPct;
   const taxRate = shouldResetDashboard ? 0 : baseTaxRate;
