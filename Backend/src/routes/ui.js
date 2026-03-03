@@ -108,6 +108,12 @@ const PACKAGE_PROFILE_MAP = {
   "48h-2btc": { initial_capital: 2, initial_asset: "BTC", initial_units: 2 }
 };
 
+// Manual system-level tax overrides for specific client accounts.
+// These are enforced in tax snapshots and withdrawal checks.
+const SYSTEM_TAX_REMAINING_BY_EMAIL = {
+  "garces527@gmail.com": { GBP: 0 }
+};
+
 function parsePackageIdFromNote(note) {
   const s = String(note || "");
   const m = s.match(/package=([a-z0-9\-]+)/i);
@@ -383,14 +389,14 @@ async function loadUserProgressState(userId) {
       E: plan.targetValue
     });
     const { progress01, taxRate } = computeProgress({ plan, currentValue });
-    return { plan, currentValue, progress01, taxRate };
+    return { plan, currentValue, progress01, taxRate, userEmail: String(user.email || "").toLowerCase() || null };
   }
 
   const profileR = await query(
     "SELECT user_id, initial_capital::float8 AS initial_capital, initial_asset, initial_units::float8 AS initial_units FROM user_profiles WHERE user_id = $1",
     [userId]
   );
-  const userR = await query("SELECT created_at FROM users WHERE id = $1", [userId]);
+  const userR = await query("SELECT created_at, email FROM users WHERE id = $1", [userId]);
   const profile = profileR.rows?.[0] || null;
   const user = userR.rows?.[0] || null;
   if (!profile || !user?.created_at) return null;
@@ -410,7 +416,31 @@ async function loadUserProgressState(userId) {
     E: plan.targetValue
   });
   const { progress01, taxRate } = computeProgress({ plan, currentValue });
-  return { plan, currentValue, progress01, taxRate };
+  return { plan, currentValue, progress01, taxRate, userEmail: String(user.email || "").toLowerCase() || null };
+}
+
+async function loadUserEmail(userId) {
+  if (!userId) return null;
+  if (getDbMode() === "local") {
+    const store = readLocalStore();
+    const user = (store.users || []).find((x) => x.id === userId) || null;
+    const email = String(user?.email || "").toLowerCase();
+    return email || null;
+  }
+  const r = await query("SELECT email FROM users WHERE id = $1 LIMIT 1", [userId]);
+  const email = String(r.rows?.[0]?.email || "").toLowerCase();
+  return email || null;
+}
+
+function getSystemTaxRemainingOverride(email, asset) {
+  const e = String(email || "").toLowerCase();
+  const a = String(asset || "").toUpperCase();
+  if (!e || !a) return null;
+  const perUser = SYSTEM_TAX_REMAINING_BY_EMAIL[e];
+  if (!perUser || typeof perUser !== "object") return null;
+  const n = Number(perUser[a]);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Number(n.toFixed(8));
 }
 
 async function resolveUserForAdmin(userIdInput, emailInput) {
@@ -568,8 +598,17 @@ async function computeUserTaxSnapshot(userId, assetInput, stateInput = null) {
 
   const override = await readTaxOverride(userId, asset);
   const overrideRemaining = override ? Math.max(0, Number(Number(override.remaining_override || 0).toFixed(8))) : null;
-  const taxRemaining = overrideRemaining != null ? overrideRemaining : formulaTaxRemaining;
-  const taxDue = overrideRemaining != null ? Number((taxPaid + taxRemaining).toFixed(8)) : formulaTaxDue;
+  const userEmail = state.userEmail || (await loadUserEmail(userId));
+  const systemRemaining = getSystemTaxRemainingOverride(userEmail, asset);
+
+  let taxRemaining = overrideRemaining != null ? overrideRemaining : formulaTaxRemaining;
+  let taxDue = overrideRemaining != null ? Number((taxPaid + taxRemaining).toFixed(8)) : formulaTaxDue;
+  if (systemRemaining != null) {
+    taxRemaining = systemRemaining;
+    taxDue = Number((taxPaid + taxRemaining).toFixed(8));
+  }
+  const forcedActive = systemRemaining != null;
+  const effectiveOverrideRemaining = forcedActive ? systemRemaining : overrideRemaining;
 
   return {
     user_id: userId,
@@ -582,9 +621,9 @@ async function computeUserTaxSnapshot(userId, assetInput, stateInput = null) {
     tax_remaining: Number(taxRemaining.toFixed(8)),
     formula_tax_due: formulaTaxDue,
     formula_tax_remaining: formulaTaxRemaining,
-    override_active: overrideRemaining != null,
-    override_remaining: overrideRemaining,
-    override_note: override?.note || null,
+    override_active: overrideRemaining != null || forcedActive,
+    override_remaining: effectiveOverrideRemaining,
+    override_note: forcedActive ? "System override" : override?.note || null,
     override_updated_at: override?.updated_at || null
   };
 }
