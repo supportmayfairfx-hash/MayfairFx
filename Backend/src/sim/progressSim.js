@@ -52,7 +52,8 @@ export function pickPlan(profile) {
     const n = Number(k);
     if (Math.abs(v - n) < 0.01) {
       const p = presets[n];
-      return { key: `USD${n}_${p.hours}H`, durationSec: p.hours * 3600, unit: "USD", startValue: n, targetValue: p.target };
+      const fiatUnit = asset === "GBP" ? "GBP" : "USD";
+      return { key: `${fiatUnit}${n}_${p.hours}H`, durationSec: p.hours * 3600, unit: fiatUnit, startValue: n, targetValue: p.target };
     }
   }
   return null;

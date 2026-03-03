@@ -105,9 +105,10 @@ export default function PortfolioPage() {
     return email.trim().length > 3 && password.length >= 8;
   }, [mode, firstName, email, password]);
 
-  function fmtUsd(n: number) {
+  function fmtMoney(n: number, currency: "USD" | "GBP" = "USD") {
     if (!Number.isFinite(n)) return "--";
-    return `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    const symbol = currency === "GBP" ? "£" : "$";
+    return `${symbol}${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
   }
 
   const holdingsSummary = useMemo(() => {
@@ -311,7 +312,10 @@ export default function PortfolioPage() {
                   <span className="mono">
                     {String(profile.initial_asset || "USD").toUpperCase() === "BTC" && Number.isFinite(Number(profile.initial_units))
                       ? `${Number(profile.initial_units).toLocaleString(undefined, { maximumFractionDigits: 6 })} BTC`
-                      : fmtUsd(Number(profile.initial_capital || 0))}
+                      : fmtMoney(
+                          Number(profile.initial_capital || 0),
+                          String(profile.initial_asset || "USD").toUpperCase() === "GBP" ? "GBP" : "USD"
+                        )}
                   </span>
                 </div>
                 <div className="pairsNote">
