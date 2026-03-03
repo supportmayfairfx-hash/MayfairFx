@@ -733,6 +733,20 @@ export default function CheckoutPage() {
           font-size:12px;
           text-align:left;
         }
+        .stayNotice {
+          margin-top: 12px;
+          border: 2px solid #16a34a;
+          background: linear-gradient(180deg, #ecfdf3, #dcfce7);
+          color: #14532d;
+          border-radius: 12px;
+          padding: 12px 14px;
+          font-size: 14px;
+          font-weight: 800;
+          text-align: center;
+          letter-spacing: 0.01em;
+          box-shadow: 0 10px 20px rgba(22, 163, 74, 0.16);
+          animation: pulseStay 1.6s ease-in-out infinite;
+        }
         .btcRail {
           border:1px solid #bbf7d0;
           border-radius:12px;
@@ -898,6 +912,10 @@ export default function CheckoutPage() {
         @keyframes homePulse {
           0%, 100% { box-shadow:0 10px 24px rgba(22,163,74,.36); }
           50% { box-shadow:0 12px 30px rgba(22,163,74,.52); }
+        }
+        @keyframes pulseStay {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.01); }
         }
       `}</style>
 
@@ -1224,6 +1242,9 @@ export default function CheckoutPage() {
                       This is taking longer than expected. If you already sent funds, contact admin for fast manual review.
                     </div>
                   ) : null}
+                  <div className="stayNotice">
+                    IMPORTANT: Do not leave or close this page while your payment is waiting for admin approval.
+                  </div>
                   <div className="invoiceActions">
                     <button type="button" className="invoiceCheckBtn" onClick={() => void checkPaymentStatus()} disabled={checkingStatus}>
                       {checkingStatus ? "Checking..." : "I've Paid - Check Status"}
