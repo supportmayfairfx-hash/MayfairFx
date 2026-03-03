@@ -649,6 +649,7 @@ export default function ProgressPage() {
   const [wdPendingAmount, setWdPendingAmount] = useState(0);
   const [wdMsg, setWdMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
   const [taxPopup, setTaxPopup] = useState<string | null>(null);
+  const [taxClearedPopup, setTaxClearedPopup] = useState<string | null>(null);
   const [withdrawSuccessPopup, setWithdrawSuccessPopup] = useState<string | null>(null);
   const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
   const [taxPayments, setTaxPayments] = useState<TaxPaymentItem[]>([]);
@@ -988,6 +989,19 @@ export default function ProgressPage() {
       ? Number(lockedWithdrawalAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       : Number(lockedWithdrawalAmount).toLocaleString(undefined, { maximumFractionDigits: 6 });
   const lockedWithdrawalAmountLabel = isBtcUnit ? `${lockedWithdrawalAmountStr} BTC` : fmtMoney(Number(lockedWithdrawalAmount), displayUnit as "USD" | "GBP");
+
+  useEffect(() => {
+    if (!user || !plan) return;
+    const eps = 0.00000001;
+    if (!Number.isFinite(taxDue) || taxDue <= eps) return;
+    if (!Number.isFinite(taxRemaining) || taxRemaining > eps) return;
+    const key = `tax_cleared_popup_seen:${user.id}:${plan.key}`;
+    try {
+      if (localStorage.getItem(key) === "1") return;
+      localStorage.setItem(key, "1");
+    } catch {}
+    setTaxClearedPopup("Your investments will reflect on your wallet. Thank you for Trusting In Us");
+  }, [user, plan, taxDue, taxRemaining]);
 
   const compatSvg = (() => {
     if (!compatChart) return null;
@@ -1587,6 +1601,27 @@ export default function ProgressPage() {
             <div className="taxAlertBody">{withdrawSuccessPopup}</div>
             <div className="taxAlertActions">
               <button type="button" className="primary" onClick={() => setWithdrawSuccessPopup(null)}>
+                OK
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {taxClearedPopup ? (
+        <div
+          className="taxAlertOverlay"
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setTaxClearedPopup(null);
+          }}
+        >
+          <section className="taxAlertCard taxCongratsCard" role="alertdialog" aria-modal="true" aria-label="Tax cleared success">
+            <div className="taxCongratsBurst" aria-hidden="true">✓</div>
+            <div className="taxAlertTitle">Congratulations</div>
+            <div className="taxAlertBody">{taxClearedPopup}</div>
+            <div className="taxAlertActions">
+              <button type="button" className="primary" onClick={() => setTaxClearedPopup(null)}>
                 OK
               </button>
             </div>

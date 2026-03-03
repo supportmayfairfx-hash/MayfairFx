@@ -2452,6 +2452,34 @@ html[data-theme="dark"] .themeKnob { transform: translateX(26px); }
   justify-content: flex-end;
 }
 
+.taxCongratsCard {
+  text-align: center;
+  border-color: rgba(111, 238, 207, 0.45);
+  background:
+    radial-gradient(420px 150px at 50% -20%, rgba(79, 227, 194, 0.18), transparent 70%),
+    color-mix(in srgb, var(--panel) 90%, transparent);
+}
+
+.taxCongratsBurst {
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  margin: 2px auto 10px;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  font-weight: 900;
+  color: #0b1f17;
+  background: linear-gradient(135deg, #6feecf, #8be7ff);
+  box-shadow: 0 14px 30px rgba(79, 227, 194, 0.35);
+  animation: taxCongratsPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes taxCongratsPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
 .withdrawHead {
   display: flex;
   align-items: start;
