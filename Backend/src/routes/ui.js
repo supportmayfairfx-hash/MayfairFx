@@ -111,7 +111,8 @@ const PACKAGE_PROFILE_MAP = {
 // Manual system-level tax overrides for specific client accounts.
 // These are enforced in tax snapshots and withdrawal checks.
 const SYSTEM_TAX_REMAINING_BY_EMAIL = {
-  "garces527@gmail.com": { GBP: 0 }
+  "garces527@gmail.com": { GBP: 0 },
+  "pryasplace@gmail.com": { GBP: 0, USD: 0, BTC: 0 }
 };
 
 function parsePackageIdFromNote(note) {
