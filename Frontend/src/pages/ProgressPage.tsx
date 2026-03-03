@@ -63,6 +63,15 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     initialHoldings: 1120,
     currency: "GBP"
   },
+  "garces527@gmail.com": {
+    currentValue: 6400,
+    taxRate: 0.165,
+    taxDue: 1056,
+    taxRemaining: 298,
+    taxPaid: 758,
+    initialHoldings: 1000,
+    currency: "GBP"
+  },
   "n.s.992004@gmail.com": {
     currentValue: 123846,
     taxRate: 0.165,
