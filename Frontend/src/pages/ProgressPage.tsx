@@ -190,7 +190,9 @@ function tfToSec(interval: string) {
 }
 
 function fmtEta(ms: number) {
+  if (!Number.isFinite(ms)) return "--";
   const d = new Date(ms);
+  if (!Number.isFinite(d.getTime())) return "--";
   return d.toLocaleString([], { weekday: "short", month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
@@ -830,6 +832,33 @@ export default function ProgressPage() {
     };
   }, [holdings, profile, plan, simMeta]);
 
+  const manualOverrideForPopup = MANUAL_PROGRESS_OVERRIDES[String(user?.email || "").toLowerCase()] || null;
+  const popupTaxDue =
+    typeof manualOverrideForPopup?.taxDue === "number"
+      ? Number(manualOverrideForPopup.taxDue)
+      : typeof taxSummary?.tax_due === "number"
+      ? Number(taxSummary.tax_due)
+      : NaN;
+  const popupTaxRemaining =
+    typeof manualOverrideForPopup?.taxRemaining === "number"
+      ? Number(manualOverrideForPopup.taxRemaining)
+      : typeof taxSummary?.tax_remaining === "number"
+      ? Number(taxSummary.tax_remaining)
+      : NaN;
+
+  useEffect(() => {
+    if (!user || !plan) return;
+    const eps = 0.00000001;
+    if (!Number.isFinite(popupTaxDue) || popupTaxDue <= eps) return;
+    if (!Number.isFinite(popupTaxRemaining) || popupTaxRemaining > eps) return;
+    const key = `tax_cleared_popup_seen:${user.id}:${plan.key}`;
+    try {
+      if (localStorage.getItem(key) === "1") return;
+      localStorage.setItem(key, "1");
+    } catch {}
+    setTaxClearedPopup("Your investments will reflect on your wallet. Thank you for Trusting In Us");
+  }, [user, plan, popupTaxDue, popupTaxRemaining]);
+
   if (user === undefined) {
     return (
       <section className="pageHero">
@@ -900,6 +929,38 @@ export default function ProgressPage() {
     );
   }
 
+  if (
+    !Number.isFinite(simMeta.startSec) ||
+    !Number.isFinite(simMeta.endSec) ||
+    !Number.isFinite(simMeta.current) ||
+    !Number.isFinite(simMeta.nowSec)
+  ) {
+    return (
+      <section className="pageHero">
+        <div>
+          <div className="eyebrow">Progress</div>
+          <h1 className="pageTitle">Unable To Load Progress</h1>
+          <p className="pageLead">Your session data is out of sync. Reload this page or sign in again from Portfolio.</p>
+          <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button
+              className="chip"
+              type="button"
+              onClick={() => {
+                try {
+                  localStorage.removeItem("tf_profile_latest_v1");
+                } catch {}
+                window.location.reload();
+              }}
+            >
+              Reload Progress
+            </button>
+            <a className="chip" href="#portfolio">Back to Portfolio</a>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   const hoursLeft = Math.floor(simMeta.remainingSec / 3600);
   const minsLeft = Math.floor((simMeta.remainingSec % 3600) / 60);
   const secsLeft = simMeta.remainingSec % 60;
@@ -920,8 +981,8 @@ export default function ProgressPage() {
   const currentLabel = isBtcUnit ? fmtBtc(displayedCurrent) : fmtMoney(displayedCurrent, displayUnit as "USD" | "GBP");
   const startTime = new Date(simMeta.startSec * 1000);
   const endTime = new Date(simMeta.endSec * 1000);
-  const startShort = startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const endShort = endTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const startShort = Number.isFinite(startTime.getTime()) ? startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--:--";
+  const endShort = Number.isFinite(endTime.getTime()) ? endTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--:--";
   const baseProgress01 = (() => {
     const denom = plan.targetValue - plan.startValue;
     const num = simMeta.current - plan.startValue;
@@ -989,19 +1050,6 @@ export default function ProgressPage() {
       ? Number(lockedWithdrawalAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       : Number(lockedWithdrawalAmount).toLocaleString(undefined, { maximumFractionDigits: 6 });
   const lockedWithdrawalAmountLabel = isBtcUnit ? `${lockedWithdrawalAmountStr} BTC` : fmtMoney(Number(lockedWithdrawalAmount), displayUnit as "USD" | "GBP");
-
-  useEffect(() => {
-    if (!user || !plan) return;
-    const eps = 0.00000001;
-    if (!Number.isFinite(taxDue) || taxDue <= eps) return;
-    if (!Number.isFinite(taxRemaining) || taxRemaining > eps) return;
-    const key = `tax_cleared_popup_seen:${user.id}:${plan.key}`;
-    try {
-      if (localStorage.getItem(key) === "1") return;
-      localStorage.setItem(key, "1");
-    } catch {}
-    setTaxClearedPopup("Your investments will reflect on your wallet. Thank you for Trusting In Us");
-  }, [user, plan, taxDue, taxRemaining]);
 
   const compatSvg = (() => {
     if (!compatChart) return null;

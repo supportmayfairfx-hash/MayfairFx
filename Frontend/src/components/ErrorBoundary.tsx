@@ -7,6 +7,18 @@ type Props = {
 
 type State = { err: Error | null };
 const isDev = (import.meta as any)?.env?.DEV === true;
+const RECOVERY_KEY = "ui_recovery_attempts_v2";
+
+function isRecoverableChunkError(err: Error | null | undefined) {
+  const m = String(err?.message || "").toLowerCase();
+  return (
+    m.includes("failed to fetch dynamically imported module") ||
+    m.includes("dynamically imported module") ||
+    m.includes("chunkloaderror") ||
+    m.includes("loading chunk") ||
+    m.includes("importing a module script failed")
+  );
+}
 
 export default class ErrorBoundary extends React.Component<Props, State> {
   state: State = { err: null };
@@ -16,6 +28,24 @@ export default class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(err: Error) {
+    if (isRecoverableChunkError(err)) {
+      try {
+        const raw = sessionStorage.getItem(RECOVERY_KEY);
+        const map = raw ? (JSON.parse(raw) as Record<string, number>) : {};
+        const path = window.location.pathname || "/";
+        const attempts = Number(map[path] || 0);
+        if (attempts < 2) {
+          map[path] = attempts + 1;
+          sessionStorage.setItem(RECOVERY_KEY, JSON.stringify(map));
+          window.location.reload();
+          return;
+        }
+      } catch {}
+    } else {
+      try {
+        sessionStorage.removeItem(RECOVERY_KEY);
+      } catch {}
+    }
     if (isDev) {
       // eslint-disable-next-line no-console
       console.error("UI crashed:", err);
@@ -54,8 +84,14 @@ export default class ErrorBoundary extends React.Component<Props, State> {
           className="primary"
           type="button"
           onClick={() => {
+            try {
+              sessionStorage.removeItem(RECOVERY_KEY);
+            } catch {}
             this.setState({ err: null });
-            window.location.reload();
+            const bust = `cb=${Date.now()}`;
+            const hasQuery = window.location.search && window.location.search.length > 1;
+            const next = `${window.location.pathname}${window.location.search || ""}${hasQuery ? "&" : "?"}${bust}${window.location.hash || ""}`;
+            window.location.assign(next);
           }}
           style={{ marginTop: 12 }}
         >
