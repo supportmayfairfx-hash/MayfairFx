@@ -1052,7 +1052,8 @@ export default function ProgressPage() {
   const nextPctLabel = nextMilestone ? `${Math.round(nextMilestone.pct * 100)}%` : "100%";
   const pacePct = pace ? clamp((pace.ratio + 0.2) / 1.8, 0, 1) : 0.5;
   const maxWithdraw = taxRemaining <= 0.00000001 ? displayedCurrent : 0;
-  const canOpenWithdrawPanel = reachedTarget;
+  const hasZeroOrNoCurrent = visibleCurrent <= 0.00000001;
+  const canOpenWithdrawPanel = reachedTarget && !hasPendingWithdrawalForPlan && !hasZeroOrNoCurrent;
   const userFirstName =
     (typeof user.first_name === "string" && user.first_name.trim()) ||
     (typeof user.email === "string" && user.email.includes("@") ? user.email.split("@")[0] : "User");
