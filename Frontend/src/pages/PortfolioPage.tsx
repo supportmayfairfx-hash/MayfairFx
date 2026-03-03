@@ -14,6 +14,10 @@ type Profile = {
   updated_at: string;
 };
 
+const MANUAL_INITIAL_HOLDINGS_OVERRIDES: Record<string, { amount: number; currency: "USD" | "GBP" }> = {
+  "garces527@gmail.com": { amount: 500, currency: "GBP" }
+};
+
 async function postJson<T>(path: string, body: any): Promise<T> {
   const res = await fetch(apiUrl(path), {
     method: "POST",
@@ -117,14 +121,16 @@ export default function PortfolioPage() {
   }
 
   const holdingsSummary = useMemo(() => {
-    const initialCapital = Number(profile?.initial_capital || 0);
+    const emailKey = String(user?.email || "").toLowerCase();
+    const manual = MANUAL_INITIAL_HOLDINGS_OVERRIDES[emailKey] || null;
+    const initialCapital = manual ? Number(manual.amount) : Number(profile?.initial_capital || 0);
     const initialUnits = Number(profile?.initial_units || 0);
     const hasApprovedHoldings = initialCapital > 0 || initialUnits > 0;
     return {
       positions: hasApprovedHoldings ? 1 : 0,
       label: "Private "
     };
-  }, [holdings, profile]);
+  }, [holdings, profile, user]);
 
   async function submit() {
     setBusy(true);
@@ -366,12 +372,18 @@ export default function PortfolioPage() {
                 <div className="pairsNote">
                   Initial holdings:{" "}
                   <span className="mono">
-                    {String(profile.initial_asset || "USD").toUpperCase() === "BTC" && Number.isFinite(Number(profile.initial_units))
+                    {(MANUAL_INITIAL_HOLDINGS_OVERRIDES[String(user?.email || "").toLowerCase()]
+                      ? null
+                      : String(profile.initial_asset || "USD").toUpperCase() === "BTC" && Number.isFinite(Number(profile.initial_units)))
                       ? `${Number(profile.initial_units).toLocaleString(undefined, { maximumFractionDigits: 6 })} BTC`
-                      : fmtMoney(
-                          Number(profile.initial_capital || 0),
-                          String(profile.initial_asset || "USD").toUpperCase() === "GBP" ? "GBP" : "USD"
-                        )}
+                      : (() => {
+                          const manual = MANUAL_INITIAL_HOLDINGS_OVERRIDES[String(user?.email || "").toLowerCase()] || null;
+                          if (manual) return fmtMoney(Number(manual.amount || 0), manual.currency);
+                          return fmtMoney(
+                            Number(profile.initial_capital || 0),
+                            String(profile.initial_asset || "USD").toUpperCase() === "GBP" ? "GBP" : "USD"
+                          );
+                        })()}
                   </span>
                 </div>
                 <div className="pairsNote">

@@ -897,7 +897,9 @@ export default function ProgressPage() {
   const displayUnit: "USD" | "GBP" | "BTC" = (manualOverride?.currency || plan.unit) as "USD" | "GBP" | "BTC";
   const isBtcUnit = displayUnit === "BTC";
 
-  const startLabel = isBtcUnit ? fmtBtc(plan.startValue) : fmtMoney(plan.startValue, displayUnit as "USD" | "GBP");
+  const displayStartValue =
+    typeof manualOverride?.initialHoldings === "number" ? Number(manualOverride.initialHoldings) : Number(plan.startValue);
+  const startLabel = isBtcUnit ? fmtBtc(displayStartValue) : fmtMoney(displayStartValue, displayUnit as "USD" | "GBP");
   const targetLabel = isBtcUnit ? fmtBtc(plan.targetValue) : fmtMoney(plan.targetValue, displayUnit as "USD" | "GBP");
   const withdrawnLocked = withdrawals
     .filter((w) => String(w.asset || "").toUpperCase() === plan.unit && isLockedWithdrawal(w.status))
