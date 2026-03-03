@@ -84,12 +84,26 @@ function clampNonNegativeAmount(v) {
 }
 
 const PACKAGE_PROFILE_MAP = {
-  "24h-300": { initial_capital: 300, initial_asset: "USD", initial_units: null },
-  "24h-500": { initial_capital: 500, initial_asset: "USD", initial_units: null },
-  "24h-1000": { initial_capital: 1000, initial_asset: "USD", initial_units: null },
-  "48h-2000": { initial_capital: 2000, initial_asset: "USD", initial_units: null },
-  "48h-5000": { initial_capital: 5000, initial_asset: "USD", initial_units: null },
-  "48h-10000": { initial_capital: 10000, initial_asset: "USD", initial_units: null },
+  // Active plans
+  "daily-500": { initial_capital: 500, initial_asset: "GBP", initial_units: null },
+  "daily-600": { initial_capital: 600, initial_asset: "GBP", initial_units: null },
+  "daily-700": { initial_capital: 700, initial_asset: "GBP", initial_units: null },
+  "daily-800": { initial_capital: 800, initial_asset: "GBP", initial_units: null },
+  "daily-900": { initial_capital: 900, initial_asset: "GBP", initial_units: null },
+  "daily-1000": { initial_capital: 1000, initial_asset: "GBP", initial_units: null },
+  "weekly-2000": { initial_capital: 2000, initial_asset: "GBP", initial_units: null },
+  "weekly-3000": { initial_capital: 3000, initial_asset: "GBP", initial_units: null },
+  "weekly-4000": { initial_capital: 4000, initial_asset: "GBP", initial_units: null },
+  "weekly-5000": { initial_capital: 5000, initial_asset: "GBP", initial_units: null },
+  "weekly-6000": { initial_capital: 6000, initial_asset: "GBP", initial_units: null },
+  "weekly-7000": { initial_capital: 7000, initial_asset: "GBP", initial_units: null },
+  // Legacy plan IDs kept for backward compatibility.
+  "24h-300": { initial_capital: 300, initial_asset: "GBP", initial_units: null },
+  "24h-500": { initial_capital: 500, initial_asset: "GBP", initial_units: null },
+  "24h-1000": { initial_capital: 1000, initial_asset: "GBP", initial_units: null },
+  "48h-2000": { initial_capital: 2000, initial_asset: "GBP", initial_units: null },
+  "48h-5000": { initial_capital: 5000, initial_asset: "GBP", initial_units: null },
+  "48h-10000": { initial_capital: 10000, initial_asset: "GBP", initial_units: null },
   "48h-1btc": { initial_capital: 1, initial_asset: "BTC", initial_units: 1 },
   "48h-2btc": { initial_capital: 2, initial_asset: "BTC", initial_units: 2 }
 };

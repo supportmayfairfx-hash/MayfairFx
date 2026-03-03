@@ -1048,37 +1048,41 @@ export default function DashboardPage({
         Join our <strong>high-performance pool trading plans</strong> — structured, expert-driven, consistent returns.
       </p>
 
-      {/* ───────────── 24 HOURS PLAN ───────────── */}
+      {/* ───────────── DAILY PLAN ───────────── */}
       <div className="planBox planBox24">
         <h3 className="planTitle planTitle24">
           <span className="iconInlineRow">
             <AppleIcon kind="bolt" />
-            24-HOUR INVESTMENT POOL
+            DAILY POOL TRADING PLAN
           </span>
         </h3>
 
         <div className="planList">
-          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£300</strong> → Get <strong>£3,500</strong></div>
           <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£500</strong> → Get <strong>£5,000</strong></div>
+          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£600</strong> → Get <strong>£6,000</strong></div>
+          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£700</strong> → Get <strong>£7,000</strong></div>
+          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£800</strong> → Get <strong>£8,000</strong></div>
+          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£900</strong> → Get <strong>£9,000</strong></div>
           <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£1,000</strong> → Get <strong>£10,000</strong></div>
         </div>
       </div>
 
-      {/* ───────────── 48 HOURS PLAN ───────────── */}
+      {/* ───────────── WEEKLY PLAN ───────────── */}
       <div className="planBox planBox48">
         <h3 className="planTitle planTitle48">
           <span className="iconInlineRow">
             <AppleIcon kind="fire" />
-            48-HOUR PREMIUM POOL
+            WEEKLY POOL TRADING PLAN
           </span>
         </h3>
 
         <div className="planList">
           <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£2,000</strong> → Get <strong>£20,000</strong></div>
+          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£3,000</strong> → Get <strong>£30,000</strong></div>
+          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£4,000</strong> → Get <strong>£40,000</strong></div>
           <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£5,000</strong> → Get <strong>£50,000</strong></div>
-          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£10,000</strong> → Get <strong>£100,000</strong></div>
-          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>1 BTC</strong> → Get <strong>2.5 BTC</strong></div>
-          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>2 BTC</strong> → Get <strong>5 BTC</strong></div>
+          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£6,000</strong> → Get <strong>£60,000</strong></div>
+          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£7,000</strong> → Get <strong>£70,000</strong></div>
         </div>
       </div>
 
@@ -1087,10 +1091,10 @@ export default function DashboardPage({
         <strong className="planNoteStrong">
           <span className="iconInlineRow">
             <AppleIcon kind="check" />
-            All profits are processed & sent after 24 hours
+            Daily plans settle in 24 hours, weekly plans settle in 7 days
           </span>
         </strong><br />
-        <strong>Duration:</strong> Returns distributed after just <strong>24 hours</strong> of trading.
+        <strong>Duration:</strong> Choose <strong>Daily (24h)</strong> or <strong>Weekly (7 days)</strong> based on your target.
       </div>
 
       {/* Strong CTA */}

@@ -45,6 +45,11 @@ export default function PortfolioPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetMsg, setResetMsg] = useState<string | null>(null);
   const [authAvailable, setAuthAvailable] = useState(true);
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -174,6 +179,24 @@ export default function PortfolioPage() {
     }
   }
 
+  async function resetPasswordNow() {
+    setResetBusy(true);
+    setResetMsg(null);
+    try {
+      const emailValue = String(resetEmail || email || "").trim();
+      if (!emailValue) throw new Error("Enter your email.");
+      if (String(resetPassword || "").length < 8) throw new Error("New password must be at least 8 characters.");
+      await postJson("/api/auth/reset-password", { email: emailValue, newPassword: resetPassword });
+      setResetMsg("Password reset successful. You can now login.");
+      setPassword("");
+      setResetPassword("");
+    } catch (e: any) {
+      setResetMsg(typeof e?.message === "string" ? e.message : "Reset failed.");
+    } finally {
+      setResetBusy(false);
+    }
+  }
+
   return (
     <>
       <section className="pageHero">
@@ -266,6 +289,39 @@ export default function PortfolioPage() {
                     type="password"
                   />
                 </label>
+
+                {mode === "login" ? (
+                  <button
+                    className="mini"
+                    type="button"
+                    onClick={() => {
+                      setResetOpen((v) => !v);
+                      setResetEmail((email || "").trim());
+                      setResetMsg(null);
+                    }}
+                    disabled={busy}
+                  >
+                    {resetOpen ? "Close Reset" : "Reset Password"}
+                  </button>
+                ) : null}
+
+                {mode === "login" && resetOpen ? (
+                  <div className="authField" style={{ border: "1px solid rgba(255,255,255,.14)", borderRadius: 12, padding: 10 }}>
+                    <span className="muted">Reset Email</span>
+                    <input value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="you@example.com" />
+                    <span className="muted" style={{ marginTop: 8 }}>New Password</span>
+                    <input
+                      value={resetPassword}
+                      onChange={(e) => setResetPassword(e.target.value)}
+                      placeholder="min 8 characters"
+                      type="password"
+                    />
+                    <button className="primary" type="button" onClick={resetPasswordNow} disabled={resetBusy}>
+                      {resetBusy ? "Resetting..." : "Confirm Password Reset"}
+                    </button>
+                    {resetMsg ? <div className="pairsNote">{resetMsg}</div> : null}
+                  </div>
+                ) : null}
 
                 {error ? (
                   <Notice

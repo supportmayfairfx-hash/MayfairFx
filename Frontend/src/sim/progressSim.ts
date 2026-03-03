@@ -58,11 +58,21 @@ export function pickPlan(profile: Profile): Plan | null {
 
   const v = Number(profile.initial_capital);
   const presets: Record<number, { target: number; hours: number }> = {
-    300: { target: 3500, hours: 24 },
+    // Active plan table
     500: { target: 5000, hours: 24 },
+    600: { target: 6000, hours: 24 },
+    700: { target: 7000, hours: 24 },
+    800: { target: 8000, hours: 24 },
+    900: { target: 9000, hours: 24 },
     1000: { target: 10000, hours: 24 },
-    2000: { target: 20000, hours: 48 },
-    5000: { target: 50000, hours: 48 },
+    2000: { target: 20000, hours: 168 },
+    3000: { target: 30000, hours: 168 },
+    4000: { target: 40000, hours: 168 },
+    5000: { target: 50000, hours: 168 },
+    6000: { target: 60000, hours: 168 },
+    7000: { target: 70000, hours: 168 },
+    // Legacy support
+    300: { target: 3500, hours: 24 },
     10000: { target: 100000, hours: 48 }
   };
 

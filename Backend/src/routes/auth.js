@@ -144,6 +144,27 @@ authRouter.post("/login", async (req, res) => {
   }
 });
 
+authRouter.post("/reset-password", async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    const newPassword = String(req.body?.newPassword || "");
+    if (!email) return res.status(400).json({ error: "Email is required." });
+    const pwErr = validatePassword(newPassword);
+    if (pwErr) return res.status(400).json({ error: pwErr });
+
+    const r = await query("SELECT id, email FROM users WHERE email = $1", [email]);
+    const user = r.rows?.[0] || null;
+    if (!user) return res.status(404).json({ error: "No account found for this email." });
+
+    const passwordHash = await hashPassword(newPassword);
+    await query("UPDATE users SET password_hash = $2 WHERE id = $1", [user.id, passwordHash]);
+    res.json({ ok: true });
+  } catch (e) {
+    const msg = typeof e?.message === "string" ? e.message : "Password reset failed";
+    res.status(500).json({ error: msg });
+  }
+});
+
 // For Telegram bot/admin to attach a code to an email.
 // POST /api/auth/admin/auth-codes { email, authCode }
 authRouter.post("/admin/auth-codes", async (req, res) => {

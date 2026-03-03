@@ -146,6 +146,15 @@ function localSelectUserById(id) {
   return { rows: [{ id: u.id, email: u.email, created_at: u.created_at, first_name: u.first_name ?? null }] };
 }
 
+function localUpdateUserPasswordById(id, passwordHash) {
+  const store = readStore();
+  const idx = store.users.findIndex((x) => x.id === id);
+  if (idx < 0) return { rows: [], rowCount: 0 };
+  store.users[idx] = { ...(store.users[idx] || {}), password_hash: passwordHash };
+  writeStore(store);
+  return { rows: [{ id: store.users[idx].id }], rowCount: 1 };
+}
+
 function localDeactivateAuthCodesByEmail(email) {
   const store = readStore();
   const e = normalizeEmail(email);
@@ -548,6 +557,7 @@ function localQuery(text, params) {
     return localSelectUserByEmail(params[0]);
   }
   if (t.startsWith("SELECT id, email, created_at FROM users WHERE id")) return localSelectUserById(params[0]);
+  if (t.startsWith("UPDATE users SET password_hash")) return localUpdateUserPasswordById(params[0], params[1]);
   if (t.startsWith("UPDATE auth_codes SET is_active = false WHERE email")) return localDeactivateAuthCodesByEmail(params[0]);
   if (t.startsWith("INSERT INTO auth_codes")) return localInsertAuthCode(params[0], params[1], params[2], params[3]);
   if (t.startsWith("SELECT id, auth_code, is_active FROM auth_codes")) return localSelectActiveAuthCodeByEmail(params[0]);

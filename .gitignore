@@ -3,3 +3,5 @@ node_modules
 Frontend/.npm-cache
 Backend/data
 *.log
+
+.vercel
