@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import TradingChart, { type Candle, type Overlay, type ChartMarker } from "../components/TradingChart";
 import { buildAnchoredPath, pickPlan, type Profile } from "../sim/progressSim";
 import Notice from "../components/Notice";
@@ -258,6 +258,23 @@ export default function ProgressPage() {
   const [tick, setTick] = useState(0);
   const timerRef = useRef<number | null>(null);
 
+  const syncProfileAndDeposits = useCallback(async () => {
+    const [profileResult, depositsResult] = await Promise.allSettled([
+      getJson<{ profile: Profile | null }>("/api/profile/me"),
+      getJson<{ items: DepositItem[] }>("/api/deposits/me")
+    ]);
+
+    if (profileResult.status === "fulfilled") {
+      const remoteProfile = profileResult.value?.profile || null;
+      if (remoteProfile) cacheProfile(remoteProfile as any);
+      setProfile(remoteProfile);
+    }
+
+    if (depositsResult.status === "fulfilled") {
+      setDeposits(Array.isArray(depositsResult.value?.items) ? depositsResult.value.items : []);
+    }
+  }, []);
+
   useEffect(() => {
     setError(null);
     let cancelled = false;
@@ -341,18 +358,37 @@ export default function ProgressPage() {
   useEffect(() => {
     if (!user || user === undefined || user === null) return;
     let cancelled = false;
-    const loadDeposits = async () => {
+    const tickSync = async () => {
+      if (cancelled) return;
       try {
-        const r = await getJson<{ items: DepositItem[] }>("/api/deposits/me");
-        if (!cancelled) setDeposits(Array.isArray(r.items) ? r.items : []);
+        await syncProfileAndDeposits();
       } catch {}
     };
-    const t = window.setInterval(() => void loadDeposits(), 15000);
+
+    // Immediate sync so the page reacts fast after admin approval.
+    void tickSync();
+
+    // Keep polling while holdings are not yet activated.
+    const initialCapital = Number(profile?.initial_capital || 0);
+    const initialUnits = Number(profile?.initial_units || 0);
+    const hasApprovedHoldings = initialCapital > 0 || initialUnits > 0;
+    const intervalMs = hasApprovedHoldings ? 15000 : 3000;
+    const t = window.setInterval(() => void tickSync(), intervalMs);
+
+    const onFocus = () => void tickSync();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void tickSync();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+
     return () => {
       cancelled = true;
       window.clearInterval(t);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [user]);
+  }, [user, profile, syncProfileAndDeposits]);
 
   useEffect(() => {
     if (timerRef.current) window.clearInterval(timerRef.current);
