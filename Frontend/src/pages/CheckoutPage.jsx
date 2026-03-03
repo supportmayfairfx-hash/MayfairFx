@@ -84,6 +84,7 @@ async function fetchApiWithFallback(paths, options, context) {
   const pathList = Array.isArray(paths) ? paths : [paths];
   const candidates = buildApiCandidates();
   const tried = [];
+  let sawAuthError = false;
   for (const base of candidates) {
     for (const path of pathList) {
       const url = joinApi(base, path);
@@ -102,10 +103,17 @@ async function fetchApiWithFallback(paths, options, context) {
         }
 
         tried.push(`${res.status} ${url}`);
+        if (res.status === 401 || res.status === 403) {
+          sawAuthError = true;
+          throw new Error("Please login first to invest. Go to Portfolio, sign in, then return to Checkout.");
+        }
         if (res.status === 404) continue;
         throw new Error(friendlyApiError(res.status, j?.error, context));
       } catch (err) {
         const msg = String(err?.message || "");
+        if (msg && (/login first to invest/i.test(msg) || /session has expired/i.test(msg))) {
+          throw err;
+        }
         if (msg && !msg.includes("Payment")) {
           tried.push(`network ${url}`);
           continue;
@@ -113,6 +121,10 @@ async function fetchApiWithFallback(paths, options, context) {
         throw err;
       }
     }
+  }
+
+  if (sawAuthError) {
+    throw new Error("Please login first to invest. Go to Portfolio, sign in, then return to Checkout.");
   }
 
   const detail = tried.length ? ` Tried: ${tried.slice(0, 6).join(" | ")}` : "";
