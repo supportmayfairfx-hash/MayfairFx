@@ -2479,6 +2479,9 @@ uiRouter.put("/admin/deposits/:id", async (req, res) => {
       if (hasNote) row.note = note || null;
       row.updated_at = nowIso();
       writeLocalStore(store);
+      if (String(row.status || "").toLowerCase() === "confirmed") {
+        await applyApprovedDepositToProfile(row.user_id, row.note || null);
+      }
       const u = users.find((x) => x.id === row.user_id) || null;
       await writeAdminAuditEvent(req, admin, "deposit_update", row.id, {
         user_id: row.user_id,
