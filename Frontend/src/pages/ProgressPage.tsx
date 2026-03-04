@@ -107,6 +107,16 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     initialHoldings: 1000,
     currency: "GBP",
     forceProgressPct: 100
+  },
+  "clentewhite@gmail.com": {
+    currentValue: 5000,
+    taxRate: 0.2,
+    taxDue: 1000,
+    taxRemaining: 1000,
+    taxPaid: 0,
+    initialHoldings: 500,
+    currency: "GBP",
+    forceProgressPct: 100
   }
 };
 async function getJson<T>(path: string): Promise<T> {
@@ -1023,7 +1033,8 @@ export default function ProgressPage() {
   })();
   const baseProgressPct = Math.round(baseProgress01 * 100);
   const reachedTarget = baseProgressPct >= 100;
-  const timeLeftLabel = simMeta.done ? "Completed" : `${hoursLeft}h ${minsLeft}m ${secsLeft}s`;
+  const forcedComplete = typeof manualOverride?.forceProgressPct === "number" && Number(manualOverride.forceProgressPct) >= 100;
+  const timeLeftLabel = (simMeta.done || forcedComplete) ? "Completed" : `${hoursLeft}h ${minsLeft}m ${secsLeft}s`;
   const durationHours = Math.round(plan.durationSec / 3600);
   const baseTaxRate =
     useManualTaxOverride && typeof manualOverride?.taxRate === "number"
