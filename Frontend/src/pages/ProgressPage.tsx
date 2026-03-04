@@ -1693,23 +1693,25 @@ export default function ProgressPage() {
           <section className="taxAlertCard" role="alertdialog" aria-modal="true" aria-label="Tax alert">
             <div className="taxAlertTitle">Withdrawal Alert</div>
             <div className="taxAlertBody">{taxPopup}</div>
-            <div className="taxAlertActions" style={{ justifyContent: "space-between", gap: 10 }}>
-              <button
-                type="button"
-                className="ghost"
-                onClick={() => {
-                  const q = new URLSearchParams({
-                    mode: "tax",
-                    amount: String(Number(taxRemaining).toFixed(2)),
-                    currency: displayUnit
-                  }).toString();
-                  setTaxPopup(null);
-                  window.history.pushState(null, "", `/checkout?${q}`);
-                  window.dispatchEvent(new PopStateEvent("popstate"));
-                }}
-              >
-                Clear Tax
-              </button>
+            <div className="taxAlertActions" style={{ justifyContent: withdrawFeeLock ? "flex-end" : "space-between", gap: 10 }}>
+              {!withdrawFeeLock ? (
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => {
+                    const q = new URLSearchParams({
+                      mode: "tax",
+                      amount: String(Number(taxRemaining).toFixed(2)),
+                      currency: displayUnit
+                    }).toString();
+                    setTaxPopup(null);
+                    window.history.pushState(null, "", `/checkout?${q}`);
+                    window.dispatchEvent(new PopStateEvent("popstate"));
+                  }}
+                >
+                  Clear Tax
+                </button>
+              ) : null}
               <button type="button" className="primary" onClick={() => setTaxPopup(null)}>
                 OK
               </button>
