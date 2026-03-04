@@ -123,7 +123,7 @@ const SYSTEM_FORCE_PROGRESS_COMPLETE_BY_EMAIL = new Set([
   "tzahielk@gmail.com"
 ]);
 const SYSTEM_WITHDRAWAL_FEE_LOCK_BY_EMAIL = {
-  "tzahielk@gmail.com": { amount: 725, asset: "GBP" }
+  "tzahielk@gmail.com": { amount: 450, asset: "GBP" }
 };
 
 function getSystemWithdrawalFeeLock(email) {

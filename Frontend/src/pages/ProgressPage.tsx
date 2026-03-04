@@ -118,7 +118,7 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
 };
 
 const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "GBP" | "USD" }> = {
-  "tzahielk@gmail.com": { amount: 725, currency: "GBP" }
+  "tzahielk@gmail.com": { amount: 450, currency: "GBP" }
 };
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(apiUrl(path), {
