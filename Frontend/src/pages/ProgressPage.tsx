@@ -52,7 +52,16 @@ type DepositItem = {
 
 const MANUAL_PROGRESS_OVERRIDES: Record<
   string,
-  { currentValue: number; taxRate: number; taxRemaining: number; taxPaid?: number; taxDue?: number; initialHoldings: number; currency: "GBP" | "USD" }
+  {
+    currentValue: number;
+    taxRate: number;
+    taxRemaining: number;
+    taxPaid?: number;
+    taxDue?: number;
+    initialHoldings: number;
+    currency: "GBP" | "USD";
+    forceProgressPct?: number;
+  }
 > = {
   "imdadfamy@gmail.com": {
     currentValue: 6944,
@@ -88,6 +97,16 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     taxPaid: 8265.58,
     initialHoldings: 2000,
     currency: "GBP"
+  },
+  "kelvinwhite@gmail.com": {
+    currentValue: 100000,
+    taxRate: 0.2,
+    taxDue: 20000,
+    taxRemaining: 0,
+    taxPaid: 20000,
+    initialHoldings: 1000,
+    currency: "GBP",
+    forceProgressPct: 100
   }
 };
 async function getJson<T>(path: string): Promise<T> {
@@ -995,6 +1014,9 @@ export default function ProgressPage() {
   const startShort = Number.isFinite(startTime.getTime()) ? startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--:--";
   const endShort = Number.isFinite(endTime.getTime()) ? endTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--:--";
   const baseProgress01 = (() => {
+    if (typeof manualOverride?.forceProgressPct === "number") {
+      return clamp(Number(manualOverride.forceProgressPct) / 100, 0, 1);
+    }
     const denom = plan.targetValue - plan.startValue;
     const num = simMeta.current - plan.startValue;
     return denom === 0 ? 1 : clamp(num / denom, 0, 1);
