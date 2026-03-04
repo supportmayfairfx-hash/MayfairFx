@@ -54,8 +54,8 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
   string,
   {
     currentValue: number;
-    taxRate: number;
-    taxRemaining: number;
+    taxRate?: number;
+    taxRemaining?: number;
     taxPaid?: number;
     taxDue?: number;
     initialHoldings: number;
@@ -110,10 +110,6 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
   },
   "clentewhite@gmail.com": {
     currentValue: 5000,
-    taxRate: 0.2,
-    taxDue: 1000,
-    taxRemaining: 1000,
-    taxPaid: 0,
     initialHoldings: 500,
     currency: "GBP",
     forceProgressPct: 100
