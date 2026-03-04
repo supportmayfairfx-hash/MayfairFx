@@ -567,6 +567,12 @@ async function applyTaxPaymentToOverride(userId, asset, amount) {
   await upsertTaxOverride(userId, normalizedAsset, Number(next.toFixed(8)), row.note || null, row.updated_by || "system");
 }
 
+async function settleUserTaxAfterAdminApproval(userId, paymentAsset, actor = "admin") {
+  const state = await loadUserProgressState(userId);
+  const activeAsset = state?.plan?.unit ? normalizeAsset(state.plan.unit) : normalizeAsset(paymentAsset || "USD");
+  await upsertTaxOverride(userId, activeAsset, 0, "tax_paid_full_admin_approved", actor || "admin");
+}
+
 async function computeUserTaxSnapshot(userId, assetInput, stateInput = null) {
   const state = stateInput || (await loadUserProgressState(userId));
   if (!state) return null;
@@ -584,7 +590,12 @@ async function computeUserTaxSnapshot(userId, assetInput, stateInput = null) {
       .filter((w) => w.user_id === userId && String(w.asset || "").toUpperCase() === asset)
       .reduce((sum, w) => (isLockedWithdrawalStatus(w.status) ? sum + Number(w.amount || 0) : sum), 0);
     taxPaid = store.tax_payments
-      .filter((p) => p.user_id === userId && String(p.asset || "").toUpperCase() === asset)
+      .filter(
+        (p) =>
+          p.user_id === userId &&
+          String(p.asset || "").toUpperCase() === asset &&
+          String(p.status || "confirmed").toLowerCase() === "confirmed"
+      )
       .reduce((sum, p) => sum + Number(p.amount || 0), 0);
   } else {
     const [wR, tR] = await Promise.all([
@@ -597,7 +608,7 @@ async function computeUserTaxSnapshot(userId, assetInput, stateInput = null) {
       query(
         `SELECT amount::float8 AS amount
          FROM tax_payments
-         WHERE user_id = $1 AND asset = $2`,
+         WHERE user_id = $1 AND asset = $2 AND COALESCE(status, 'confirmed') = 'confirmed'`,
         [userId, asset]
       )
     ]);
@@ -2161,6 +2172,9 @@ uiRouter.post("/admin/tax-payments", async (req, res) => {
       };
       store.tax_payments.unshift(row);
       writeLocalStore(store);
+      if (String(row.status || "").toLowerCase() === "confirmed") {
+        await settleUserTaxAfterAdminApproval(row.user_id, row.asset, admin.id || "admin");
+      }
       await writeAdminAuditEvent(req, admin, "tax_payment_create", user.email || user.id, {
         amount: Number(row.amount),
         asset: row.asset,
@@ -2208,6 +2222,9 @@ uiRouter.post("/admin/tax-payments", async (req, res) => {
       [id, userId, amount, asset || "USD", method, reference || null, note || null, status, createdAt]
     );
     const row = r.rows?.[0];
+    if (String(row.status || "").toLowerCase() === "confirmed") {
+      await settleUserTaxAfterAdminApproval(row.user_id, row.asset, admin.id || "admin");
+    }
     await writeAdminAuditEvent(req, admin, "tax_payment_create", userEmail || userId, {
       amount: Number(row.amount),
       asset: row.asset,
@@ -2273,10 +2290,10 @@ uiRouter.put("/admin/tax-payments/:id", async (req, res) => {
       if (hasReference) row.reference = reference || null;
       if (hasNote) row.note = note || null;
       row.updated_at = nowIso();
-      if (String(row.status || "").toLowerCase() === "confirmed") {
-        await applyApprovedDepositToProfile(row.user_id, row.note || null);
-      }
       writeLocalStore(store);
+      if (String(row.status || "").toLowerCase() === "confirmed") {
+        await settleUserTaxAfterAdminApproval(row.user_id, row.asset, admin.id || "admin");
+      }
 
       const u = users.find((x) => x.id === row.user_id) || null;
       await writeAdminAuditEvent(req, admin, "tax_payment_update", row.id, {
@@ -2326,6 +2343,9 @@ uiRouter.put("/admin/tax-payments/:id", async (req, res) => {
       [id, next.amount, next.asset, next.method, next.reference, next.note, next.status]
     );
     const row = r.rows?.[0];
+    if (String(row.status || "").toLowerCase() === "confirmed") {
+      await settleUserTaxAfterAdminApproval(row.user_id, row.asset, admin.id || "admin");
+    }
     const u = await query("SELECT email FROM users WHERE id = $1 LIMIT 1", [row.user_id]);
     const email = u.rows?.[0]?.email || null;
     await writeAdminAuditEvent(req, admin, "tax_payment_update", row.id, {

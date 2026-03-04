@@ -832,7 +832,8 @@ export default function ProgressPage() {
     };
   }, [holdings, profile, plan, simMeta]);
 
-  const manualOverrideForPopup = MANUAL_PROGRESS_OVERRIDES[String(user?.email || "").toLowerCase()] || null;
+  const adminTaxCleared = typeof taxSummary?.tax_remaining === "number" && Number(taxSummary.tax_remaining) <= 0.00000001;
+  const manualOverrideForPopup = adminTaxCleared ? null : (MANUAL_PROGRESS_OVERRIDES[String(user?.email || "").toLowerCase()] || null);
   const popupTaxDue =
     typeof manualOverrideForPopup?.taxDue === "number"
       ? Number(manualOverrideForPopup.taxDue)
@@ -965,6 +966,7 @@ export default function ProgressPage() {
   const minsLeft = Math.floor((simMeta.remainingSec % 3600) / 60);
   const secsLeft = simMeta.remainingSec % 60;
   const manualOverride = MANUAL_PROGRESS_OVERRIDES[String(user.email || "").toLowerCase()] || null;
+  const useManualTaxOverride = !!manualOverride && !adminTaxCleared;
   const displayUnit: "USD" | "GBP" | "BTC" = (manualOverride?.currency || plan.unit) as "USD" | "GBP" | "BTC";
   const isBtcUnit = displayUnit === "BTC";
 
@@ -1002,13 +1004,13 @@ export default function ProgressPage() {
   const timeLeftLabel = simMeta.done ? "Completed" : `${hoursLeft}h ${minsLeft}m ${secsLeft}s`;
   const durationHours = Math.round(plan.durationSec / 3600);
   const baseTaxRate =
-    typeof manualOverride?.taxRate === "number"
+    useManualTaxOverride && typeof manualOverride?.taxRate === "number"
       ? manualOverride.taxRate
       : typeof taxSummary?.tax_rate === "number"
       ? taxSummary.tax_rate
       : 0.2 * baseProgress01; // ramps up to 20% by plan end
   const baseTaxPaid =
-    typeof manualOverride?.taxPaid === "number"
+    useManualTaxOverride && typeof manualOverride?.taxPaid === "number"
       ? Number(manualOverride.taxPaid)
       : typeof taxSummary?.tax_paid === "number"
       ? Number(taxSummary.tax_paid)
@@ -1016,13 +1018,13 @@ export default function ProgressPage() {
           .filter((p) => String(p.asset || "").toUpperCase() === plan.unit)
           .reduce((s, p) => s + Number(p.amount || 0), 0);
   const baseTaxDue =
-    typeof manualOverride?.taxDue === "number"
+    useManualTaxOverride && typeof manualOverride?.taxDue === "number"
       ? Number(manualOverride.taxDue)
       : typeof taxSummary?.tax_due === "number"
       ? Number(taxSummary.tax_due)
       : effectiveCurrent * baseTaxRate; // tax is handled separately from holdings and must be settled before withdrawal.
   const taxRemaining =
-    typeof manualOverride?.taxRemaining === "number"
+    useManualTaxOverride && typeof manualOverride?.taxRemaining === "number"
       ? Number(manualOverride.taxRemaining)
       : typeof taxSummary?.tax_remaining === "number"
       ? Number(taxSummary.tax_remaining)
