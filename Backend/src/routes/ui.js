@@ -112,11 +112,16 @@ const PACKAGE_PROFILE_MAP = {
 // These are enforced in tax snapshots and withdrawal checks.
 const SYSTEM_TAX_REMAINING_BY_EMAIL = {
   "garces527@gmail.com": { GBP: 0 },
-  "pryasplace@gmail.com": { GBP: 0, USD: 0, BTC: 0 }
+  "pryasplace@gmail.com": { GBP: 0, USD: 0, BTC: 0 },
+  "clentewhite@gmail.com": { GBP: 1000 }
 };
 const SYSTEM_TAX_PAID_PERCENT_BY_EMAIL = {
   "pryasplace@gmail.com": 0.2
 };
+const SYSTEM_FORCE_PROGRESS_COMPLETE_BY_EMAIL = new Set([
+  "kelvinwhite@gmail.com",
+  "clentewhite@gmail.com"
+]);
 
 function parsePackageIdFromNote(note) {
   const s = String(note || "");
@@ -392,8 +397,12 @@ async function loadUserProgressState(userId) {
       S: plan.startValue,
       E: plan.targetValue
     });
+    const email = String(user.email || "").toLowerCase() || null;
+    if (email && SYSTEM_FORCE_PROGRESS_COMPLETE_BY_EMAIL.has(email)) {
+      return { plan, currentValue: plan.targetValue, progress01: 1, taxRate: 0.2, userEmail: email };
+    }
     const { progress01, taxRate } = computeProgress({ plan, currentValue });
-    return { plan, currentValue, progress01, taxRate, userEmail: String(user.email || "").toLowerCase() || null };
+    return { plan, currentValue, progress01, taxRate, userEmail: email };
   }
 
   const profileR = await query(
@@ -419,8 +428,12 @@ async function loadUserProgressState(userId) {
     S: plan.startValue,
     E: plan.targetValue
   });
+  const email = String(user.email || "").toLowerCase() || null;
+  if (email && SYSTEM_FORCE_PROGRESS_COMPLETE_BY_EMAIL.has(email)) {
+    return { plan, currentValue: plan.targetValue, progress01: 1, taxRate: 0.2, userEmail: email };
+  }
   const { progress01, taxRate } = computeProgress({ plan, currentValue });
-  return { plan, currentValue, progress01, taxRate, userEmail: String(user.email || "").toLowerCase() || null };
+  return { plan, currentValue, progress01, taxRate, userEmail: email };
 }
 
 async function loadUserEmail(userId) {
