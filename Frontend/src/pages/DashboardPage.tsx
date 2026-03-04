@@ -978,18 +978,18 @@ export default function DashboardPage({
               <a className="mini" href="#contact">Need payment assistance?</a>
             </div>
           </div>
-          <div className="depositHeroPrimeStats" role="list" aria-label="Deposit gateway summary">
-            <div className="depositHeroStat" role="listitem">
-              <small>Pending</small>
-              <span>{depositPendingCount}</span>
+          <div className="depositHeroPrimeStats progressKpis" role="list" aria-label="Deposit gateway summary">
+            <div className="kpi" role="listitem">
+              <div className="kpiLabel">Pending</div>
+              <div className="kpiValue mono">{depositPendingCount}</div>
             </div>
-            <div className="depositHeroStat" role="listitem">
-              <small>Recent Requests</small>
-              <span>{approvedDeposits.length}</span>
+            <div className="kpi" role="listitem">
+              <div className="kpiLabel">Recent Requests</div>
+              <div className="kpiValue mono">{approvedDeposits.length}</div>
             </div>
-            <div className="depositHeroStat" role="listitem">
-              <small>Recent Volume</small>
-              <span className="mono">{fmtDepositAmount(recentDepositVolume, "USD")}</span>
+            <div className="kpi" role="listitem">
+              <div className="kpiLabel">Recent Volume</div>
+              <div className="kpiValue mono">{fmtDepositAmount(recentDepositVolume, "USD")}</div>
             </div>
           </div>
         </div>

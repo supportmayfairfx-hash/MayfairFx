@@ -33,6 +33,7 @@ type TaxPaymentItem = {
 };
 type TaxSummary = {
   asset: string;
+  progress01?: number;
   tax_rate: number;
   tax_due: number;
   tax_paid: number;
@@ -60,7 +61,6 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     taxDue?: number;
     initialHoldings: number;
     currency: "GBP" | "USD";
-    forceProgressPct?: number;
   }
 > = {
   "imdadfamy@gmail.com": {
@@ -97,22 +97,6 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     taxPaid: 8265.58,
     initialHoldings: 2000,
     currency: "GBP"
-  },
-  "kelvinwhite@gmail.com": {
-    currentValue: 100000,
-    taxRate: 0.2,
-    taxDue: 20000,
-    taxRemaining: 0,
-    taxPaid: 20000,
-    initialHoldings: 1000,
-    currency: "GBP",
-    forceProgressPct: 100
-  },
-  "clentewhite@gmail.com": {
-    currentValue: 5000,
-    initialHoldings: 500,
-    currency: "GBP",
-    forceProgressPct: 100
   }
 };
 async function getJson<T>(path: string): Promise<T> {
@@ -1020,8 +1004,8 @@ export default function ProgressPage() {
   const startShort = Number.isFinite(startTime.getTime()) ? startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--:--";
   const endShort = Number.isFinite(endTime.getTime()) ? endTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--:--";
   const baseProgress01 = (() => {
-    if (typeof manualOverride?.forceProgressPct === "number") {
-      return clamp(Number(manualOverride.forceProgressPct) / 100, 0, 1);
+    if (typeof taxSummary?.progress01 === "number") {
+      return clamp(Number(taxSummary.progress01), 0, 1);
     }
     const denom = plan.targetValue - plan.startValue;
     const num = simMeta.current - plan.startValue;
@@ -1029,8 +1013,7 @@ export default function ProgressPage() {
   })();
   const baseProgressPct = Math.round(baseProgress01 * 100);
   const reachedTarget = baseProgressPct >= 100;
-  const forcedComplete = typeof manualOverride?.forceProgressPct === "number" && Number(manualOverride.forceProgressPct) >= 100;
-  const timeLeftLabel = (simMeta.done || forcedComplete) ? "Completed" : `${hoursLeft}h ${minsLeft}m ${secsLeft}s`;
+  const timeLeftLabel = (simMeta.done || baseProgress01 >= 1) ? "Completed" : `${hoursLeft}h ${minsLeft}m ${secsLeft}s`;
   const durationHours = Math.round(plan.durationSec / 3600);
   const baseTaxRate =
     useManualTaxOverride && typeof manualOverride?.taxRate === "number"
