@@ -114,6 +114,19 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     forceStartIso: "2026-03-02T02:30:44",
     forceDurationHours: 48,
     lockTaxDisplay: true
+  },
+  "samlebrun01@gmail.com": {
+    currentValue: 3200,
+    taxRate: 0.15,
+    taxDue: 480,
+    taxRemaining: 480,
+    taxPaid: 0,
+    initialHoldings: 300,
+    currency: "GBP",
+    forceProgressPct: 100,
+    forceStartIso: "2026-03-02T02:30:44",
+    forceDurationHours: 48,
+    lockTaxDisplay: true
   }
 };
 
