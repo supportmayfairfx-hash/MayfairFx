@@ -15,7 +15,8 @@ type Profile = {
 };
 
 const MANUAL_INITIAL_HOLDINGS_OVERRIDES: Record<string, { amount: number; currency: "USD" | "GBP" }> = {
-  "garces527@gmail.com": { amount: 500, currency: "GBP" }
+  "garces527@gmail.com": { amount: 500, currency: "GBP" },
+  "samlebrun01@gmail.com": { amount: 300, currency: "USD" }
 };
 
 async function postJson<T>(path: string, body: any): Promise<T> {
@@ -55,7 +56,7 @@ export default function PortfolioPage() {
   const [resetBusy, setResetBusy] = useState(false);
   const [resetMsg, setResetMsg] = useState<string | null>(null);
   const [authAvailable, setAuthAvailable] = useState(true);
-  const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [_holdings, setHoldings] = useState<Holding[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
 
   useEffect(() => {
@@ -137,7 +138,7 @@ export default function PortfolioPage() {
       positions: hasApprovedHoldings ? 1 : 0,
       label: "Private "
     };
-  }, [holdings, profile, user]);
+  }, [profile, user]);
 
   async function submit() {
     setBusy(true);
