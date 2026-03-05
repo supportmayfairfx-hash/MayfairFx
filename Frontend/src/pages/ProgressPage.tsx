@@ -133,6 +133,9 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
 const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "GBP" | "USD" }> = {
   "tzahielk@gmail.com": { amount: 450, currency: "GBP" }
 };
+const WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL: Record<string, string> = {
+  "tzahielk@gmail.com": "Your Withdraw are being processed to your wallet."
+};
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(apiUrl(path), {
     method: "GET",
@@ -1129,6 +1132,7 @@ export default function ProgressPage() {
   const pendingWithdrawalLabel = isBtcUnit
     ? fmtBtc(pendingWithdrawalAmountForPlan)
     : fmtMoney(pendingWithdrawalAmountForPlan, displayUnit as "USD" | "GBP");
+  const pendingWithdrawalCustomMessage = WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL[userEmailLower] || null;
 
   const compatSvg = (() => {
     if (!compatChart) return null;
@@ -1270,7 +1274,13 @@ export default function ProgressPage() {
           <div className="progressBody">
             {hasPendingWithdrawalForPlan ? (
               <Notice tone="info" title="Withdrawal Pending">
-                A withdrawal request is pending admin approval. Pending amount: <span className="mono">{pendingWithdrawalLabel}</span>.
+                {pendingWithdrawalCustomMessage ? (
+                  pendingWithdrawalCustomMessage
+                ) : (
+                  <>
+                    A withdrawal request is pending admin approval. Pending amount: <span className="mono">{pendingWithdrawalLabel}</span>.
+                  </>
+                )}
               </Notice>
             ) : null}
             <div className="progressKpis">
