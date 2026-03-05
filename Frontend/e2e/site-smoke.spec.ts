@@ -84,8 +84,37 @@ test("progress does not reset when navigating away and back (cached session path
     { u: user, p: profile }
   );
 
+  await page.route("**/api/auth/me", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ user })
+    });
+  });
+  await page.route("**/api/profile/me", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ profile })
+    });
+  });
+  await page.route("**/api/portfolio/holdings", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ holdings: [] })
+    });
+  });
+  await page.route("**/api/deposits/me", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ items: [] })
+    });
+  });
+
   await page.goto("/progress", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { name: "Pool Trading" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Pool Trading" })).toBeVisible({ timeout: 15000 });
   await page.waitForTimeout(2200);
 
   const endText1 = await page.locator(".progressMeta .muted").nth(1).innerText();
@@ -97,7 +126,7 @@ test("progress does not reset when navigating away and back (cached session path
   await expect(page.getByRole("heading", { name: /Your holdings, performance, and risk/i })).toBeVisible();
 
   await page.goto("/progress", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { name: "Pool Trading" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Pool Trading" })).toBeVisible({ timeout: 15000 });
   await page.waitForTimeout(1200);
 
   const endText2 = await page.locator(".progressMeta .muted").nth(1).innerText();

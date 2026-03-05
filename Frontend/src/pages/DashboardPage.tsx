@@ -1072,12 +1072,12 @@ export default function DashboardPage({
         </h3>
 
         <div className="planList">
-          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£500</strong> → Get <strong>£5,000</strong></div>
-          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£600</strong> → Get <strong>£6,000</strong></div>
-          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£700</strong> → Get <strong>£7,000</strong></div>
-          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£800</strong> → Get <strong>£8,000</strong></div>
-          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£900</strong> → Get <strong>£9,000</strong></div>
-          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£1,000</strong> → Get <strong>£10,000</strong></div>
+          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£500</strong> → Get <strong>£3,200</strong></div>
+          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£600</strong> → Get <strong>£3,800</strong></div>
+          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£700</strong> → Get <strong>£4,200</strong></div>
+          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£800</strong> → Get <strong>£4,800</strong></div>
+          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£900</strong> → Get <strong>£5,000</strong></div>
+          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£1,000</strong> → Get <strong>£6,000</strong></div>
         </div>
       </div>
 
@@ -1091,12 +1091,12 @@ export default function DashboardPage({
         </h3>
 
         <div className="planList">
-          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£2,000</strong> → Get <strong>£20,000</strong></div>
-          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£3,000</strong> → Get <strong>£30,000</strong></div>
-          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£4,000</strong> → Get <strong>£40,000</strong></div>
-          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£5,000</strong> → Get <strong>£50,000</strong></div>
-          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£6,000</strong> → Get <strong>£60,000</strong></div>
-          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£7,000</strong> → Get <strong>£70,000</strong></div>
+          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£2,000</strong> → Get <strong>£16,000</strong></div>
+          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£3,000</strong> → Get <strong>£24,000</strong></div>
+          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£4,000</strong> → Get <strong>£32,000</strong></div>
+          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£5,000</strong> → Get <strong>£40,000</strong></div>
+          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£6,000</strong> → Get <strong>£48,000</strong></div>
+          <div className="planLine"><AppleIcon kind="check" size="sm" />Deposit <strong>£7,000</strong> → Get <strong>£56,000</strong></div>
         </div>
       </div>
 

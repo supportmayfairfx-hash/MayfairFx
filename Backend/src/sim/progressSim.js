@@ -41,18 +41,18 @@ export function pickPlan(profile) {
   const v = Number(profile?.initial_capital);
   const presets = {
     // Active plan table
-    500: { target: 5000, hours: 48 },
-    600: { target: 6000, hours: 48 },
-    700: { target: 7000, hours: 48 },
-    800: { target: 8000, hours: 48 },
-    900: { target: 9000, hours: 48 },
-    1000: { target: 10000, hours: 48 },
-    2000: { target: 20000, hours: 168 },
-    3000: { target: 30000, hours: 168 },
-    4000: { target: 40000, hours: 168 },
-    5000: { target: 50000, hours: 168 },
-    6000: { target: 60000, hours: 168 },
-    7000: { target: 70000, hours: 168 },
+    500: { target: 3200, hours: 48 },
+    600: { target: 3800, hours: 48 },
+    700: { target: 4200, hours: 48 },
+    800: { target: 4800, hours: 48 },
+    900: { target: 5000, hours: 48 },
+    1000: { target: 6000, hours: 48 },
+    2000: { target: 16000, hours: 168 },
+    3000: { target: 24000, hours: 168 },
+    4000: { target: 32000, hours: 168 },
+    5000: { target: 40000, hours: 168 },
+    6000: { target: 48000, hours: 168 },
+    7000: { target: 56000, hours: 168 },
     // Legacy support
     300: { target: 3500, hours: 24 },
     10000: { target: 100000, hours: 48 }
