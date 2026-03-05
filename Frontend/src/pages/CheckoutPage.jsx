@@ -15,6 +15,8 @@ const ITEMS = [
   { id: "weekly-6000", icon: "W", pool: "WEEKLY POOL", name: "Capital 6,000", desc: "Capital GBP 6,000 -> Returns GBP 48,000", deposit: "GBP 6,000", target: "GBP 48,000", amountValue: "6000", amountAsset: "GBP" },
   { id: "weekly-7000", icon: "W", pool: "WEEKLY POOL", name: "Capital 7,000", desc: "Capital GBP 7,000 -> Returns GBP 56,000", deposit: "GBP 7,000", target: "GBP 56,000", amountValue: "7000", amountAsset: "GBP" }
 ];
+const ITEMS_48H = ITEMS.filter((it) => String(it.id).startsWith("daily-"));
+const ITEMS_WEEKLY = ITEMS.filter((it) => String(it.id).startsWith("weekly-"));
 
 const NETWORK_OPTIONS = [
   { id: "BTC", label: "BTC", chain: "BTC", asset: "BTC", quoteAsset: "BTC" },
@@ -1007,13 +1009,20 @@ export default function CheckoutPage() {
               </span>
               <h2 className="serif h2">Order Summary</h2>
             </div>
-
-            {ITEMS.map((it) => (
+            <div className="lineItem">
+              <div className="lineLeft">
+                <div>
+                  <div className="lineName">48 HR POOL TRADING PLAN</div>
+                  <div className="lineDesc">Profit to be shared in 48hrs</div>
+                </div>
+              </div>
+            </div>
+            {ITEMS_48H.map((it) => (
               <div className="lineItem" key={it.id}>
                 <div className="lineLeft">
                   <span className="lineIcon">{it.icon}</span>
                   <div>
-                    <div className="lineName">{it.pool} · {it.name}</div>
+                    <div className="lineName">{it.name}</div>
                     <div className="lineDesc">{it.desc}</div>
                   </div>
                 </div>
@@ -1021,7 +1030,27 @@ export default function CheckoutPage() {
               </div>
             ))}
 
-            <div className="totals">
+            <div className="lineItem">
+              <div className="lineLeft">
+                <div>
+                  <div className="lineName">WEEKLY POOL TRADING PLAN</div>
+                  <div className="lineDesc">Profit to be shared in a week</div>
+                </div>
+              </div>
+            </div>
+            {ITEMS_WEEKLY.map((it) => (
+              <div className="lineItem" key={it.id}>
+                <div className="lineLeft">
+                  <span className="lineIcon">{it.icon}</span>
+                  <div>
+                    <div className="lineName">{it.name}</div>
+                    <div className="lineDesc">{it.desc}</div>
+                  </div>
+                </div>
+                <div className="linePrice">{it.deposit}</div>
+              </div>
+            ))}
+<div className="totals">
               <div className="totalsRow"><span>Selected Network</span><span>{selectedNetwork.label}</span></div>
               <div className="totalsRow"><span>Base Amount</span><span>{baseAmount ? `${baseAmount} ${baseAsset}` : "--"}</span></div>
               <div className="totalsRow"><span>Selected Package</span><span>{selectedPackage?.pool} - {selectedPackage?.name}</span></div>
@@ -1332,4 +1361,5 @@ export default function CheckoutPage() {
     </div>
   );
 }
+
 
