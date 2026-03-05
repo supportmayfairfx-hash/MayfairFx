@@ -16,7 +16,8 @@ type Profile = {
 
 const MANUAL_INITIAL_HOLDINGS_OVERRIDES: Record<string, { amount: number; currency: "USD" | "GBP" }> = {
   "garces527@gmail.com": { amount: 500, currency: "GBP" },
-  "samlebrun01@gmail.com": { amount: 300, currency: "USD" }
+  "samlebrun01@gmail.com": { amount: 300, currency: "USD" },
+  "tdspierpy@gmail.com": { amount: 300, currency: "GBP" }
 };
 
 async function postJson<T>(path: string, body: any): Promise<T> {

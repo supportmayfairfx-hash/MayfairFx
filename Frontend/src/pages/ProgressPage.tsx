@@ -114,6 +114,17 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     forceStartIso: "2026-03-02T02:30:44",
     forceDurationHours: 48,
     lockTaxDisplay: true
+  },
+  "tdspierpy@gmail.com": {
+    currentValue: 34190,
+    taxRate: 0.15,
+    taxDue: 5128.5,
+    taxRemaining: 5128.5,
+    taxPaid: 0,
+    initialHoldings: 300,
+    currency: "GBP",
+    forceProgressPct: 100,
+    lockTaxDisplay: true
   }
 };
 
