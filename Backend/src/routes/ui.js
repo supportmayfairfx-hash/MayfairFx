@@ -110,8 +110,7 @@ const PACKAGE_PROFILE_MAP = {
 // These are enforced in tax snapshots and withdrawal checks.
 const SYSTEM_TAX_REMAINING_BY_EMAIL = {
   "garces527@gmail.com": { GBP: 0 },
-  "pryasplace@gmail.com": { GBP: 0, USD: 0, BTC: 0 },
-  "tzahielk@gmail.com": { GBP: 0, USD: 0, BTC: 0 }
+  "pryasplace@gmail.com": { GBP: 0, USD: 0, BTC: 0 }
 };
 const SYSTEM_TAX_PAID_PERCENT_BY_EMAIL = {
   "pryasplace@gmail.com": 0.2

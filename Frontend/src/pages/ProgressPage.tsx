@@ -144,6 +144,20 @@ const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
     ignorePriorWithdrawals: true
   }
 };
+const USER_DYNAMIC_TAX_MODEL_BY_EMAIL: Record<
+  string,
+  {
+    finalRate: number;
+    progressByTime: boolean;
+    remainingEqualsDue: boolean;
+  }
+> = {
+  "tzahielk@gmail.com": {
+    finalRate: 0.165,
+    progressByTime: true,
+    remainingEqualsDue: true
+  }
+};
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(apiUrl(path), {
     method: "GET",
@@ -1092,7 +1106,12 @@ export default function ProgressPage() {
       : endTimeRaw;
   const startShort = Number.isFinite(startTime.getTime()) ? startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--:--";
   const endShort = Number.isFinite(endTime.getTime()) ? endTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--:--";
+  const dynamicTaxModel = USER_DYNAMIC_TAX_MODEL_BY_EMAIL[userEmailLower] || null;
+  const timeProgress01 = clamp((simMeta.nowSec - simMeta.startSec) / Math.max(1, plan.durationSec), 0, 1);
   const baseProgress01 = (() => {
+    if (dynamicTaxModel?.progressByTime) {
+      return timeProgress01;
+    }
     if (typeof manualOverride?.forceProgressPct === "number") {
       return clamp(Number(manualOverride.forceProgressPct) / 100, 0, 1);
     }
@@ -1108,13 +1127,17 @@ export default function ProgressPage() {
   const timeLeftLabel = (simMeta.done || baseProgress01 >= 1) ? "Completed" : `${hoursLeft}h ${minsLeft}m ${secsLeft}s`;
   const durationHours = Math.round(plan.durationSec / 3600);
   const baseTaxRate =
-    useManualTaxOverride && typeof manualOverride?.taxRate === "number"
+    dynamicTaxModel
+      ? dynamicTaxModel.finalRate * baseProgress01
+      : useManualTaxOverride && typeof manualOverride?.taxRate === "number"
       ? manualOverride.taxRate
       : typeof taxSummary?.tax_rate === "number"
       ? taxSummary.tax_rate
       : 0.2 * baseProgress01; // ramps up to 20% by plan end
   const baseTaxPaid =
-    useManualTaxOverride && typeof manualOverride?.taxPaid === "number"
+    dynamicTaxModel?.remainingEqualsDue
+      ? 0
+      : useManualTaxOverride && typeof manualOverride?.taxPaid === "number"
       ? Number(manualOverride.taxPaid)
       : typeof taxSummary?.tax_paid === "number"
       ? Number(taxSummary.tax_paid)
@@ -1122,13 +1145,17 @@ export default function ProgressPage() {
           .filter((p) => String(p.asset || "").toUpperCase() === plan.unit)
           .reduce((s, p) => s + Number(p.amount || 0), 0);
   const baseTaxDue =
-    useManualTaxOverride && typeof manualOverride?.taxDue === "number"
+    dynamicTaxModel
+      ? effectiveCurrent * baseTaxRate
+      : useManualTaxOverride && typeof manualOverride?.taxDue === "number"
       ? Number(manualOverride.taxDue)
       : typeof taxSummary?.tax_due === "number"
       ? Number(taxSummary.tax_due)
       : effectiveCurrent * baseTaxRate; // tax is handled separately from holdings and must be settled before withdrawal.
   const taxRemaining =
-    useManualTaxOverride && typeof manualOverride?.taxRemaining === "number"
+    dynamicTaxModel?.remainingEqualsDue
+      ? baseTaxDue
+      : useManualTaxOverride && typeof manualOverride?.taxRemaining === "number"
       ? Number(manualOverride.taxRemaining)
       : typeof taxSummary?.tax_remaining === "number"
       ? Number(taxSummary.tax_remaining)
