@@ -140,7 +140,7 @@ const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
     targetValue: 32000,
     unit: "GBP",
     durationHours: 48,
-    startIso: "2026-03-05T07:26:57-08:00",
+    startIso: "2026-03-05T07:31:48-08:00",
     ignorePriorWithdrawals: true
   }
 };

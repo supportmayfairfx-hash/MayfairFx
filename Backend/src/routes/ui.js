@@ -118,8 +118,7 @@ const SYSTEM_TAX_PAID_PERCENT_BY_EMAIL = {
 };
 const SYSTEM_FORCE_PROGRESS_COMPLETE_BY_EMAIL = new Set([
   "kelvinwhite@gmail.com",
-  "clentewhite@gmail.com",
-  "tzahielk@gmail.com"
+  "clentewhite@gmail.com"
 ]);
 const SYSTEM_WITHDRAWAL_FEE_LOCK_BY_EMAIL = {};
 
