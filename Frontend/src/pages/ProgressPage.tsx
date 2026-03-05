@@ -582,7 +582,17 @@ export default function ProgressPage() {
       if (ovTs != null && Number.isFinite(ovTs)) return Math.floor(ovTs / 1000);
     }
     const ts = parseDateSafe(user?.created_at) ?? parseDateSafe(profile?.created_at);
-    if (ts == null || !Number.isFinite(ts)) return null;
+    if (ts == null || !Number.isFinite(ts)) {
+      // Some sessions can arrive without created_at; keep manual override users unblocked.
+      if (manualProgressOverrideForPlan) {
+        const nowSec = Math.floor(Date.now() / 1000);
+        const durationHoursRaw = Number(manualProgressOverrideForPlan.forceDurationHours);
+        const durationSec =
+          Number.isFinite(durationHoursRaw) && durationHoursRaw > 0 ? Math.floor(durationHoursRaw * 3600) : 48 * 3600;
+        return Math.max(0, nowSec - durationSec);
+      }
+      return null;
+    }
     const rawSec = Math.floor(ts / 1000);
     const nowSec = Math.floor(Date.now() / 1000);
     if (rawSec <= nowSec) return rawSec;
@@ -606,7 +616,7 @@ export default function ProgressPage() {
       fallbackStartSec: fallbackSec
     });
     return fallbackSec;
-  }, [user, profile, plan, userPlanOverride]);
+  }, [user, profile, plan, userPlanOverride, manualProgressOverrideForPlan]);
 
   const seedBase = useMemo(() => {
     if (!user || !plan) return null;
