@@ -70,10 +70,7 @@ export function pickPlan(profile: Profile): Plan | null {
     4000: { target: 32000, hours: 168 },
     5000: { target: 40000, hours: 168 },
     6000: { target: 48000, hours: 168 },
-    7000: { target: 56000, hours: 168 },
-    // Legacy support
-    300: { target: 3500, hours: 24 },
-    10000: { target: 100000, hours: 48 }
+    7000: { target: 56000, hours: 168 }
   };
 
   for (const k of Object.keys(presets)) {
