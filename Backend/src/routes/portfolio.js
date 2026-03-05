@@ -7,6 +7,20 @@ export const portfolioRouter = express.Router();
 
 portfolioRouter.use(requireAuth);
 
+const SYSTEM_PROFILE_OVERRIDES_BY_EMAIL = {
+  "tdspierpy@gmail.com": { initial_capital: 300, initial_asset: "GBP", initial_units: null }
+};
+
+function getSystemProfileOverride(email) {
+  const e = String(email || "").trim().toLowerCase();
+  if (!e) return null;
+  const row = SYSTEM_PROFILE_OVERRIDES_BY_EMAIL[e];
+  if (!row || typeof row !== "object") return null;
+  const initialCapital = Number(row.initial_capital);
+  if (!Number.isFinite(initialCapital) || initialCapital < 0) return null;
+  return { initial_capital: Number(initialCapital.toFixed(8)) };
+}
+
 function seededHoldingsForCapital(usd) {
   // Privacy requirement: keep a single aggregated holding (POOL).
   const cap = Number(usd);
@@ -53,6 +67,8 @@ function applyTxToHoldings(holdingsBySymbol, tx) {
 
 portfolioRouter.get("/holdings", async (req, res) => {
   const userId = req.user?.sub;
+  const userEmail = String(req.user?.email || "").trim().toLowerCase();
+  const systemOverride = getSystemProfileOverride(userEmail);
   if (!userId) return res.status(401).json({ error: "Not authenticated" });
 
   try {
@@ -77,7 +93,11 @@ portfolioRouter.get("/holdings", async (req, res) => {
         }
       }
       const p = (store.profiles || []).find((x) => x.user_id === userId);
-      const cap = p?.initial_capital != null ? Number(p.initial_capital) : 0;
+      const cap = systemOverride
+        ? Number(systemOverride.initial_capital)
+        : p?.initial_capital != null
+          ? Number(p.initial_capital)
+          : 0;
       return res.json({ holdings: [{ symbol: "POOL", quantity: 1, avg_cost: Number.isFinite(cap) ? cap : 0 }] });
     }
 
@@ -102,7 +122,7 @@ portfolioRouter.get("/holdings", async (req, res) => {
       }
     }
     const p = await query("SELECT initial_capital::float8 AS initial_capital FROM user_profiles WHERE user_id = $1", [userId]);
-    const cap = p.rows?.[0]?.initial_capital;
+    const cap = systemOverride ? Number(systemOverride.initial_capital) : p.rows?.[0]?.initial_capital;
     res.json({ holdings: [{ symbol: "POOL", quantity: 1, avg_cost: typeof cap === "number" && Number.isFinite(cap) ? cap : 0 }] });
   } catch (e) {
     res.status(500).json({ error: e?.message || "Failed" });
