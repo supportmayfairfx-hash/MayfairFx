@@ -102,19 +102,6 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     initialHoldings: 2000,
     currency: "GBP"
   },
-  "tzahielk@gmail.com": {
-    currentValue: 3200,
-    taxRate: 0.165,
-    taxDue: 0,
-    taxRemaining: 0,
-    taxPaid: 528,
-    initialHoldings: 500,
-    currency: "GBP",
-    forceProgressPct: 100,
-    forceStartIso: "2026-03-02T02:30:44",
-    forceDurationHours: 48,
-    lockTaxDisplay: true
-  },
   "samlebrun01@gmail.com": {
     currentValue: 3200,
     taxRate: 0.15,
@@ -136,6 +123,26 @@ const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "
 const WITHDRAWAL_FEE_OK_UNLOCK_EMAILS = new Set(["tzahielk@gmail.com"]);
 const WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL: Record<string, string> = {
   "tzahielk@gmail.com": "Your withdrawal is being processed to your wallet."
+};
+const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
+  string,
+  {
+    startValue: number;
+    targetValue: number;
+    unit: "GBP" | "USD";
+    durationHours: number;
+    startIso: string;
+    ignorePriorWithdrawals?: boolean;
+  }
+> = {
+  "tzahielk@gmail.com": {
+    startValue: 4000,
+    targetValue: 32000,
+    unit: "GBP",
+    durationHours: 48,
+    startIso: "2026-03-05T07:26:57-08:00",
+    ignorePriorWithdrawals: true
+  }
 };
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(apiUrl(path), {
@@ -510,10 +517,27 @@ export default function ProgressPage() {
     }
   }, [profile, booting]);
 
-  const plan = useMemo(() => (profile ? pickPlan(profile) : null), [profile]);
+  const userEmailForPlan = String(user?.email || "").toLowerCase();
+  const userPlanOverride = USER_PLAN_OVERRIDE_BY_EMAIL[userEmailForPlan] || null;
+  const plan = useMemo(() => {
+    const base = profile ? pickPlan(profile) : null;
+    if (!userPlanOverride) return base;
+    const durationSec = Math.max(1, Math.floor(userPlanOverride.durationHours * 3600));
+    return {
+      key: `${userPlanOverride.unit}${Math.round(userPlanOverride.startValue)}_${userPlanOverride.durationHours}H_USER`,
+      durationSec,
+      unit: userPlanOverride.unit,
+      startValue: Number(userPlanOverride.startValue),
+      targetValue: Number(userPlanOverride.targetValue)
+    } as const;
+  }, [profile, userPlanOverride]);
 
   const startSec = useMemo(() => {
     if (!user && !profile) return null;
+    if (userPlanOverride?.startIso) {
+      const ovTs = parseDateSafe(userPlanOverride.startIso);
+      if (ovTs != null && Number.isFinite(ovTs)) return Math.floor(ovTs / 1000);
+    }
     const ts = parseDateSafe(user?.created_at) ?? parseDateSafe(profile?.created_at);
     if (ts == null || !Number.isFinite(ts)) return null;
     const rawSec = Math.floor(ts / 1000);
@@ -539,7 +563,7 @@ export default function ProgressPage() {
       fallbackStartSec: fallbackSec
     });
     return fallbackSec;
-  }, [user, profile, plan]);
+  }, [user, profile, plan, userPlanOverride]);
 
   const seedBase = useMemo(() => {
     if (!user || !plan) return null;
@@ -1037,14 +1061,15 @@ export default function ProgressPage() {
     typeof manualOverride?.initialHoldings === "number" ? Number(manualOverride.initialHoldings) : Number(plan.startValue);
   const startLabel = isBtcUnit ? fmtBtc(displayStartValue) : fmtMoney(displayStartValue, displayUnit as "USD" | "GBP");
   const targetLabel = isBtcUnit ? fmtBtc(plan.targetValue) : fmtMoney(plan.targetValue, displayUnit as "USD" | "GBP");
-  const hasConfirmedWithdrawalForPlan = withdrawals.some(
+  const scopedWithdrawals = userPlanOverride?.ignorePriorWithdrawals ? [] : withdrawals;
+  const hasConfirmedWithdrawalForPlan = scopedWithdrawals.some(
     (w) => String(w.asset || "").toUpperCase() === plan.unit && String(w.status || "").toLowerCase() === "confirmed"
   );
-  const pendingWithdrawalAmountForPlan = withdrawals
+  const pendingWithdrawalAmountForPlan = scopedWithdrawals
     .filter((w) => String(w.asset || "").toUpperCase() === plan.unit && String(w.status || "").toLowerCase() === "pending")
     .reduce((s, w) => s + Number(w.amount || 0), 0);
   const hasPendingWithdrawalForPlan = pendingWithdrawalAmountForPlan > 0.00000001;
-  const withdrawnLockedRaw = withdrawals
+  const withdrawnLockedRaw = scopedWithdrawals
     .filter((w) => String(w.asset || "").toUpperCase() === plan.unit && isLockedWithdrawal(w.status))
     .reduce((s, w) => s + Number(w.amount || 0), 0);
   const hasLockedWithdrawalForPlanRaw = withdrawnLockedRaw > 0.00000001;
