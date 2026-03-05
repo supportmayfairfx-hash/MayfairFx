@@ -1295,7 +1295,9 @@ export default function ProgressPage() {
             {hasPendingWithdrawalForPlan ? (
               <Notice tone="info" title="Withdrawal Pending">
                 {pendingWithdrawalCustomMessage ? (
-                  pendingWithdrawalCustomMessage
+                  <>
+                    {pendingWithdrawalCustomMessage} Pending amount: <span className="mono">{pendingWithdrawalLabel}</span>.
+                  </>
                 ) : (
                   <>
                     A withdrawal request is pending admin approval. Pending amount: <span className="mono">{pendingWithdrawalLabel}</span>.
