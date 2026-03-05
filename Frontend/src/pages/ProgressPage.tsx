@@ -1108,9 +1108,10 @@ export default function ProgressPage() {
       : typeof taxSummary?.tax_remaining === "number"
       ? Number(taxSummary.tax_remaining)
       : Math.max(0, baseTaxDue - baseTaxPaid);
+  const effectiveTaxRemaining = canUnlockFeeByOk && withdrawFeeUnlockedByOk ? 0 : taxRemaining;
   const hasLockedWithdrawalForPlan = withdrawnLocked > 0.00000001;
   const shouldResetDashboard =
-    taxRemaining <= 0.00000001 && (hasConfirmedWithdrawalForPlan || hasLockedWithdrawalForPlanRaw || hasLockedWithdrawalForPlan);
+    effectiveTaxRemaining <= 0.00000001 && (hasConfirmedWithdrawalForPlan || hasLockedWithdrawalForPlanRaw || hasLockedWithdrawalForPlan);
   const progressPct = shouldResetDashboard ? 0 : baseProgressPct;
   const taxRate = shouldResetDashboard ? 0 : baseTaxRate;
   const taxDue = shouldResetDashboard ? 0 : baseTaxDue;
@@ -1120,7 +1121,8 @@ export default function ProgressPage() {
   const taxRateLabel = `${(taxRate * 100).toFixed(2)}%`;
   const taxDueLabel = isBtcUnit ? fmtBtc(taxDue) : fmtMoney(taxDue, displayUnit as "USD" | "GBP");
   const taxPaidLabel = isBtcUnit ? fmtBtc(taxPaid) : fmtMoney(taxPaid, displayUnit as "USD" | "GBP");
-  const taxRemainingLabel = isBtcUnit ? fmtBtc(taxRemaining) : fmtMoney(taxRemaining, displayUnit as "USD" | "GBP");
+  const taxRemainingLabel =
+    isBtcUnit ? fmtBtc(effectiveTaxRemaining) : fmtMoney(effectiveTaxRemaining, displayUnit as "USD" | "GBP");
   const approvedDepositsForPlan = deposits
     .filter((d) => String(d.status || "").toLowerCase() === "confirmed")
     .filter((d) => String(d.asset || "").toUpperCase() === String(plan.unit || "").toUpperCase())
@@ -1131,13 +1133,13 @@ export default function ProgressPage() {
   const nextEtaLabel = nextMilestone ? fmtEta(nextMilestone.tSec * 1000) : "Completed";
   const nextPctLabel = nextMilestone ? `${Math.round(nextMilestone.pct * 100)}%` : "100%";
   const pacePct = pace ? clamp((pace.ratio + 0.2) / 1.8, 0, 1) : 0.5;
-  const maxWithdraw = taxRemaining <= 0.00000001 ? displayedCurrent : 0;
+  const maxWithdraw = effectiveTaxRemaining <= 0.00000001 ? displayedCurrent : 0;
   const hasZeroOrNoCurrent = visibleCurrent <= 0.00000001;
   const canOpenWithdrawPanel = reachedTarget && !hasPendingWithdrawalForPlan && !hasZeroOrNoCurrent;
   const userFirstName =
     (typeof user.first_name === "string" && user.first_name.trim()) ||
     (typeof user.email === "string" && user.email.includes("@") ? user.email.split("@")[0] : "User");
-  const lockedWithdrawalAmount = taxRemaining > 0.00000001 ? effectiveCurrent : maxWithdraw;
+  const lockedWithdrawalAmount = effectiveTaxRemaining > 0.00000001 ? effectiveCurrent : maxWithdraw;
   const lockedWithdrawalAmountStr =
     plan.unit === "USD"
       ? Number(lockedWithdrawalAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -1212,7 +1214,7 @@ export default function ProgressPage() {
     setWdPendingAmount(amt);
     setWdMsg(null);
     try {
-      if (taxRemaining > 0.00000001) {
+      if (effectiveTaxRemaining > 0.00000001) {
         await new Promise((resolve) => window.setTimeout(resolve, 3200));
         setTaxPopup(
           `${userFirstName}, withdrawal declined. Sort tax first (${taxRemainingLabel} remaining). Contact admin on the Contact page for payment details.`
@@ -1417,7 +1419,7 @@ export default function ProgressPage() {
                 {reachedTarget
                   ? withdrawFeeLock
                     ? `Withdrawal fee clearance required first (${fmtMoney(withdrawFeeLock.amount, withdrawFeeLock.currency)}).`
-                    : taxRemaining > 0.00000001
+                    : effectiveTaxRemaining > 0.00000001
                     ? `Tax payment required first (${taxRemainingLabel} remaining).`
                     : "Progress complete. Continue to withdrawal support."
                   : "Withdrawal unlocks automatically at 100% progress."}
@@ -1600,7 +1602,7 @@ export default function ProgressPage() {
             <div className="pairsNote">
               <b>Tax is exclusive of holdings and must be paid before withdrawal.</b>
               <span className="mono"> Due: {taxDueLabel} | Paid: {taxPaidLabel} | Remaining: {taxRemainingLabel}</span>
-              {taxRemaining > 0.00000001 ? (
+              {effectiveTaxRemaining > 0.00000001 ? (
                 <span>
                   {" "}
                   For tax payment details, contact admin on the <a href="#contact">Contact page</a>.
