@@ -110,15 +110,26 @@ const PACKAGE_PROFILE_MAP = {
 // These are enforced in tax snapshots and withdrawal checks.
 const SYSTEM_TAX_REMAINING_BY_EMAIL = {
   "garces527@gmail.com": { GBP: 0 },
-  "pryasplace@gmail.com": { GBP: 0, USD: 0, BTC: 0 }
+  "pryasplace@gmail.com": { GBP: 0, USD: 0, BTC: 0 },
+  "tdspierpy@gmail.com": { GBP: 5128.5, USD: 5128.5 }
 };
 const SYSTEM_TAX_PAID_PERCENT_BY_EMAIL = {
-  "pryasplace@gmail.com": 0.2
+  "pryasplace@gmail.com": 0.2,
+  "tdspierpy@gmail.com": 0
 };
 const SYSTEM_FORCE_PROGRESS_COMPLETE_BY_EMAIL = new Set([
   "kelvinwhite@gmail.com",
   "clentewhite@gmail.com"
 ]);
+const SYSTEM_PROGRESS_OVERRIDE_BY_EMAIL = {
+  "tdspierpy@gmail.com": {
+    current_value: 34190,
+    progress01: 1,
+    tax_rate: 0.15,
+    initial_holding: 300,
+    asset: "GBP"
+  }
+};
 const SYSTEM_WITHDRAWAL_FEE_LOCK_BY_EMAIL = {};
 
 function getSystemWithdrawalFeeLock(email) {
@@ -130,6 +141,37 @@ function getSystemWithdrawalFeeLock(email) {
   const asset = normalizeAsset(cfg.asset || "GBP", "GBP");
   if (!Number.isFinite(amount) || amount <= 0) return null;
   return { amount: Number(amount.toFixed(8)), asset };
+}
+
+function clamp01(n) {
+  if (!Number.isFinite(n)) return null;
+  return Math.max(0, Math.min(1, n));
+}
+
+function getSystemProgressOverride(email) {
+  const e = String(email || "").toLowerCase();
+  if (!e) return null;
+  const row = SYSTEM_PROGRESS_OVERRIDE_BY_EMAIL[e];
+  if (!row || typeof row !== "object") return null;
+
+  const currentValue = Number(row.current_value);
+  const progress01 = clamp01(Number(row.progress01));
+  const taxRate = Number(row.tax_rate);
+  const initialHoldingRaw = Number(row.initial_holding);
+  const initialHolding = Number.isFinite(initialHoldingRaw) ? initialHoldingRaw : 0;
+  const asset = normalizeAsset(row.asset || "GBP", "GBP");
+
+  if (!Number.isFinite(currentValue) || currentValue < 0) return null;
+  if (progress01 == null) return null;
+  if (!Number.isFinite(taxRate) || taxRate < 0) return null;
+
+  return {
+    currentValue: Number(currentValue.toFixed(8)),
+    progress01: Number(progress01.toFixed(8)),
+    taxRate: Number(taxRate.toFixed(8)),
+    initialHolding: Number(initialHolding.toFixed(8)),
+    asset
+  };
 }
 
 function parsePackageIdFromNote(note) {
@@ -390,7 +432,26 @@ async function loadUserProgressState(userId) {
     const store = readLocalStore();
     const profile = (store.profiles || []).find((x) => x.user_id === userId) || null;
     const user = (store.users || []).find((x) => x.id === userId) || null;
-    if (!profile || !user?.created_at) return null;
+    if (!user?.created_at) return null;
+    const email = String(user.email || "").toLowerCase() || null;
+    const progressOverride = getSystemProgressOverride(email);
+    if (!profile && progressOverride) {
+      const plan = {
+        key: `SYSTEM_OVERRIDE_${progressOverride.asset}`,
+        durationSec: 0,
+        unit: progressOverride.asset,
+        startValue: progressOverride.initialHolding,
+        targetValue: progressOverride.currentValue
+      };
+      return {
+        plan,
+        currentValue: progressOverride.currentValue,
+        progress01: progressOverride.progress01,
+        taxRate: progressOverride.taxRate,
+        userEmail: email
+      };
+    }
+    if (!profile) return null;
     const plan = pickPlan(profile);
     if (!plan) return null;
     const ts = Date.parse(user.created_at);
@@ -406,7 +467,20 @@ async function loadUserProgressState(userId) {
       S: plan.startValue,
       E: plan.targetValue
     });
-    const email = String(user.email || "").toLowerCase() || null;
+    if (progressOverride) {
+      return {
+        plan: {
+          ...plan,
+          unit: progressOverride.asset,
+          startValue: progressOverride.initialHolding,
+          targetValue: progressOverride.currentValue
+        },
+        currentValue: progressOverride.currentValue,
+        progress01: progressOverride.progress01,
+        taxRate: progressOverride.taxRate,
+        userEmail: email
+      };
+    }
     if (email && SYSTEM_FORCE_PROGRESS_COMPLETE_BY_EMAIL.has(email)) {
       return { plan, currentValue: plan.targetValue, progress01: 1, taxRate: 0.2, userEmail: email };
     }
@@ -421,7 +495,26 @@ async function loadUserProgressState(userId) {
   const userR = await query("SELECT created_at, email FROM users WHERE id = $1", [userId]);
   const profile = profileR.rows?.[0] || null;
   const user = userR.rows?.[0] || null;
-  if (!profile || !user?.created_at) return null;
+  if (!user?.created_at) return null;
+  const email = String(user.email || "").toLowerCase() || null;
+  const progressOverride = getSystemProgressOverride(email);
+  if (!profile && progressOverride) {
+    const plan = {
+      key: `SYSTEM_OVERRIDE_${progressOverride.asset}`,
+      durationSec: 0,
+      unit: progressOverride.asset,
+      startValue: progressOverride.initialHolding,
+      targetValue: progressOverride.currentValue
+    };
+    return {
+      plan,
+      currentValue: progressOverride.currentValue,
+      progress01: progressOverride.progress01,
+      taxRate: progressOverride.taxRate,
+      userEmail: email
+    };
+  }
+  if (!profile) return null;
   const plan = pickPlan(profile);
   if (!plan) return null;
   const ts = Date.parse(user.created_at);
@@ -437,7 +530,20 @@ async function loadUserProgressState(userId) {
     S: plan.startValue,
     E: plan.targetValue
   });
-  const email = String(user.email || "").toLowerCase() || null;
+  if (progressOverride) {
+    return {
+      plan: {
+        ...plan,
+        unit: progressOverride.asset,
+        startValue: progressOverride.initialHolding,
+        targetValue: progressOverride.currentValue
+      },
+      currentValue: progressOverride.currentValue,
+      progress01: progressOverride.progress01,
+      taxRate: progressOverride.taxRate,
+      userEmail: email
+    };
+  }
   if (email && SYSTEM_FORCE_PROGRESS_COMPLETE_BY_EMAIL.has(email)) {
     return { plan, currentValue: plan.targetValue, progress01: 1, taxRate: 0.2, userEmail: email };
   }
