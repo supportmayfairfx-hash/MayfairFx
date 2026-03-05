@@ -103,13 +103,13 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     currency: "GBP"
   },
   "samlebrun01@gmail.com": {
-    currentValue: 3200,
+    currentValue: 2550,
     taxRate: 0.15,
-    taxDue: 480,
-    taxRemaining: 480,
+    taxDue: 382.5,
+    taxRemaining: 382.5,
     taxPaid: 0,
     initialHoldings: 300,
-    currency: "GBP",
+    currency: "USD",
     forceProgressPct: 100,
     forceStartIso: "2026-03-02T02:30:44",
     forceDurationHours: 48,
