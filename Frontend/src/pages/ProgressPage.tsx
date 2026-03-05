@@ -1160,7 +1160,7 @@ export default function ProgressPage() {
       : typeof taxSummary?.tax_remaining === "number"
       ? Number(taxSummary.tax_remaining)
       : Math.max(0, baseTaxDue - baseTaxPaid);
-  const effectiveTaxRemaining = canUnlockFeeByOk && withdrawFeeUnlockedByOk ? 0 : taxRemaining;
+  const effectiveTaxRemaining = dynamicTaxModel ? taxRemaining : (canUnlockFeeByOk && withdrawFeeUnlockedByOk ? 0 : taxRemaining);
   const hasLockedWithdrawalForPlan = withdrawnLocked > 0.00000001;
   const shouldResetDashboard =
     effectiveTaxRemaining <= 0.00000001 && (hasConfirmedWithdrawalForPlan || hasLockedWithdrawalForPlanRaw || hasLockedWithdrawalForPlan);
