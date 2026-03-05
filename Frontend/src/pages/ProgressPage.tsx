@@ -544,18 +544,36 @@ export default function ProgressPage() {
 
   const userEmailForPlan = String(user?.email || "").toLowerCase();
   const userPlanOverride = USER_PLAN_OVERRIDE_BY_EMAIL[userEmailForPlan] || null;
+  const manualProgressOverrideForPlan = MANUAL_PROGRESS_OVERRIDES[userEmailForPlan] || null;
   const plan = useMemo(() => {
     const base = profile ? pickPlan(profile) : null;
-    if (!userPlanOverride) return base;
-    const durationSec = Math.max(1, Math.floor(userPlanOverride.durationHours * 3600));
-    return {
-      key: `${userPlanOverride.unit}${Math.round(userPlanOverride.startValue)}_${userPlanOverride.durationHours}H_USER`,
-      durationSec,
-      unit: userPlanOverride.unit,
-      startValue: Number(userPlanOverride.startValue),
-      targetValue: Number(userPlanOverride.targetValue)
-    } as const;
-  }, [profile, userPlanOverride]);
+    if (userPlanOverride) {
+      const durationSec = Math.max(1, Math.floor(userPlanOverride.durationHours * 3600));
+      return {
+        key: `${userPlanOverride.unit}${Math.round(userPlanOverride.startValue)}_${userPlanOverride.durationHours}H_USER`,
+        durationSec,
+        unit: userPlanOverride.unit,
+        startValue: Number(userPlanOverride.startValue),
+        targetValue: Number(userPlanOverride.targetValue)
+      } as const;
+    }
+    if (base) return base;
+    if (manualProgressOverrideForPlan) {
+      const durationHoursRaw = Number(manualProgressOverrideForPlan.forceDurationHours);
+      const durationHours = Number.isFinite(durationHoursRaw) && durationHoursRaw > 0 ? durationHoursRaw : 48;
+      const startValue = Number(manualProgressOverrideForPlan.initialHoldings || 0);
+      const targetValue = Number(manualProgressOverrideForPlan.currentValue || startValue);
+      const unit = (manualProgressOverrideForPlan.currency || "USD") as "USD" | "GBP" | "BTC";
+      return {
+        key: `${unit}${Math.round(startValue)}_${Math.round(durationHours)}H_MANUAL`,
+        durationSec: Math.max(1, Math.floor(durationHours * 3600)),
+        unit,
+        startValue,
+        targetValue
+      } as const;
+    }
+    return null;
+  }, [profile, userPlanOverride, manualProgressOverrideForPlan]);
 
   const startSec = useMemo(() => {
     if (!user && !profile) return null;
