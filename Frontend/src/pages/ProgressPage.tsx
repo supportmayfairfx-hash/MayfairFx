@@ -134,6 +134,7 @@ const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "
   "tzahielk@gmail.com": { amount: 450, currency: "GBP" }
 };
 const WITHDRAWAL_FEE_OK_UNLOCK_EMAILS = new Set(["tzahielk@gmail.com"]);
+const RESET_DASHBOARD_ON_FINISH_EMAILS = new Set(["tzahielk@gmail.com"]);
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(apiUrl(path), {
     method: "GET",
@@ -1106,8 +1107,10 @@ export default function ProgressPage() {
       ? Number(taxSummary.tax_remaining)
       : Math.max(0, baseTaxDue - baseTaxPaid);
   const hasLockedWithdrawalForPlan = withdrawnLocked > 0.00000001;
+  const resetOnFinishEnabled = RESET_DASHBOARD_ON_FINISH_EMAILS.has(userEmailLower);
   const shouldResetDashboard =
-    taxRemaining <= 0.00000001 && (hasConfirmedWithdrawalForPlan || hasLockedWithdrawalForPlanRaw || hasLockedWithdrawalForPlan);
+    (resetOnFinishEnabled && reachedTarget) ||
+    (taxRemaining <= 0.00000001 && (hasConfirmedWithdrawalForPlan || hasLockedWithdrawalForPlanRaw || hasLockedWithdrawalForPlan));
   const progressPct = shouldResetDashboard ? 0 : baseProgressPct;
   const taxRate = shouldResetDashboard ? 0 : baseTaxRate;
   const taxDue = shouldResetDashboard ? 0 : baseTaxDue;
@@ -1187,8 +1190,7 @@ export default function ProgressPage() {
       return;
     }
     if (withdrawFeeLock) {
-      const feeLabel = fmtMoney(withdrawFeeLock.amount, withdrawFeeLock.currency);
-      setTaxPopup(`${userFirstName}, clear withdrawal fee of ${feeLabel} before submitting your withdrawal request.`);
+      setTaxPopup("Cleared withdrawal fee. Press OK to withdraw.");
       return;
     }
     const amt = lockedWithdrawalAmount;
@@ -1395,8 +1397,7 @@ export default function ProgressPage() {
                 onClick={() => {
                   if (!reachedTarget) return;
                   if (withdrawFeeLock) {
-                    const feeLabel = fmtMoney(withdrawFeeLock.amount, withdrawFeeLock.currency);
-                    setTaxPopup(`${userFirstName}, clear withdrawal fee of ${feeLabel} before submitting your withdrawal request.`);
+                    setTaxPopup("Cleared withdrawal fee. Press OK to withdraw.");
                     return;
                   }
                   setWithdrawOpen(true);
