@@ -1298,7 +1298,7 @@ export default function ProgressPage() {
       if (effectiveTaxRemaining > 0.00000001) {
         await new Promise((resolve) => window.setTimeout(resolve, 3200));
         setTaxPopup(
-          `${userFirstName}, withdrawal declined. Sort tax first (${taxRemainingLabel} remaining). Contact admin on the Contact page for payment details.`
+          `${userFirstName}, withdrawal declined. Estimated tax remaining: ${taxRemainingLabel}. Contact admin on the Contact page for payment details.`
         );
         return;
       }
