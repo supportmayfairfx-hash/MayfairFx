@@ -1345,8 +1345,9 @@ export default function CheckoutPage() {
                     <button type="button" className="invoiceCheckBtn" onClick={() => void checkPaymentStatus()} disabled={checkingStatus}>
                       {checkingStatus ? "Checking..." : "I've Paid - Check Status"}
                     </button>
-                    <a className="invoiceBtn" href={ADMIN_TELEGRAM_URL} target="_blank" rel="noreferrer">
-                      Contact Admin (Telegram)
+                    <a className="btnContact btnGlass btnPill fullSm" href={ADMIN_TELEGRAM_URL} target="_blank" rel="noreferrer">
+                      <i className="fa-brands fa-telegram" aria-hidden="true" />
+                      <span>Contact Admin (Telegram)</span>
                     </a>
                   </div>
                   <a className="redirectLink" href="/dashboard">Back to dashboard</a>
