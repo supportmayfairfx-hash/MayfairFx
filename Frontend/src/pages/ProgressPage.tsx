@@ -65,16 +65,21 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     forceStartIso?: string;
     forceDurationHours?: number;
     lockTaxDisplay?: boolean;
+    realtimeCurrent?: boolean;
+    progressByTime?: boolean;
   }
 > = {
   "imdadfamy@gmail.com": {
     currentValue: 6944,
-    taxRate: 0.165,
-    taxDue: 1145.76,
-    taxRemaining: 572.88,
-    taxPaid: 572.88,
-    initialHoldings: 1120,
-    currency: "GBP"
+    taxRate: 0.16489055,
+    taxDue: 1145,
+    taxRemaining: 0,
+    taxPaid: 1145,
+    initialHoldings: 6944,
+    currency: "GBP",
+    forceDurationHours: 48,
+    realtimeCurrent: true,
+    progressByTime: true
   },
   "garces527@gmail.com": {
     currentValue: 6400,
@@ -152,6 +157,14 @@ const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
     unit: "GBP",
     durationHours: 48,
     startIso: "2026-03-05T07:31:48-08:00",
+    ignorePriorWithdrawals: true
+  },
+  "imdadfamy@gmail.com": {
+    startValue: 6944,
+    targetValue: 7374.528,
+    unit: "GBP",
+    durationHours: 48,
+    startIso: "2026-03-04T12:52:05-08:00",
     ignorePriorWithdrawals: true
   }
 };
@@ -1128,7 +1141,8 @@ export default function ProgressPage() {
   const hasLockedWithdrawalForPlanRaw = withdrawnLockedRaw > 0.00000001;
   // Manual profile overrides stay visible unless a withdrawal is fully confirmed.
   const withdrawnLocked = manualOverride && !hasConfirmedWithdrawalForPlan ? 0 : withdrawnLockedRaw;
-  const effectiveCurrentRaw = manualOverride ? Number(manualOverride.currentValue || 0) : simMeta.current;
+  const useRealtimeCurrent = manualOverride?.realtimeCurrent === true;
+  const effectiveCurrentRaw = manualOverride && !useRealtimeCurrent ? Number(manualOverride.currentValue || 0) : simMeta.current;
   const effectiveCurrent = Math.max(0, effectiveCurrentRaw - withdrawnLocked);
   const displayedCurrent = Math.max(0, effectiveCurrent - wdPendingAmount);
   const startTimeRaw = new Date(simMeta.startSec * 1000);
@@ -1149,6 +1163,9 @@ export default function ProgressPage() {
   const timeProgress01 = clamp((simMeta.nowSec - simMeta.startSec) / Math.max(1, plan.durationSec), 0, 1);
   const baseProgress01 = (() => {
     if (dynamicTaxModel?.progressByTime) {
+      return timeProgress01;
+    }
+    if (manualOverride?.progressByTime === true) {
       return timeProgress01;
     }
     if (typeof manualOverride?.forceProgressPct === "number") {
@@ -1218,7 +1235,10 @@ export default function ProgressPage() {
     .filter((d) => String(d.status || "").toLowerCase() === "confirmed")
     .filter((d) => String(d.asset || "").toUpperCase() === String(plan.unit || "").toUpperCase())
     .reduce((sum, d) => sum + Number(d.amount || 0), 0);
-  const initialHoldingsValue = manualOverride ? Number(manualOverride.initialHoldings || 0) : (approvedDepositsForPlan > 0 ? approvedDepositsForPlan : plan.startValue);
+  const initialHoldingsValue =
+    manualOverride && !useRealtimeCurrent
+      ? Number(manualOverride.initialHoldings || 0)
+      : (approvedDepositsForPlan > 0 ? approvedDepositsForPlan : plan.startValue);
   const initialHoldingsLabel = isBtcUnit ? fmtBtc(initialHoldingsValue) : fmtMoney(initialHoldingsValue, displayUnit as "USD" | "GBP");
 
   const nextEtaLabel = nextMilestone ? fmtEta(nextMilestone.tSec * 1000) : "Completed";
