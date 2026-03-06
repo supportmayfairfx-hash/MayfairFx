@@ -161,10 +161,10 @@ const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
   },
   "imdadfamy@gmail.com": {
     startValue: 6944,
-    targetValue: 7374.528,
+    targetValue: 38568.14,
     unit: "GBP",
-    durationHours: 48,
-    startIso: "2026-03-04T12:52:05-08:00",
+    durationHours: 6,
+    startIso: "2026-03-06T07:20:13-08:00",
     ignorePriorWithdrawals: true
   }
 };
