@@ -110,9 +110,9 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
   "samlebrun01@gmail.com": {
     currentValue: 2550,
     taxRate: 0.15,
-    taxDue: 382.5,
+    taxDue: 382,
     taxRemaining: 0,
-    taxPaid: 382.5,
+    taxPaid: 382,
     initialHoldings: 300,
     currency: "USD",
     forceProgressPct: 100,
@@ -138,9 +138,21 @@ const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "
   "tzahielk@gmail.com": { amount: 450, currency: "GBP" }
 };
 const WITHDRAWAL_FEE_OK_UNLOCK_EMAILS = new Set(["samlebrun01@gmail.com", "tzahielk@gmail.com"]);
-const WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL: Record<string, string> = {
-  "samlebrun01@gmail.com": "Congratulations for clearing tax. Your money will be sent to your wallet.",
-  "tzahielk@gmail.com": "Your withdrawal is being processed to your wallet."
+const WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL: Record<
+  string,
+  {
+    message: string;
+    appendPendingAmount?: boolean;
+  }
+> = {
+  "samlebrun01@gmail.com": {
+    message: "Clear withdrawal fee of $400.00. Amount of $2,550.00 is pending to be sent to your wallet.",
+    appendPendingAmount: false
+  },
+  "tzahielk@gmail.com": {
+    message: "Your withdrawal is being processed to your wallet.",
+    appendPendingAmount: true
+  }
 };
 const WITHDRAWAL_SUCCESS_POPUP_BY_EMAIL: Record<string, string> = {
   "samlebrun01@gmail.com":
@@ -1265,7 +1277,7 @@ export default function ProgressPage() {
   const pendingWithdrawalLabel = isBtcUnit
     ? fmtBtc(pendingWithdrawalAmountForPlan)
     : fmtMoney(pendingWithdrawalAmountForPlan, displayUnit as "USD" | "GBP");
-  const pendingWithdrawalCustomMessage = WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL[userEmailLower] || null;
+  const pendingWithdrawalCustom = WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL[userEmailLower] || null;
 
   const compatSvg = (() => {
     if (!compatChart) return null;
@@ -1413,9 +1425,15 @@ export default function ProgressPage() {
           <div className="progressBody">
             {hasPendingWithdrawalForPlan ? (
               <Notice tone="info" title="Withdrawal Pending">
-                {pendingWithdrawalCustomMessage ? (
+                {pendingWithdrawalCustom ? (
                   <>
-                    {pendingWithdrawalCustomMessage} Pending amount: <span className="mono">{pendingWithdrawalLabel}</span>.
+                    {pendingWithdrawalCustom.message}
+                    {pendingWithdrawalCustom.appendPendingAmount !== false ? (
+                      <>
+                        {" "}
+                        Pending amount: <span className="mono">{pendingWithdrawalLabel}</span>.
+                      </>
+                    ) : null}
                   </>
                 ) : (
                   <>
