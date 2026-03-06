@@ -120,6 +120,19 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     forceDurationHours: 48,
     lockTaxDisplay: true
   },
+  "kas_12@hotmail.co.uk": {
+    currentValue: 11780,
+    taxRate: 0.165,
+    taxDue: 1943.7,
+    taxRemaining: 1318.7,
+    taxPaid: 625,
+    initialHoldings: 600,
+    currency: "GBP",
+    forceProgressPct: 100,
+    forceStartIso: "2026-03-03T14:11:25-08:00",
+    forceDurationHours: 72,
+    lockTaxDisplay: true
+  },
   "tdspierpy@gmail.com": {
     currentValue: 34190,
     taxRate: 0.15,
@@ -198,6 +211,14 @@ const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
     unit: "USD",
     durationHours: 48,
     startIso: "2026-03-02T02:30:44",
+    ignorePriorWithdrawals: true
+  },
+  "kas_12@hotmail.co.uk": {
+    startValue: 600,
+    targetValue: 11780,
+    unit: "GBP",
+    durationHours: 72,
+    startIso: "2026-03-03T14:11:25-08:00",
     ignorePriorWithdrawals: true
   }
 };
