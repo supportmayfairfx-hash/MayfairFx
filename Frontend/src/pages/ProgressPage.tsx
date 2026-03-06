@@ -134,7 +134,7 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
 };
 
 const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "GBP" | "USD" }> = {
-  "samlebrun01@gmail.com": { amount: 600, currency: "GBP" },
+  "samlebrun01@gmail.com": { amount: 680, currency: "USD" },
   "tzahielk@gmail.com": { amount: 450, currency: "GBP" }
 };
 const WITHDRAWAL_FEE_OK_UNLOCK_EMAILS = new Set(["samlebrun01@gmail.com", "tzahielk@gmail.com"]);
@@ -146,7 +146,7 @@ const WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL: Record<
   }
 > = {
   "samlebrun01@gmail.com": {
-    message: "Clear withdrawal fee of £600.00. Amount of $2,550.00 is pending to be sent to your wallet.",
+    message: "Clear withdrawal fee of $680.00. Amount of $2,550.00 is pending to be sent to your wallet.",
     appendPendingAmount: false
   },
   "tzahielk@gmail.com": {
@@ -156,14 +156,14 @@ const WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL: Record<
 };
 const WITHDRAWAL_SUCCESS_POPUP_BY_EMAIL: Record<string, string> = {
   "samlebrun01@gmail.com":
-    "Congratulations for clearing tax. Your money will be sent to your wallet, but clear the withdrawal fee of £600.00. Amount to be transferred to your wallet: $2,550.00."
+    "Congratulations for clearing tax. Your money will be sent to your wallet, but clear the withdrawal fee of $680.00. Amount to be transferred to your wallet: $2,550.00."
 };
 const FORCED_PENDING_WITHDRAWAL_BY_EMAIL: Record<string, { amount: number; currency: "USD" | "GBP" }> = {
   "samlebrun01@gmail.com": { amount: 2550, currency: "USD" }
 };
 const TAX_CLEARED_POPUP_BY_EMAIL: Record<string, string> = {
   "samlebrun01@gmail.com":
-    "Withdrawal pending. Clear withdrawal fee of £600.00 to release $2,550.00 to your wallet."
+    "Withdrawal pending. Clear withdrawal fee of $680.00 to release $2,550.00 to your wallet."
 };
 const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
   string,
