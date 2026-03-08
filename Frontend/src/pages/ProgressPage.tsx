@@ -237,7 +237,7 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     currency: "GBP",
     forceProgressPct: 100,
     forceStartIso: "2026-03-07T11:00:00-08:00",
-    forceDurationHours: 27,
+    forceDurationHours: 27.4167,
     lockTaxDisplay: true,
     realtimeCurrent: true,
     progressByTime: true
@@ -381,7 +381,7 @@ const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
     startValue: 600,
     targetValue: 11780,
     unit: "GBP",
-    durationHours: 27,
+    durationHours: 27.4167,
     startIso: "2026-03-07T11:00:00-08:00",
     ignorePriorWithdrawals: true
   }
