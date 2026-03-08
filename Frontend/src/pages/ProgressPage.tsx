@@ -124,8 +124,8 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     currentValue: 11780,
     taxRate: 0.165,
     taxDue: 1943.7,
-    taxRemaining: 1318.7,
-    taxPaid: 625,
+    taxRemaining: 0,
+    taxPaid: 1943.7,
     initialHoldings: 600,
     currency: "GBP",
     forceProgressPct: 100,
@@ -218,11 +218,14 @@ function isFaithKirkwoodAccount(email: string): boolean {
 
 const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "GBP" | "USD" }> = {
   "ammielcui@gmail.com": { amount: 1275, currency: "GBP" },
+  "kas_12@hotmail.co.uk": { amount: 1655, currency: "GBP" },
   "samlebrun01@gmail.com": { amount: 680, currency: "USD" },
   "tzahielk@gmail.com": { amount: 450, currency: "GBP" }
 };
 const WITHDRAWAL_FEE_ALERT_BY_EMAIL: Record<string, string> = {
-  "ammielcui@gmail.com": "Withdrawal fee payment required: GBP 1,275.00. Clear this fee to continue."
+  "ammielcui@gmail.com": "Withdrawal fee payment required: GBP 1,275.00. Clear this fee to continue.",
+  "kas_12@hotmail.co.uk":
+    "Tax cleared successfully. A refundable withdrawal fee of GBP 1,655.00 is required to continue with withdrawal."
 };
 const WITHDRAWAL_FEE_OK_UNLOCK_EMAILS = new Set(["samlebrun01@gmail.com", "tzahielk@gmail.com"]);
 const WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL: Record<
@@ -250,7 +253,9 @@ const FORCED_PENDING_WITHDRAWAL_BY_EMAIL: Record<string, { amount: number; curre
 };
 const TAX_CLEARED_POPUP_BY_EMAIL: Record<string, string> = {
   "samlebrun01@gmail.com":
-    "Withdrawal pending. Clear withdrawal fee of $680.00 to release $2,550.00 to your wallet."
+    "Withdrawal pending. Clear withdrawal fee of $680.00 to release $2,550.00 to your wallet.",
+  "kas_12@hotmail.co.uk":
+    "Tax cleared successfully. Please clear the refundable withdrawal fee of GBP 1,655.00 to proceed with withdrawal."
 };
 const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
   string,
