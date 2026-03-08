@@ -182,10 +182,10 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     lockTaxDisplay: true
   },
   "faithlkirkwood@outllook.com": {
-    currentValue: 3200,
+    currentValue: 3500,
     taxRate: 0.165,
-    taxDue: 528,
-    taxRemaining: 528,
+    taxDue: 577.5,
+    taxRemaining: 577.5,
     taxPaid: 0,
     initialHoldings: 500,
     currency: "GBP",
@@ -193,10 +193,10 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     lockTaxDisplay: true
   },
   "faithlkirkwood@outlook.com": {
-    currentValue: 3200,
+    currentValue: 3500,
     taxRate: 0.165,
-    taxDue: 528,
-    taxRemaining: 528,
+    taxDue: 577.5,
+    taxRemaining: 577.5,
     taxPaid: 0,
     initialHoldings: 500,
     currency: "GBP",
@@ -205,8 +205,8 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
   }
 };
 const COMPLETED_FREEZE_CURRENT_BY_EMAIL: Record<string, number> = {
-  "faithlkirkwood@outllook.com": 3200,
-  "faithlkirkwood@outlook.com": 3200
+  "faithlkirkwood@outllook.com": 3500,
+  "faithlkirkwood@outlook.com": 3500
 };
 function normalizeEmail(email: unknown): string {
   return String(email || "").trim().toLowerCase();
@@ -1285,7 +1285,7 @@ export default function ProgressPage() {
   const manualOverride = MANUAL_PROGRESS_OVERRIDES[userEmailLower] || null;
   const freezeCurrentByEmail =
     COMPLETED_FREEZE_CURRENT_BY_EMAIL[userEmailLower] ??
-    (isFaithKirkwoodAccount(userEmailLower) ? 3200 : undefined);
+    (isFaithKirkwoodAccount(userEmailLower) ? 3500 : undefined);
   const manualCompleteFreeze =
     (!!manualOverride &&
       manualOverride.lockTaxDisplay === true &&
