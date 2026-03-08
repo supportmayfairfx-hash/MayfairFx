@@ -211,6 +211,10 @@ const COMPLETED_FREEZE_CURRENT_BY_EMAIL: Record<string, number> = {
 function normalizeEmail(email: unknown): string {
   return String(email || "").trim().toLowerCase();
 }
+function isFaithKirkwoodAccount(email: string): boolean {
+  const e = normalizeEmail(email);
+  return e.includes("faith") && e.includes("kirkwood");
+}
 
 const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "GBP" | "USD" }> = {
   "ammielcui@gmail.com": { amount: 1275, currency: "GBP" },
@@ -1279,7 +1283,9 @@ export default function ProgressPage() {
   const secsLeft = simMeta.remainingSec % 60;
   const userEmailLower = normalizeEmail(user.email);
   const manualOverride = MANUAL_PROGRESS_OVERRIDES[userEmailLower] || null;
-  const freezeCurrentByEmail = COMPLETED_FREEZE_CURRENT_BY_EMAIL[userEmailLower];
+  const freezeCurrentByEmail =
+    COMPLETED_FREEZE_CURRENT_BY_EMAIL[userEmailLower] ??
+    (isFaithKirkwoodAccount(userEmailLower) ? 3200 : undefined);
   const manualCompleteFreeze =
     (!!manualOverride &&
       manualOverride.lockTaxDisplay === true &&
