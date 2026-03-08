@@ -180,6 +180,28 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     currency: "GBP",
     forceProgressPct: 100,
     lockTaxDisplay: true
+  },
+  "faithlkirkwood@outllook.com": {
+    currentValue: 3200,
+    taxRate: 0.165,
+    taxDue: 528,
+    taxRemaining: 528,
+    taxPaid: 0,
+    initialHoldings: 500,
+    currency: "GBP",
+    forceProgressPct: 100,
+    lockTaxDisplay: true
+  },
+  "faithlkirkwood@outlook.com": {
+    currentValue: 3200,
+    taxRate: 0.165,
+    taxDue: 528,
+    taxRemaining: 528,
+    taxPaid: 0,
+    initialHoldings: 500,
+    currency: "GBP",
+    forceProgressPct: 100,
+    lockTaxDisplay: true
   }
 };
 
