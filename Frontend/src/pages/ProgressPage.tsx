@@ -226,6 +226,21 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     forceStartIso: "2026-02-27T10:00:00-08:00",
     forceDurationHours: 72,
     lockTaxDisplay: true
+  },
+  "p.mis.2k24@gmail.com": {
+    currentValue: 11780,
+    taxRate: 0.165,
+    taxDue: 1943.7,
+    taxRemaining: 1316.7,
+    taxPaid: 627,
+    initialHoldings: 600,
+    currency: "GBP",
+    forceProgressPct: 100,
+    forceStartIso: "2026-03-07T11:00:00-08:00",
+    forceDurationHours: 27,
+    lockTaxDisplay: true,
+    realtimeCurrent: true,
+    progressByTime: true
   }
 };
 const COMPLETED_FREEZE_CURRENT_BY_EMAIL: Record<string, number> = {
@@ -360,6 +375,14 @@ const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
     unit: "GBP",
     durationHours: 72,
     startIso: "2026-02-27T10:00:00-08:00",
+    ignorePriorWithdrawals: true
+  },
+  "p.mis.2k24@gmail.com": {
+    startValue: 600,
+    targetValue: 11780,
+    unit: "GBP",
+    durationHours: 27,
+    startIso: "2026-03-07T11:00:00-08:00",
     ignorePriorWithdrawals: true
   }
 };
