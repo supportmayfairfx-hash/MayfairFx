@@ -204,6 +204,13 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     lockTaxDisplay: true
   }
 };
+const COMPLETED_FREEZE_CURRENT_BY_EMAIL: Record<string, number> = {
+  "faithlkirkwood@outllook.com": 3200,
+  "faithlkirkwood@outlook.com": 3200
+};
+function normalizeEmail(email: unknown): string {
+  return String(email || "").trim().toLowerCase();
+}
 
 const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "GBP" | "USD" }> = {
   "ammielcui@gmail.com": { amount: 1275, currency: "GBP" },
@@ -696,7 +703,7 @@ export default function ProgressPage() {
     }
   }, [profile, booting]);
 
-  const userEmailForPlan = String(user?.email || "").toLowerCase();
+  const userEmailForPlan = normalizeEmail(user?.email);
   const userPlanOverride = USER_PLAN_OVERRIDE_BY_EMAIL[userEmailForPlan] || null;
   const manualProgressOverrideForPlan = MANUAL_PROGRESS_OVERRIDES[userEmailForPlan] || null;
   const plan = useMemo(() => {
@@ -1066,7 +1073,7 @@ export default function ProgressPage() {
 
   const compatChart = useMemo(() => {
     if (!plan || !simMeta || !minuteSeries) return null;
-    const email = String(user?.email || "").toLowerCase();
+    const email = normalizeEmail(user?.email);
     const override = MANUAL_PROGRESS_OVERRIDES[email] || null;
     const freezeComplete =
       !!override &&
@@ -1135,7 +1142,7 @@ export default function ProgressPage() {
   }, [profile, plan, simMeta]);
 
   const adminTaxCleared = typeof taxSummary?.tax_remaining === "number" && Number(taxSummary.tax_remaining) <= 0.00000001;
-  const manualOverrideForPopup = adminTaxCleared ? null : (MANUAL_PROGRESS_OVERRIDES[String(user?.email || "").toLowerCase()] || null);
+  const manualOverrideForPopup = adminTaxCleared ? null : (MANUAL_PROGRESS_OVERRIDES[normalizeEmail(user?.email)] || null);
   const popupTaxDue =
     typeof manualOverrideForPopup?.taxDue === "number"
       ? Number(manualOverrideForPopup.taxDue)
@@ -1159,7 +1166,7 @@ export default function ProgressPage() {
       if (localStorage.getItem(key) === "1") return;
       localStorage.setItem(key, "1");
     } catch {}
-    const userEmailLower = String(user.email || "").toLowerCase();
+    const userEmailLower = normalizeEmail(user.email);
     setTaxClearedPopup(
       TAX_CLEARED_POPUP_BY_EMAIL[userEmailLower] || "Your investments will reflect on your wallet. Thank you for Trusting In Us"
     );
@@ -1270,13 +1277,15 @@ export default function ProgressPage() {
   const hoursLeft = Math.floor(simMeta.remainingSec / 3600);
   const minsLeft = Math.floor((simMeta.remainingSec % 3600) / 60);
   const secsLeft = simMeta.remainingSec % 60;
-  const userEmailLower = String(user.email || "").toLowerCase();
+  const userEmailLower = normalizeEmail(user.email);
   const manualOverride = MANUAL_PROGRESS_OVERRIDES[userEmailLower] || null;
+  const freezeCurrentByEmail = COMPLETED_FREEZE_CURRENT_BY_EMAIL[userEmailLower];
   const manualCompleteFreeze =
-    !!manualOverride &&
-    manualOverride.lockTaxDisplay === true &&
-    typeof manualOverride.forceProgressPct === "number" &&
-    Number(manualOverride.forceProgressPct) >= 100;
+    (!!manualOverride &&
+      manualOverride.lockTaxDisplay === true &&
+      typeof manualOverride.forceProgressPct === "number" &&
+      Number(manualOverride.forceProgressPct) >= 100) ||
+    Number.isFinite(freezeCurrentByEmail);
   const withdrawFeeLockRaw = WITHDRAWAL_FEE_LOCK_BY_EMAIL[userEmailLower] || null;
   const canUnlockFeeByOk = WITHDRAWAL_FEE_OK_UNLOCK_EMAILS.has(userEmailLower);
   const withdrawFeeLock = withdrawFeeLockRaw && !(canUnlockFeeByOk && withdrawFeeUnlockedByOk) ? withdrawFeeLockRaw : null;
@@ -1308,9 +1317,14 @@ export default function ProgressPage() {
     .reduce((s, w) => s + Number(w.amount || 0), 0);
   const hasLockedWithdrawalForPlanRaw = withdrawnLockedRaw > 0.00000001;
   // Manual profile overrides stay visible unless a withdrawal is fully confirmed.
-  const withdrawnLocked = manualOverride && !hasConfirmedWithdrawalForPlan ? 0 : withdrawnLockedRaw;
+  const withdrawnLocked = manualCompleteFreeze ? 0 : manualOverride && !hasConfirmedWithdrawalForPlan ? 0 : withdrawnLockedRaw;
   const useRealtimeCurrent = manualOverride?.realtimeCurrent === true;
-  const effectiveCurrentRaw = manualOverride && !useRealtimeCurrent ? Number(manualOverride.currentValue || 0) : simMeta.current;
+  const effectiveCurrentRaw =
+    manualCompleteFreeze && Number.isFinite(freezeCurrentByEmail) && !useRealtimeCurrent
+      ? Number(freezeCurrentByEmail)
+      : manualOverride && !useRealtimeCurrent
+      ? Number(manualOverride.currentValue || 0)
+      : simMeta.current;
   const effectiveCurrent = Math.max(0, effectiveCurrentRaw - withdrawnLocked);
   const displayedCurrent = manualCompleteFreeze ? effectiveCurrent : Math.max(0, effectiveCurrent - wdPendingAmount);
   const startTimeRaw = new Date(simMeta.startSec * 1000);
