@@ -5,3 +5,5 @@ Backend/data
 *.log
 
 .vercel
+Frontend/.tmp_*.js
+Frontend/deploy-worktree/
