@@ -1308,71 +1308,95 @@ export default function AdminPage() {
 
       {!canAdmin ? (
         <section className="marketGrid">
-          <div className="marketCard spanFull">
-            <div className="marketCardHead">
-              <div>
-                <div className="panelTitle">Admin Login Portal</div>
-                <div className="panelSub">Sign in to access checkout deposit approvals and workflow actions.</div>
-              </div>
-              <div className="muted mono">status: not authenticated</div>
-            </div>
-            <div className="authBody">
-              <div style={{ display: "grid", gap: 16, gridTemplateColumns: "minmax(340px,2fr) minmax(260px,1fr)" }}>
-                <div
-                  style={{
-                    border: "1px solid rgba(255,255,255,.14)",
-                    borderRadius: 14,
-                    padding: 14,
-                    background: "linear-gradient(180deg, rgba(9,22,48,.45), rgba(4,13,31,.35))"
-                  }}
-                >
-                  <div className="panelTitle" style={{ marginBottom: 4 }}>Credentials</div>
-                  <div className="panelSub" style={{ marginBottom: 12 }}>Use your admin account to continue.</div>
+          <div className="marketCard spanFull" style={{ overflow: "hidden", padding: 0 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(340px,1fr))" }}>
+              <aside
+                style={{
+                  padding: 20,
+                  borderRight: "1px solid rgba(255,255,255,.08)",
+                  background:
+                    "radial-gradient(700px 300px at 0% 0%, rgba(86,101,255,.24), transparent 58%), linear-gradient(180deg, rgba(13,24,55,.92), rgba(8,16,36,.98))"
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                  <div className="panelTitle">MAYFAIR FOREX</div>
+                  <a className="mini" href="/dashboard">Back to website</a>
+                </div>
+                <div className="panelSub" style={{ marginBottom: 12 }}>Live operations signal panel</div>
 
-                  <div style={{ display: "grid", gap: 12 }}>
-                    <div style={{ display: "grid", gap: 6 }}>
-                      <div className="muted" style={{ fontSize: 12, letterSpacing: ".04em", textTransform: "uppercase" }}>Admin Email</div>
-                      <input value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="admin email" />
-                    </div>
-                    <div style={{ display: "grid", gap: 6 }}>
-                      <div className="muted" style={{ fontSize: 12, letterSpacing: ".04em", textTransform: "uppercase" }}>Password</div>
-                      <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="password" />
-                    </div>
-                    <div style={{ display: "grid", gap: 6 }}>
-                      <div className="muted" style={{ fontSize: 12, letterSpacing: ".04em", textTransform: "uppercase" }}>AUTH Code (Optional)</div>
-                      <input value={loginAuthCode} onChange={(e) => setLoginAuthCode(e.target.value)} placeholder="leave blank for default admin" />
-                    </div>
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 2 }}>
-                      <button className="primary" type="button" onClick={() => void signInRoleAdmin()} disabled={busy}>
-                        {busy ? "Signing in..." : "Sign in"}
-                      </button>
-                      <button className="mini" type="button" onClick={() => void refreshSession()} disabled={busy}>Validate session</button>
-                    </div>
-                    <div className="pairsNote">
-                      <span className="mono">Security note:</span> access is role-gated and session-validated on the server.
-                    </div>
-                  </div>
+                <div style={{ border: "1px solid rgba(255,255,255,.14)", borderRadius: 12, padding: 10, background: "rgba(7,14,33,.5)" }}>
+                  <svg viewBox="0 0 360 180" width="100%" height="180" role="img" aria-label="Market trend graphs">
+                    <defs>
+                      <linearGradient id="adminTrendA" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0%" stopColor="rgba(78,201,255,0.65)" />
+                        <stop offset="100%" stopColor="rgba(78,201,255,0.03)" />
+                      </linearGradient>
+                      <linearGradient id="adminTrendB" x1="0" x2="1" y1="0" y2="0">
+                        <stop offset="0%" stopColor="#6fd3ff" />
+                        <stop offset="100%" stopColor="#7d8fff" />
+                      </linearGradient>
+                    </defs>
+                    <rect x="0" y="0" width="360" height="180" fill="rgba(6,12,28,.45)" />
+                    {Array.from({ length: 7 }).map((_, i) => (
+                      <line key={`gx-${i}`} x1={10 + i * 56} y1="8" x2={10 + i * 56} y2="170" stroke="rgba(255,255,255,.06)" />
+                    ))}
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <line key={`gy-${i}`} x1="8" y1={12 + i * 38} x2="352" y2={12 + i * 38} stroke="rgba(255,255,255,.05)" />
+                    ))}
+                    <path d="M14 132 L54 128 L94 122 L134 114 L174 106 L214 98 L254 88 L294 76 L334 64 L346 60 L346 170 L14 170 Z" fill="url(#adminTrendA)" />
+                    <path d="M14 132 L54 128 L94 122 L134 114 L174 106 L214 98 L254 88 L294 76 L334 64 L346 60" fill="none" stroke="url(#adminTrendB)" strokeWidth="3" />
+                    <path d="M14 148 L54 145 L94 142 L134 138 L174 136 L214 132 L254 129 L294 124 L334 120 L346 118" fill="none" stroke="rgba(255,180,110,.85)" strokeWidth="2" strokeDasharray="4 5" />
+                  </svg>
                 </div>
 
-                <div
-                  style={{
-                    border: "1px solid rgba(74,190,255,.24)",
-                    borderRadius: 14,
-                    padding: 14,
-                    background: "linear-gradient(180deg, rgba(16,41,58,.42), rgba(6,20,34,.35))"
-                  }}
-                >
-                  <div className="panelTitle" style={{ marginBottom: 8 }}>Operations Flow</div>
-                  <div className="pairsNote"><span className="mono">Step 1:</span> Review prefilled credentials.</div>
-                  <div className="pairsNote"><span className="mono">Step 2:</span> Sign in and confirm session.</div>
-                  <div className="pairsNote"><span className="mono">Step 3:</span> Open pending checkout requests.</div>
-                  <div className="pairsNote"><span className="mono">Step 4:</span> Approve or reject each deposit.</div>
-                  <div className="pairsNote" style={{ marginTop: 10 }}>
-                    <span className="mono">Scope:</span> This admin is intentionally limited to deposit queue operations.
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 8, marginTop: 10 }}>
+                  <div className="pairsNote"><span className="mono">Queue</span><br />Pending approvals</div>
+                  <div className="pairsNote"><span className="mono">Decision</span><br />Approve / Reject</div>
+                  <div className="pairsNote"><span className="mono">Sync</span><br />Updates in real-time</div>
+                </div>
+
+                <div style={{ marginTop: 14, padding: 12, border: "1px solid rgba(255,255,255,.1)", borderRadius: 12, background: "rgba(255,255,255,.03)" }}>
+                  <div className="panelSub" style={{ marginBottom: 4 }}>Motivation</div>
+                  <div style={{ fontSize: 20, lineHeight: 1.35, fontWeight: 700 }}>
+                    "Discipline builds consistency. Consistency compounds results."
                   </div>
                 </div>
+              </aside>
+
+              <div style={{ padding: 22, background: "linear-gradient(180deg, rgba(10,18,40,.85), rgba(8,14,31,.96))" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+                  <div>
+                    <div className="panelTitle" style={{ fontSize: 34, lineHeight: 1.1 }}>Admin Sign In</div>
+                    <div className="panelSub">Use authorized credentials to enter the approval console.</div>
+                  </div>
+                  <div className="muted mono">status: not authenticated</div>
+                </div>
+
+                <div style={{ display: "grid", gap: 12, marginTop: 16, maxWidth: 560 }}>
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <div className="muted" style={{ fontSize: 12, letterSpacing: ".04em", textTransform: "uppercase" }}>Admin Email</div>
+                    <input value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="admin email" />
+                  </div>
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <div className="muted" style={{ fontSize: 12, letterSpacing: ".04em", textTransform: "uppercase" }}>Password</div>
+                    <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="password" />
+                  </div>
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <div className="muted" style={{ fontSize: 12, letterSpacing: ".04em", textTransform: "uppercase" }}>AUTH Code (Optional)</div>
+                    <input value={loginAuthCode} onChange={(e) => setLoginAuthCode(e.target.value)} placeholder="leave blank for default admin" />
+                  </div>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 4 }}>
+                    <button className="primary" type="button" onClick={() => void signInRoleAdmin()} disabled={busy}>
+                      {busy ? "Signing in..." : "Sign in"}
+                    </button>
+                    <button className="mini" type="button" onClick={() => void refreshSession()} disabled={busy}>Validate session</button>
+                  </div>
+                  <div className="pairsNote">
+                    Access is role-gated and audited. Only approved admins can continue to queue actions.
+                  </div>
+                </div>
+                {error ? <Notice tone="warn" title="Login failed">{error}</Notice> : null}
               </div>
-              {error ? <Notice tone="warn" title="Login failed">{error}</Notice> : null}
             </div>
           </div>
         </section>
