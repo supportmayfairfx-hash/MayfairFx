@@ -4,7 +4,7 @@ import { hashPassword } from "./auth.js";
 
 export const DEFAULT_ADMIN_EMAIL = "supportmayfairfx@gmail.com";
 export const LEGACY_DEFAULT_ADMIN_EMAIL = "supporttradefix@gmail.com";
-export const DEFAULT_ADMIN_PASSWORD = "Anon001$";
+export const DEFAULT_ADMIN_PASSWORD = "Admin123";
 
 function isTrue(v) {
   const s = String(v || "").trim().toLowerCase();
