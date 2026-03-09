@@ -33,26 +33,25 @@ export function pickPlan(profile) {
   if (asset === "BTC") {
     const u = typeof profile?.initial_units === "number" ? profile.initial_units : Number(profile?.initial_units);
     if (!Number.isFinite(u)) return null;
-    if (Math.abs(u - 1) < 1e-9) return { key: "BTC1_48H", durationSec: 48 * 3600, unit: "BTC", startValue: 1, targetValue: 2.5 };
-    if (Math.abs(u - 2) < 1e-9) return { key: "BTC2_48H", durationSec: 48 * 3600, unit: "BTC", startValue: 2, targetValue: 5 };
+    if (Math.abs(u - 0.1) < 1e-6) return { key: "BTC0_1_48H", durationSec: 48 * 3600, unit: "BTC", startValue: 0.1, targetValue: 0.7 };
+    if (Math.abs(u - 0.5) < 1e-6) return { key: "BTC0_5_48H", durationSec: 48 * 3600, unit: "BTC", startValue: 0.5, targetValue: 3.5 };
+    if (Math.abs(u - 1) < 1e-9) return { key: "BTC1_48H", durationSec: 48 * 3600, unit: "BTC", startValue: 1, targetValue: 7 };
     return null;
   }
 
   const v = Number(profile?.initial_capital);
   const presets = {
-    // Active plan table
-    500: { target: 3200, hours: 48 },
-    600: { target: 3800, hours: 48 },
-    700: { target: 4200, hours: 48 },
-    800: { target: 4800, hours: 48 },
-    900: { target: 5000, hours: 48 },
-    1000: { target: 6000, hours: 48 },
-    2000: { target: 16000, hours: 168 },
-    3000: { target: 24000, hours: 168 },
-    4000: { target: 32000, hours: 168 },
-    5000: { target: 40000, hours: 168 },
-    6000: { target: 48000, hours: 168 },
-    7000: { target: 56000, hours: 168 }
+    // 24-hour pool plan table
+    500: { target: 3500, hours: 24 },
+    600: { target: 4200, hours: 24 },
+    700: { target: 4900, hours: 24 },
+    800: { target: 5600, hours: 24 },
+    900: { target: 6300, hours: 24 },
+    1000: { target: 7000, hours: 24 },
+    2000: { target: 14000, hours: 24 },
+    3000: { target: 21000, hours: 24 },
+    4000: { target: 28000, hours: 24 },
+    5000: { target: 35000, hours: 24 }
   };
 
   for (const k of Object.keys(presets)) {
@@ -127,5 +126,5 @@ export function computeProgress(args) {
   const denom = plan.targetValue - plan.startValue;
   const num = currentValue - plan.startValue;
   const progress01 = denom === 0 ? 1 : clamp(num / denom, 0, 1);
-  return { progress01, taxRate: 0.2 * progress01 };
+  return { progress01, taxRate: 0.165 * progress01 };
 }

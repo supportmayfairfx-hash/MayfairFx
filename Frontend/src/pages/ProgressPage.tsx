@@ -1443,7 +1443,7 @@ export default function ProgressPage() {
       ? manualOverride.taxRate
       : typeof taxSummary?.tax_rate === "number"
       ? taxSummary.tax_rate
-      : 0.2 * baseProgress01; // ramps up to 20% by plan end
+      : 0.165 * baseProgress01; // ramps up to 16.5% by plan end
   const baseTaxPaid =
     dynamicTaxModel?.remainingEqualsDue
       ? 0

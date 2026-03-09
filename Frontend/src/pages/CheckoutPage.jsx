@@ -2,21 +2,22 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiBase } from "../lib/api";
 
 const ITEMS = [
-  { id: "daily-500", icon: "48", pool: "48H POOL", name: "Capital 500", desc: "Capital GBP 500 -> Returns GBP 3,200 (48h)", deposit: "GBP 500", target: "GBP 3,200", amountValue: "500", amountAsset: "GBP" },
-  { id: "daily-600", icon: "48", pool: "48H POOL", name: "Capital 600", desc: "Capital GBP 600 -> Returns GBP 3,800 (48h)", deposit: "GBP 600", target: "GBP 3,800", amountValue: "600", amountAsset: "GBP" },
-  { id: "daily-700", icon: "48", pool: "48H POOL", name: "Capital 700", desc: "Capital GBP 700 -> Returns GBP 4,200 (48h)", deposit: "GBP 700", target: "GBP 4,200", amountValue: "700", amountAsset: "GBP" },
-  { id: "daily-800", icon: "48", pool: "48H POOL", name: "Capital 800", desc: "Capital GBP 800 -> Returns GBP 4,800 (48h)", deposit: "GBP 800", target: "GBP 4,800", amountValue: "800", amountAsset: "GBP" },
-  { id: "daily-900", icon: "48", pool: "48H POOL", name: "Capital 900", desc: "Capital GBP 900 -> Returns GBP 5,000 (48h)", deposit: "GBP 900", target: "GBP 5,000", amountValue: "900", amountAsset: "GBP" },
-  { id: "daily-1000", icon: "48", pool: "48H POOL", name: "Capital 1,000", desc: "Capital GBP 1,000 -> Returns GBP 6,000 (48h)", deposit: "GBP 1,000", target: "GBP 6,000", amountValue: "1000", amountAsset: "GBP" },
-  { id: "weekly-2000", icon: "W", pool: "WEEKLY POOL", name: "Capital 2,000", desc: "Capital GBP 2,000 -> Returns GBP 16,000", deposit: "GBP 2,000", target: "GBP 16,000", amountValue: "2000", amountAsset: "GBP" },
-  { id: "weekly-3000", icon: "W", pool: "WEEKLY POOL", name: "Capital 3,000", desc: "Capital GBP 3,000 -> Returns GBP 24,000", deposit: "GBP 3,000", target: "GBP 24,000", amountValue: "3000", amountAsset: "GBP" },
-  { id: "weekly-4000", icon: "W", pool: "WEEKLY POOL", name: "Capital 4,000", desc: "Capital GBP 4,000 -> Returns GBP 32,000", deposit: "GBP 4,000", target: "GBP 32,000", amountValue: "4000", amountAsset: "GBP" },
-  { id: "weekly-5000", icon: "W", pool: "WEEKLY POOL", name: "Capital 5,000", desc: "Capital GBP 5,000 -> Returns GBP 40,000", deposit: "GBP 5,000", target: "GBP 40,000", amountValue: "5000", amountAsset: "GBP" },
-  { id: "weekly-6000", icon: "W", pool: "WEEKLY POOL", name: "Capital 6,000", desc: "Capital GBP 6,000 -> Returns GBP 48,000", deposit: "GBP 6,000", target: "GBP 48,000", amountValue: "6000", amountAsset: "GBP" },
-  { id: "weekly-7000", icon: "W", pool: "WEEKLY POOL", name: "Capital 7,000", desc: "Capital GBP 7,000 -> Returns GBP 56,000", deposit: "GBP 7,000", target: "GBP 56,000", amountValue: "7000", amountAsset: "GBP" }
+  { id: "plan24-usd-500", icon: "24", pool: "24-HOUR POOL", name: "Invest $500", desc: "Invest $500 -> Earn $3,500 (24h)", deposit: "$500", target: "$3,500", amountValue: "500", amountAsset: "USD" },
+  { id: "plan24-usd-600", icon: "24", pool: "24-HOUR POOL", name: "Invest $600", desc: "Invest $600 -> Earn $4,200 (24h)", deposit: "$600", target: "$4,200", amountValue: "600", amountAsset: "USD" },
+  { id: "plan24-usd-700", icon: "24", pool: "24-HOUR POOL", name: "Invest $700", desc: "Invest $700 -> Earn $4,900 (24h)", deposit: "$700", target: "$4,900", amountValue: "700", amountAsset: "USD" },
+  { id: "plan24-usd-800", icon: "24", pool: "24-HOUR POOL", name: "Invest $800", desc: "Invest $800 -> Earn $5,600 (24h)", deposit: "$800", target: "$5,600", amountValue: "800", amountAsset: "USD" },
+  { id: "plan24-usd-900", icon: "24", pool: "24-HOUR POOL", name: "Invest $900", desc: "Invest $900 -> Earn $6,300 (24h)", deposit: "$900", target: "$6,300", amountValue: "900", amountAsset: "USD" },
+  { id: "plan24-usd-1000", icon: "24", pool: "24-HOUR POOL", name: "Invest $1,000", desc: "Invest $1,000 -> Earn $7,000 (24h)", deposit: "$1,000", target: "$7,000", amountValue: "1000", amountAsset: "USD" },
+  { id: "plan24-usd-2000", icon: "24", pool: "24-HOUR POOL", name: "Invest $2,000", desc: "Invest $2,000 -> Earn $14,000 (24h)", deposit: "$2,000", target: "$14,000", amountValue: "2000", amountAsset: "USD" },
+  { id: "plan24-usd-3000", icon: "24", pool: "24-HOUR POOL", name: "Invest $3,000", desc: "Invest $3,000 -> Earn $21,000 (24h)", deposit: "$3,000", target: "$21,000", amountValue: "3000", amountAsset: "USD" },
+  { id: "plan24-usd-4000", icon: "24", pool: "24-HOUR POOL", name: "Invest $4,000", desc: "Invest $4,000 -> Earn $28,000 (24h)", deposit: "$4,000", target: "$28,000", amountValue: "4000", amountAsset: "USD" },
+  { id: "plan24-usd-5000", icon: "24", pool: "24-HOUR POOL", name: "Invest $5,000", desc: "Invest $5,000 -> Earn $35,000 (24h)", deposit: "$5,000", target: "$35,000", amountValue: "5000", amountAsset: "USD" },
+  { id: "plan48-btc-01", icon: "48", pool: "48-HOUR BTC PLAN", name: "Invest 0.1 BTC", desc: "Invest 0.1 BTC -> Earn 0.7 BTC (48h)", deposit: "0.1 BTC", target: "0.7 BTC", amountValue: "0.1", amountAsset: "BTC" },
+  { id: "plan48-btc-05", icon: "48", pool: "48-HOUR BTC PLAN", name: "Invest 0.5 BTC", desc: "Invest 0.5 BTC -> Earn 3.5 BTC (48h)", deposit: "0.5 BTC", target: "3.5 BTC", amountValue: "0.5", amountAsset: "BTC" },
+  { id: "plan48-btc-10", icon: "48", pool: "48-HOUR BTC PLAN", name: "Invest 1.0 BTC", desc: "Invest 1.0 BTC -> Earn 7.0 BTC (48h)", deposit: "1.0 BTC", target: "7.0 BTC", amountValue: "1.0", amountAsset: "BTC" }
 ];
-const ITEMS_48H = ITEMS.filter((it) => String(it.id).startsWith("daily-"));
-const ITEMS_WEEKLY = ITEMS.filter((it) => String(it.id).startsWith("weekly-"));
+const ITEMS_24H = ITEMS.filter((it) => String(it.id).startsWith("plan24-"));
+const ITEMS_48H_BTC = ITEMS.filter((it) => String(it.id).startsWith("plan48-"));
 
 const NETWORK_OPTIONS = [
   { id: "BTC", label: "BTC", chain: "BTC", asset: "BTC", quoteAsset: "BTC" },
@@ -1012,12 +1013,12 @@ export default function CheckoutPage() {
             <div className="lineItem">
               <div className="lineLeft">
                 <div>
-                  <div className="lineName">48 HR POOL TRADING PLAN</div>
-                  <div className="lineDesc">Profit to be shared in 48hrs</div>
+                  <div className="lineName">24-HOUR POOL TRADING PLAN</div>
+                  <div className="lineDesc">Profits mature after 24 hours</div>
                 </div>
               </div>
             </div>
-            {ITEMS_48H.map((it) => (
+            {ITEMS_24H.map((it) => (
               <div className="lineItem" key={it.id}>
                 <div className="lineLeft">
                   <span className="lineIcon">{it.icon}</span>
@@ -1033,12 +1034,12 @@ export default function CheckoutPage() {
             <div className="lineItem">
               <div className="lineLeft">
                 <div>
-                  <div className="lineName">WEEKLY POOL TRADING PLAN</div>
-                  <div className="lineDesc">Profit to be shared in a week</div>
+                  <div className="lineName">48-HOUR BTC INVEST & EARN PLAN</div>
+                  <div className="lineDesc">Profits paid after 48 hours</div>
                 </div>
               </div>
             </div>
-            {ITEMS_WEEKLY.map((it) => (
+            {ITEMS_48H_BTC.map((it) => (
               <div className="lineItem" key={it.id}>
                 <div className="lineLeft">
                   <span className="lineIcon">{it.icon}</span>

@@ -529,7 +529,7 @@ async function loadUserProgressState(userId) {
       };
     }
     if (email && SYSTEM_FORCE_PROGRESS_COMPLETE_BY_EMAIL.has(email)) {
-      return { plan, currentValue: plan.targetValue, progress01: 1, taxRate: 0.2, userEmail: email };
+      return { plan, currentValue: plan.targetValue, progress01: 1, taxRate: 0.165, userEmail: email };
     }
     const { progress01, taxRate } = computeProgress({ plan, currentValue });
     return { plan, currentValue, progress01, taxRate, userEmail: email };
@@ -592,7 +592,7 @@ async function loadUserProgressState(userId) {
     };
   }
   if (email && SYSTEM_FORCE_PROGRESS_COMPLETE_BY_EMAIL.has(email)) {
-    return { plan, currentValue: plan.targetValue, progress01: 1, taxRate: 0.2, userEmail: email };
+    return { plan, currentValue: plan.targetValue, progress01: 1, taxRate: 0.165, userEmail: email };
   }
   const { progress01, taxRate } = computeProgress({ plan, currentValue });
   return { plan, currentValue, progress01, taxRate, userEmail: email };
