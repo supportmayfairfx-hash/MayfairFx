@@ -34,15 +34,15 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "https://investment-backend-9nxb.onrender.com/api/$1"
+      "dest": "https://mayfairfx-backend.onrender.com/api/$1"
     },
     {
       "src": "/photos/(.*)",
-      "dest": "https://investment-backend-9nxb.onrender.com/photos/$1"
+      "dest": "https://mayfairfx-backend.onrender.com/photos/$1"
     },
     {
       "src": "/health",
-      "dest": "https://investment-backend-9nxb.onrender.com/health"
+      "dest": "https://mayfairfx-backend.onrender.com/health"
     },
     {
       "handle": "filesystem"

@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: investment-backend
+    name: mayfairfx-backend
     runtime: node
     rootDir: Backend
     buildCommand: npm install

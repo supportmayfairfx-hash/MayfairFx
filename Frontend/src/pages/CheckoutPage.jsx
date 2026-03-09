@@ -77,7 +77,7 @@ function buildApiCandidates() {
     if (override) list.push(override);
   } catch {}
   // Fallback backend endpoint for separated frontend/backend deployment.
-  list.push("https://investment-backend-9nxb.onrender.com");
+  list.push("https://mayfairfx-backend.onrender.com");
   const seen = new Set();
   return list
     .map((x) => String(x || "").trim().replace(/\/+$/, ""))

@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = process.env.SITE_URL || "https://invest-six-nu.vercel.app";
+const baseURL = process.env.SITE_URL || "http://localhost:5173";
 
 export default defineConfig({
   testDir: "./e2e",
