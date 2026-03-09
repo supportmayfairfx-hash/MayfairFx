@@ -23,9 +23,7 @@ const NETWORK_OPTIONS = [
   { id: "BTC", label: "BTC", chain: "BTC", asset: "BTC", quoteAsset: "BTC" },
   { id: "ETH", label: "Ethereum", chain: "ERC20", asset: "ETH", quoteAsset: "ETH" },
   { id: "SOLANA", label: "Solana", chain: "SOL", asset: "SOL", quoteAsset: "SOL" },
-  { id: "BNB", label: "BNB", chain: "BEP20", asset: "BNB", quoteAsset: "BNB" },
   { id: "USDT_TRC20", label: "USDT (TRC20)", chain: "TRC20", asset: "USDT", quoteAsset: "USDT" },
-  { id: "USDT", label: "USDT", chain: "ERC20", asset: "USDT", quoteAsset: "USDT" },
   { id: "USDC", label: "USDC", chain: "ERC20", asset: "USDC", quoteAsset: "USDT" }
 ];
 
@@ -33,9 +31,7 @@ const WALLET_BY_NETWORK = {
   BTC: "bc1qmkguvswd97qwatmj8ywem6gtc2n76lejcm5kje",
   ETH: "0x7DeaEfa5864F3EA1334b2180907b3e6E175fd7D5",
   SOLANA: "TQy7SHb5UhBocnADiMav6MxmeC1qz87nX2",
-  BNB: "0x7DeaEfa5864F3EA1334b2180907b3e6E175fd7D5",
   USDT_TRC20: "TQy7SHb5UhBocnADiMav6MxmeC1qz87nX2",
-  USDT: "0x7DeaEfa5864F3EA1334b2180907b3e6E175fd7D5",
   USDC: "0x7DeaEfa5864F3EA1334b2180907b3e6E175fd7D5"
 };
 
