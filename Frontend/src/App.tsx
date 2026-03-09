@@ -146,7 +146,7 @@ export default function App() {
   const [me, setMe] = useState<AuthMe["user"]>(null);
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [logoSrc, setLogoSrc] = useState("/brand/photo_2026-02-15_07-59-19.jpg");
+  const [logoSrc, setLogoSrc] = useState("/brand/photo_2026-03-09_03-18-42.jpg");
 
   const [themeMode, setThemeMode] = useState<ThemeMode>("dark");
   const [themeResolved, setThemeResolved] = useState<ThemeResolved>("dark");
