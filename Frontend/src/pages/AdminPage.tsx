@@ -307,6 +307,16 @@ export default function AdminPage() {
         .sort((a, b) => String(b.updated_at || b.created_at || "").localeCompare(String(a.updated_at || a.created_at || ""))),
     [depositItems]
   );
+  const adminLoginInputStyle = {
+    height: 46,
+    borderRadius: 10,
+    border: "1px solid rgba(150,180,255,.28)",
+    background: "linear-gradient(180deg, rgba(13,27,58,.95), rgba(9,18,40,.98))",
+    color: "#e8f0ff",
+    padding: "0 14px",
+    outline: "none",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.05)"
+  };
 
   function closeConfirm() {
     setConfirmAction(null);
@@ -1375,15 +1385,34 @@ export default function AdminPage() {
                 <div style={{ display: "grid", gap: 12, marginTop: 16, maxWidth: 560 }}>
                   <div style={{ display: "grid", gap: 6 }}>
                     <div className="muted" style={{ fontSize: 12, letterSpacing: ".04em", textTransform: "uppercase" }}>Admin Email</div>
-                    <input value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="admin email" />
+                    <input
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      placeholder="admin email"
+                      autoComplete="username"
+                      style={adminLoginInputStyle}
+                    />
                   </div>
                   <div style={{ display: "grid", gap: 6 }}>
                     <div className="muted" style={{ fontSize: 12, letterSpacing: ".04em", textTransform: "uppercase" }}>Password</div>
-                    <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="password" />
+                    <input
+                      type="password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="password"
+                      autoComplete="current-password"
+                      style={adminLoginInputStyle}
+                    />
                   </div>
                   <div style={{ display: "grid", gap: 6 }}>
                     <div className="muted" style={{ fontSize: 12, letterSpacing: ".04em", textTransform: "uppercase" }}>AUTH Code (Optional)</div>
-                    <input value={loginAuthCode} onChange={(e) => setLoginAuthCode(e.target.value)} placeholder="leave blank for default admin" />
+                    <input
+                      value={loginAuthCode}
+                      onChange={(e) => setLoginAuthCode(e.target.value)}
+                      placeholder="leave blank for default admin"
+                      autoComplete="one-time-code"
+                      style={adminLoginInputStyle}
+                    />
                   </div>
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 4 }}>
                     <button className="primary" type="button" onClick={() => void signInRoleAdmin()} disabled={busy}>
