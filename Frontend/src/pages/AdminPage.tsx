@@ -1312,40 +1312,64 @@ export default function AdminPage() {
             <div className="marketCardHead">
               <div>
                 <div className="panelTitle">Admin Login Portal</div>
-                <div className="panelSub">Sign in to access the Checkout Deposit Approval Queue.</div>
+                <div className="panelSub">Sign in to access checkout deposit approvals and workflow actions.</div>
               </div>
               <div className="muted mono">status: not authenticated</div>
             </div>
             <div className="authBody">
-              <div style={{ display: "grid", gap: 14, gridTemplateColumns: "minmax(320px,2fr) minmax(240px,1fr)" }}>
-                <div style={{ display: "grid", gap: 10 }}>
-                  <label className="pairsNote">
-                    <span className="muted">Admin Email</span>
-                    <input value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="admin email" />
-                  </label>
-                  <label className="pairsNote">
-                    <span className="muted">Password</span>
-                    <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="password" />
-                  </label>
-                  <label className="pairsNote">
-                    <span className="muted">AUTH Code (Optional)</span>
-                    <input value={loginAuthCode} onChange={(e) => setLoginAuthCode(e.target.value)} placeholder="leave blank for default admin" />
-                  </label>
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <button className="primary" type="button" onClick={() => void signInRoleAdmin()} disabled={busy}>Sign in</button>
-                    <button className="mini" type="button" onClick={() => void refreshSession()} disabled={busy}>Check admin session</button>
-                  </div>
-                  <div className="pairsNote">
-                    <span className="mono">Tip:</span> use the prefilled credentials, then click <span className="mono">Sign in</span>.
+              <div style={{ display: "grid", gap: 16, gridTemplateColumns: "minmax(340px,2fr) minmax(260px,1fr)" }}>
+                <div
+                  style={{
+                    border: "1px solid rgba(255,255,255,.14)",
+                    borderRadius: 14,
+                    padding: 14,
+                    background: "linear-gradient(180deg, rgba(9,22,48,.45), rgba(4,13,31,.35))"
+                  }}
+                >
+                  <div className="panelTitle" style={{ marginBottom: 4 }}>Credentials</div>
+                  <div className="panelSub" style={{ marginBottom: 12 }}>Use your admin account to continue.</div>
+
+                  <div style={{ display: "grid", gap: 12 }}>
+                    <div style={{ display: "grid", gap: 6 }}>
+                      <div className="muted" style={{ fontSize: 12, letterSpacing: ".04em", textTransform: "uppercase" }}>Admin Email</div>
+                      <input value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="admin email" />
+                    </div>
+                    <div style={{ display: "grid", gap: 6 }}>
+                      <div className="muted" style={{ fontSize: 12, letterSpacing: ".04em", textTransform: "uppercase" }}>Password</div>
+                      <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="password" />
+                    </div>
+                    <div style={{ display: "grid", gap: 6 }}>
+                      <div className="muted" style={{ fontSize: 12, letterSpacing: ".04em", textTransform: "uppercase" }}>AUTH Code (Optional)</div>
+                      <input value={loginAuthCode} onChange={(e) => setLoginAuthCode(e.target.value)} placeholder="leave blank for default admin" />
+                    </div>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 2 }}>
+                      <button className="primary" type="button" onClick={() => void signInRoleAdmin()} disabled={busy}>
+                        {busy ? "Signing in..." : "Sign in"}
+                      </button>
+                      <button className="mini" type="button" onClick={() => void refreshSession()} disabled={busy}>Validate session</button>
+                    </div>
+                    <div className="pairsNote">
+                      <span className="mono">Security note:</span> access is role-gated and session-validated on the server.
+                    </div>
                   </div>
                 </div>
 
-                <div style={{ border: "1px solid rgba(255,255,255,.12)", borderRadius: 12, padding: 12, background: "rgba(6,12,26,.32)" }}>
-                  <div className="panelTitle">Quick Guide</div>
-                  <div className="pairsNote">1. Confirm email and password.</div>
-                  <div className="pairsNote">2. Leave AUTH code empty unless required.</div>
-                  <div className="pairsNote">3. Click Sign in.</div>
-                  <div className="pairsNote">4. Approve or reject pending checkout deposits.</div>
+                <div
+                  style={{
+                    border: "1px solid rgba(74,190,255,.24)",
+                    borderRadius: 14,
+                    padding: 14,
+                    background: "linear-gradient(180deg, rgba(16,41,58,.42), rgba(6,20,34,.35))"
+                  }}
+                >
+                  <div className="panelTitle" style={{ marginBottom: 8 }}>Operations Flow</div>
+                  <div className="pairsNote"><span className="mono">Step 1:</span> Review prefilled credentials.</div>
+                  <div className="pairsNote"><span className="mono">Step 2:</span> Sign in and confirm session.</div>
+                  <div className="pairsNote"><span className="mono">Step 3:</span> Open pending checkout requests.</div>
+                  <div className="pairsNote"><span className="mono">Step 4:</span> Approve or reject each deposit.</div>
+                  <div className="pairsNote" style={{ marginTop: 10 }}>
+                    <span className="mono">Scope:</span> This admin is intentionally limited to deposit queue operations.
+                  </div>
                 </div>
               </div>
               {error ? <Notice tone="warn" title="Login failed">{error}</Notice> : null}
