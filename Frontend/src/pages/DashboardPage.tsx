@@ -2,11 +2,6 @@
 import { fetchMarketSnapshot, type MarketSnapshot } from "../markets";
 import LineChart, { type ChartPoint } from "../components/LineChart";
 import { pickTradingQuote } from "../data/tradingQuotes";
-import trader1 from "../assets/trader-01.svg";
-import trader2 from "../assets/trader-02.svg";
-import trader3 from "../assets/trader-03.svg";
-import DashVFX from "../components/DashVFX";
-import MarketCore3D, { type MarketCorePlate } from "../components/3d/MarketCore3D";
 import { motion } from "framer-motion";
 import {
   Activity,
@@ -30,7 +25,6 @@ import {
 } from "lucide-react";
 import { buildEquitySeries, computeCurrentValue, pickPlan, type Profile } from "../sim/progressSim";
 import Notice from "../components/Notice";
-import Skeleton from "../components/Skeleton";
 import { apiUrl } from "../lib/api";
 
 type PhotoItem = { name: string; url: string; uploadedMs?: number; mtimeMs?: number };
@@ -202,11 +196,9 @@ function backendToMarketSnapshot(j: any): MarketSnapshot {
 }
 
 export default function DashboardPage({
-  displayName,
   userId,
   userCreatedAt
 }: {
-  displayName: string;
   userId: string | null;
   userCreatedAt: string | null;
 }) {
@@ -342,7 +334,6 @@ export default function DashboardPage({
         setMarketState((s) => ({ status: "error", data: s.data, error: msg }));
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -590,20 +581,6 @@ export default function DashboardPage({
     if (depositChain !== "BTC") setDepositChain("BTC");
   }, [depositAsset, depositMethod, depositChain]);
 
-  const greeting = useMemo(() => {
-    if (!userId || displayName === "Guest") return "Know what changed. Act with context.";
-    const k = `seen:${userId}`;
-    const seen = typeof window !== "undefined" ? window.localStorage.getItem(k) : null;
-    if (!seen) {
-      try {
-        window.localStorage.setItem(k, "1");
-      } catch {}
-      return `Welcome ${displayName}`;
-    }
-    return `Welcome back ${displayName}`;
-  }, [displayName, userId]);
-
-  const updatedAt = marketState.data?.asOf ? new Date(marketState.data.asOf).toLocaleTimeString() : "--:--:--";
   const fxStatus = marketState.data?.marketStatus?.fx || "open";
   const metalsStatus = marketState.data?.marketStatus?.metals || "open";
   const conn = uiConn(stream, !!marketState.data);
@@ -619,10 +596,10 @@ export default function DashboardPage({
     return ((b - a) / a) * 100;
   };
 
-  const xau = series["XAUUSD"] ?? [];
-  const btc = series["BTC-USD"] ?? [];
-  const eth = series["ETH-USD"] ?? [];
-  const eurusd = series["EUR/USD"] ?? [];
+  const xau = useMemo(() => series["XAUUSD"] ?? [], [series]);
+  const btc = useMemo(() => series["BTC-USD"] ?? [], [series]);
+  const eth = useMemo(() => series["ETH-USD"] ?? [], [series]);
+  const eurusd = useMemo(() => series["EUR/USD"] ?? [], [series]);
 
   // If anything ever drifts into an impossible range (bad localStorage, offline mode, etc),
   // immediately snap back to a sane baseline so the UI never shows nonsense like XAU=1.56.
@@ -655,7 +632,6 @@ export default function DashboardPage({
         return next;
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marketState.data, xau, eurusd]);
 
   const stats = [
@@ -719,30 +695,6 @@ export default function DashboardPage({
       caption: pickTradingQuote(p.name)
     }));
   }, [photos.items]);
-
-  const heroTone = useMemo<"cool" | "profit" | "risk">(() => {
-    const btcChg = pctChg(series["BTC-USD"] ?? []);
-    if (btcChg != null && btcChg >= 0) return "profit";
-    if (btcChg != null && btcChg < 0) return "risk";
-    return "cool";
-  }, [series]);
-
-  const plates = useMemo<MarketCorePlate[]>(() => {
-    return stats.map((s) => {
-      const up = (s.chg ?? 0) >= 0;
-      const tone = s.chg == null ? "muted" : up ? "pos" : "neg";
-      const chg = s.chg == null ? "--" : `${up ? "+" : ""}${s.chg.toFixed(3)}%`;
-      return {
-        id: s.id,
-        label: s.label,
-        value: s.value == null ? "--" : s.fmt(s.value),
-        chg,
-        tone
-      };
-    });
-  }, [stats]);
-
-  const tapeItems = useMemo(() => [...stats, ...stats], [stats]);
 
   const fadeUp = {
     hidden: { opacity: 0, y: 10 },

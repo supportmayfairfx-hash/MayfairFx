@@ -256,7 +256,7 @@ export default function BlogPage() {
       return sort === "newest" ? bm - am : am - bm;
     });
     return idxs;
-  }, [usingUploads, items, photos, q, sort]);
+  }, [usingUploads, items, q, sort]);
 
   return (
     <>

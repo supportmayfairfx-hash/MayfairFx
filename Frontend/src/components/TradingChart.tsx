@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiUrl } from "../lib/api";
 
 export type Candle = {
@@ -221,7 +221,6 @@ export default function TradingChart({
   // When the timeframe changes, reset the zoom to a sensible default (like TradingView).
   useEffect(() => {
     setBarsPerScreen(defaultBarsPerScreen(tf));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tf]);
 
   useEffect(() => {
@@ -319,13 +318,13 @@ export default function TradingChart({
     return x.toFixed(8);
   }
 
-  function formatTime(tsSec: number) {
+  const formatTime = useCallback((tsSec: number) => {
     const d = new Date(tsSec * 1000);
     const tfLow = interval.toLowerCase();
     const isIntra = ["1m", "5m", "15m", "30m", "1h", "4h"].includes(tfLow);
     if (isIntra) return d.toLocaleString([], { month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" });
     return d.toLocaleDateString([], { year: "numeric", month: "short", day: "2-digit" });
-  }
+  }, [interval]);
 
   function scheduleDraw() {
     if (rafRef.current != null) return;
@@ -1052,7 +1051,7 @@ export default function TradingChart({
       </div>
       <div style="opacity:.7; margin-top:8px;">Pan: drag | Zoom: mouse wheel | Draw: pick a tool then click</div>
     `;
-  }, [hover, candles, symbol, tf]);
+  }, [hover, candles, symbol, tf, formatTime]);
 
   return (
     <div className="tvWrap">

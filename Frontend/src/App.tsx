@@ -380,6 +380,8 @@ export default function App() {
         }
       })
       .catch(() => {});
+    // Intentional one-time apply for the active user session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me?.id]);
 
   useEffect(() => {
@@ -490,6 +492,8 @@ export default function App() {
     };
     document.addEventListener("click", onClick);
     return () => document.removeEventListener("click", onClick);
+    // Tracking helper is intentionally not a dependency to avoid rebinding global handlers on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
   useEffect(() => {
@@ -515,7 +519,6 @@ export default function App() {
   }, [page]);
 
   const content = useMemo(() => {
-    const displayName = me?.first_name || "Guest";
     if (page === "markets") return <MarketsPage />;
     if (page === "portfolio") return <PortfolioPage />;
     if (page === "progress") return <ProgressPage />;
@@ -524,8 +527,8 @@ export default function App() {
     if (page === "contact") return <ContactPage />;
     if (page === "checkout") return <CheckoutPage />;
     if (page === "admin") return <AdminPage />;
-    return <DashboardPage displayName={displayName} userId={me?.id || null} userCreatedAt={me?.created_at || null} />;
-  }, [page, me?.first_name, me?.id]);
+    return <DashboardPage userId={me?.id || null} userCreatedAt={me?.created_at || null} />;
+  }, [page, me?.id, me?.created_at]);
 
   const activeMenuId = useMemo(() => {
     if (page === "dashboard") return "home";

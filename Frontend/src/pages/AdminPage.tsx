@@ -5,7 +5,6 @@ import { apiUrl } from "../lib/api";
 type Method = "GET" | "POST" | "PUT";
 type ConfirmAction = "deactivate" | "bulk_destructive" | "tax_update" | "deposit_update" | "latest_bulk_deactivate" | null;
 type BulkAction = "generate" | "deactivate" | "lookup";
-type KeyStatus = "idle" | "ok" | "error";
 
 type ActiveAuthCode = { email?: string; auth_code_plain?: string; created_at?: string; is_active?: boolean };
 type AuthCodeHistoryItem = { id: string; email: string; auth_code_plain?: string | null; created_at: string; is_active: boolean };
@@ -192,7 +191,7 @@ const ADMIN_SESSION_CACHE_KEY = "admin_role_session";
 
 export default function AdminPage() {
   const TAX_RESET_UNDO_WINDOW_MS = 12000;
-  const [adminKey, setAdminKey] = useState(() => sessionStorage.getItem("admin_api_key") || "");
+  const [adminKey] = useState(() => sessionStorage.getItem("admin_api_key") || "");
   const [adminSession, setAdminSession] = useState<{ ok: boolean; actor: string; mode: string } | null>(null);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -219,7 +218,6 @@ export default function AdminPage() {
   const [bulkInput, setBulkInput] = useState("");
   const [bulkAction, setBulkAction] = useState<BulkAction>("generate");
   const [bulkResults, setBulkResults] = useState<string[]>([]);
-  const [keyStatus, setKeyStatus] = useState<KeyStatus>("idle");
   const [taxItems, setTaxItems] = useState<TaxPaymentItem[]>([]);
   const [depositItems, setDepositItems] = useState<DepositAdminItem[]>([]);
   const [taxBalances, setTaxBalances] = useState<TaxBalanceItem[]>([]);
@@ -342,6 +340,8 @@ export default function AdminPage() {
       }
     } catch {}
     void refreshSession(true, { preserveOnError: true, retries: 3 });
+    // Session bootstrap runs once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -366,6 +366,8 @@ export default function AdminPage() {
     void refreshAutomations();
     void refreshComms();
     void refreshFinance();
+    // Intentional fan-out on auth state changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adminSession]);
 
   useEffect(() => {
@@ -374,6 +376,8 @@ export default function AdminPage() {
       void refreshOverview(true);
     }, 15000);
     return () => window.clearInterval(t);
+    // Keep polling cadence stable while admin + toggle state are unchanged.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canAdmin, overviewAutoRefresh]);
 
   useEffect(() => {
@@ -382,6 +386,8 @@ export default function AdminPage() {
       void refreshLatestAuthCodes(0, true, true);
     }, 4000);
     return () => window.clearInterval(t);
+    // Polling keys are intentionally scoped to filters and toggles.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canAdmin, latestAutoRefresh, latestEmailFilter, latestActiveFilter, latestOrder, latestLimit]);
 
   useEffect(() => {
@@ -396,6 +402,8 @@ export default function AdminPage() {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisible);
     };
+    // Visibility/focus listeners are rebound only when admin/filter context changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canAdmin, latestEmailFilter, latestActiveFilter, latestOrder, latestLimit]);
 
   async function refreshSession(
