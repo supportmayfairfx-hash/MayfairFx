@@ -103,7 +103,21 @@ const PACKAGE_PROFILE_MAP = {
   "48h-2000": { initial_capital: 2000, initial_asset: "GBP", initial_units: null },
   "48h-5000": { initial_capital: 5000, initial_asset: "GBP", initial_units: null },
   "48h-1btc": { initial_capital: 1, initial_asset: "BTC", initial_units: 1 },
-  "48h-2btc": { initial_capital: 2, initial_asset: "BTC", initial_units: 2 }
+  "48h-2btc": { initial_capital: 2, initial_asset: "BTC", initial_units: 2 },
+  // Current checkout package IDs
+  "plan24-usd-500": { initial_capital: 500, initial_asset: "USD", initial_units: null },
+  "plan24-usd-600": { initial_capital: 600, initial_asset: "USD", initial_units: null },
+  "plan24-usd-700": { initial_capital: 700, initial_asset: "USD", initial_units: null },
+  "plan24-usd-800": { initial_capital: 800, initial_asset: "USD", initial_units: null },
+  "plan24-usd-900": { initial_capital: 900, initial_asset: "USD", initial_units: null },
+  "plan24-usd-1000": { initial_capital: 1000, initial_asset: "USD", initial_units: null },
+  "plan24-usd-2000": { initial_capital: 2000, initial_asset: "USD", initial_units: null },
+  "plan24-usd-3000": { initial_capital: 3000, initial_asset: "USD", initial_units: null },
+  "plan24-usd-4000": { initial_capital: 4000, initial_asset: "USD", initial_units: null },
+  "plan24-usd-5000": { initial_capital: 5000, initial_asset: "USD", initial_units: null },
+  "plan48-btc-01": { initial_capital: 0.1, initial_asset: "BTC", initial_units: 0.1 },
+  "plan48-btc-05": { initial_capital: 0.5, initial_asset: "BTC", initial_units: 0.5 },
+  "plan48-btc-10": { initial_capital: 1, initial_asset: "BTC", initial_units: 1 }
 };
 
 // Manual system-level tax overrides for specific client accounts.
@@ -227,10 +241,44 @@ function parsePackageIdFromNote(note) {
   return m?.[1]?.toLowerCase() || null;
 }
 
-async function applyApprovedDepositToProfile(userId, note) {
-  const packageId = parsePackageIdFromNote(note);
-  if (!packageId) return false;
-  const m = PACKAGE_PROFILE_MAP[packageId];
+function approxEq(a, b, eps = 1e-6) {
+  return Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= eps;
+}
+
+function resolveProfileFromApprovedDeposit({ note, amount, asset }) {
+  const noteText = String(note || "");
+  const packageId = parsePackageIdFromNote(noteText);
+  if (packageId && PACKAGE_PROFILE_MAP[packageId]) return PACKAGE_PROFILE_MAP[packageId];
+
+  const noteLc = noteText.toLowerCase();
+  if (noteLc.includes("tax clearance")) return null;
+  const looksLikeInvest = /manual invest|package=|invest\b|pool/i.test(noteText);
+  if (!looksLikeInvest) return null;
+
+  const n = clampAmount(amount);
+  if (!n) return null;
+
+  const a = normalizeAsset(asset || "USD", "USD");
+  if (a === "BTC") {
+    if (approxEq(n, 0.1)) return { initial_capital: 0.1, initial_asset: "BTC", initial_units: 0.1 };
+    if (approxEq(n, 0.5)) return { initial_capital: 0.5, initial_asset: "BTC", initial_units: 0.5 };
+    if (approxEq(n, 1)) return { initial_capital: 1, initial_asset: "BTC", initial_units: 1 };
+    return null;
+  }
+
+  const tiers = new Set([500, 600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000]);
+  const rounded = Math.round(n);
+  if (!tiers.has(rounded) || !approxEq(n, rounded, 0.01)) return null;
+
+  return {
+    initial_capital: rounded,
+    initial_asset: a === "GBP" ? "GBP" : "USD",
+    initial_units: null
+  };
+}
+
+async function applyApprovedDepositToProfile(userId, { note = null, amount = null, asset = null } = {}) {
+  const m = resolveProfileFromApprovedDeposit({ note, amount, asset });
   if (!m) return false;
 
   if (getDbMode() === "local") {
@@ -262,6 +310,44 @@ async function applyApprovedDepositToProfile(userId, note) {
     [userId, m.initial_capital, m.initial_asset, m.initial_units]
   );
   return true;
+}
+
+async function hydrateProfileFromConfirmedDeposits(userId) {
+  if (!userId) return false;
+
+  if (getDbMode() === "local") {
+    const store = readLocalStore();
+    const deposits = (Array.isArray(store.deposits) ? store.deposits : [])
+      .filter((x) => x?.user_id === userId && String(x?.status || "").toLowerCase() === "confirmed")
+      .sort((a, b) => String(b?.updated_at || b?.created_at || "").localeCompare(String(a?.updated_at || a?.created_at || "")));
+    for (const d of deposits) {
+      const ok = await applyApprovedDepositToProfile(userId, {
+        note: d?.note || null,
+        amount: d?.amount ?? null,
+        asset: d?.asset || null
+      });
+      if (ok) return true;
+    }
+    return false;
+  }
+
+  const r = await query(
+    `SELECT note, amount::float8 AS amount, asset
+     FROM deposit_requests
+     WHERE user_id = $1 AND lower(status) = 'confirmed'
+     ORDER BY updated_at DESC NULLS LAST, created_at DESC
+     LIMIT 30`,
+    [userId]
+  );
+  for (const d of r.rows || []) {
+    const ok = await applyApprovedDepositToProfile(userId, {
+      note: d?.note || null,
+      amount: d?.amount ?? null,
+      asset: d?.asset || null
+    });
+    if (ok) return true;
+  }
+  return false;
 }
 
 const QUOTE_FALLBACK_EUR_PER_ASSET = {
@@ -477,11 +563,18 @@ async function createBitcartInvoice(args) {
 async function loadUserProgressState(userId) {
   if (getDbMode() === "local") {
     const store = readLocalStore();
-    const profile = (store.profiles || []).find((x) => x.user_id === userId) || null;
+    let profile = (store.profiles || []).find((x) => x.user_id === userId) || null;
     const user = (store.users || []).find((x) => x.id === userId) || null;
     if (!user?.created_at) return null;
     const email = String(user.email || "").toLowerCase() || null;
     const progressOverride = getSystemProgressOverride(email);
+    if (!profile) {
+      const hydrated = await hydrateProfileFromConfirmedDeposits(userId);
+      if (hydrated) {
+        const freshStore = readLocalStore();
+        profile = (freshStore.profiles || []).find((x) => x.user_id === userId) || null;
+      }
+    }
     if (!profile && progressOverride) {
       const plan = {
         key: `SYSTEM_OVERRIDE_${progressOverride.asset}`,
@@ -540,11 +633,21 @@ async function loadUserProgressState(userId) {
     [userId]
   );
   const userR = await query("SELECT created_at, email FROM users WHERE id = $1", [userId]);
-  const profile = profileR.rows?.[0] || null;
+  let profile = profileR.rows?.[0] || null;
   const user = userR.rows?.[0] || null;
   if (!user?.created_at) return null;
   const email = String(user.email || "").toLowerCase() || null;
   const progressOverride = getSystemProgressOverride(email);
+  if (!profile) {
+    const hydrated = await hydrateProfileFromConfirmedDeposits(userId);
+    if (hydrated) {
+      const freshProfileR = await query(
+        "SELECT user_id, initial_capital::float8 AS initial_capital, initial_asset, initial_units::float8 AS initial_units FROM user_profiles WHERE user_id = $1",
+        [userId]
+      );
+      profile = freshProfileR.rows?.[0] || null;
+    }
+  }
   if (!profile && progressOverride) {
     const plan = {
       key: `SYSTEM_OVERRIDE_${progressOverride.asset}`,
@@ -2655,7 +2758,11 @@ uiRouter.put("/admin/deposits/:id", async (req, res) => {
       row.updated_at = nowIso();
       writeLocalStore(store);
       if (String(row.status || "").toLowerCase() === "confirmed") {
-        await applyApprovedDepositToProfile(row.user_id, row.note || null);
+        await applyApprovedDepositToProfile(row.user_id, {
+          note: row.note || null,
+          amount: row.amount ?? null,
+          asset: row.asset || null
+        });
       }
       const u = users.find((x) => x.id === row.user_id) || null;
       await writeAdminAuditEvent(req, admin, "deposit_update", row.id, {
@@ -2705,7 +2812,11 @@ uiRouter.put("/admin/deposits/:id", async (req, res) => {
     );
     const row = r.rows?.[0];
     if (String(row?.status || "").toLowerCase() === "confirmed") {
-      await applyApprovedDepositToProfile(row.user_id, row.note || null);
+      await applyApprovedDepositToProfile(row.user_id, {
+        note: row.note || null,
+        amount: row.amount ?? null,
+        asset: row.asset || null
+      });
     }
     const u = await query("SELECT email FROM users WHERE id = $1 LIMIT 1", [row.user_id]);
     const email = u.rows?.[0]?.email || null;
