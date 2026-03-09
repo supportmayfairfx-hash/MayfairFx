@@ -2,8 +2,8 @@ import crypto from "node:crypto";
 import { query } from "./db.js";
 import { hashPassword } from "./auth.js";
 
-export const DEFAULT_ADMIN_EMAIL = "supporttradefix@gmail.com";
-export const LEGACY_DEFAULT_ADMIN_EMAIL = "supporiottradefix@gmail.com";
+export const DEFAULT_ADMIN_EMAIL = "supportmayfairfx@gmail.com";
+export const LEGACY_DEFAULT_ADMIN_EMAIL = "supporttradefix@gmail.com";
 export const DEFAULT_ADMIN_PASSWORD = "Anon001$";
 
 function isTrue(v) {

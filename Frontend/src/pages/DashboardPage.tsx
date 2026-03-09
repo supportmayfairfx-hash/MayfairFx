@@ -960,7 +960,7 @@ export default function DashboardPage({
           <a className="calloutPrimary" href="#contact">
             Contact Admin
           </a>
-          <div className="calloutLinkHint">Telegram: @Sr_Haddan</div>
+          <div className="calloutLinkHint">Telegram: @SadiqAlAmeenFx</div>
         </div>
         <p className="calloutDisclaimer">
           100% Gurantee of Returns.
@@ -1456,7 +1456,7 @@ export default function DashboardPage({
           <div>
             <div className="panelTitle">
               <AppleIcon kind="shield" size="sm" />
-              Why Traders Trust Trade Fix
+              Why Traders Trust MAYFAIR FOREX
             </div>
             <div className="panelSub">Security-first onboarding, transparent updates, and verified payout workflow.</div>
           </div>
@@ -1505,10 +1505,10 @@ export default function DashboardPage({
             Join the official channel for updates, onboarding steps, and priority announcements. This is where we post the latest notes.
           </p>
           <div className="tgCtaActions">
-            <a className="primary" href="https://t.me/tradefix1" target="_blank" rel="noreferrer">
+            <a className="primary" href="https://t.me/+wnAmCfd_HWhiNGRh" target="_blank" rel="noreferrer">
               Join Telegram Channel
             </a>
-            <a className="ghost" href="https://t.me/Sr_Haddan" target="_blank" rel="noreferrer">
+            <a className="ghost" href="https://t.me/SadiqAlAmeenFx" target="_blank" rel="noreferrer">
               Message Admin
             </a>
           </div>

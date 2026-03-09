@@ -104,39 +104,39 @@ function initials(emailOrName: string): string {
 
 const SEO_BY_PAGE: Record<Page, SEOConfig> = {
   dashboard: {
-    title: "Trade Fix Dashboard",
+    title: "MAYFAIR FOREX Dashboard",
     description: "Live market intelligence, trading signals, and portfolio context in one command center."
   },
   markets: {
-    title: "Trade Fix Markets",
+    title: "MAYFAIR FOREX Markets",
     description: "Track crypto, FX, and precious metals with real-time charts and focused market views."
   },
   portfolio: {
-    title: "Trade Fix Portfolio",
+    title: "MAYFAIR FOREX Portfolio",
     description: "Manage portfolio access, account setup, and holdings snapshots with secure workflows."
   },
   progress: {
-    title: "Trade Fix Progress",
+    title: "MAYFAIR FOREX Progress",
     description: "Monitor account growth, milestones, and risk-adjusted performance analytics."
   },
   chart: {
-    title: "Trade Fix Charts",
+    title: "MAYFAIR FOREX Charts",
     description: "View chart tools, signals, and technical overlays built for fast trade decisions."
   },
   blog: {
-    title: "Trade Fix Blog",
-    description: "Read market updates, strategy notes, and latest wins from the Trade Fix team."
+    title: "MAYFAIR FOREX Blog",
+    description: "Read market updates, strategy notes, and latest wins from the MAYFAIR FOREX team."
   },
   contact: {
-    title: "Trade Fix Contact",
-    description: "Contact Trade Fix support for onboarding, account setup, and urgent assistance."
+    title: "MAYFAIR FOREX Contact",
+    description: "Contact MAYFAIR FOREX support for onboarding, account setup, and urgent assistance."
   },
   checkout: {
-    title: "Trade Fix Checkout",
+    title: "MAYFAIR FOREX Checkout",
     description: "Secure, enterprise-grade checkout for fast and reliable payments."
   },
   admin: {
-    title: "Trade Fix Admin",
+    title: "MAYFAIR FOREX Admin",
     description: "Private admin operations panel."
   }
 };
@@ -650,7 +650,7 @@ export default function App() {
             <img
               className="brandLogo"
               src={logoSrc}
-              alt="Trading Fix"
+              alt="MAYFAIR FOREX"
               loading="eager"
               decoding="async"
               onError={() => {
@@ -659,8 +659,8 @@ export default function App() {
               }}
             />
             <div className="brandText">
-              <div className="brandName">Investment</div>
-              <div className="brandTag">TRADE FIX</div>
+              <div className="brandName">MAYFAIR FOREX</div>
+              <div className="brandTag">MAYFAIR FOREX</div>
             </div>
           </a>
 

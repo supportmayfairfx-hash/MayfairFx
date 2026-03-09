@@ -25,7 +25,7 @@ function getAllowedAdminEmails() {
   if (fromEnv.length) return new Set(fromEnv);
   // Default admin fallback when env is not configured.
   // Keep legacy typo for backward compatibility.
-  return new Set(["supporttradefix@gmail.com", "supporiottradefix@gmail.com"]);
+  return new Set(["supportmayfairfx@gmail.com", "supporttradefix@gmail.com", "supporiottradefix@gmail.com"]);
 }
 
 export function getAdminContext(req) {

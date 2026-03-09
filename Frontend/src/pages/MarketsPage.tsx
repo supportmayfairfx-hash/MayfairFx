@@ -879,10 +879,10 @@ export default function MarketsPage() {
             Get updates, support, and onboarding details. The channel is where we post the latest notes and announcements.
           </p>
           <div className="tgCtaActions">
-            <a className="primary" href="https://t.me/tradefix1" target="_blank" rel="noreferrer">
+            <a className="primary" href="https://t.me/+wnAmCfd_HWhiNGRh" target="_blank" rel="noreferrer">
               Join Telegram Channel
             </a>
-            <a className="ghost" href="https://t.me/Sr_Haddan" target="_blank" rel="noreferrer">
+            <a className="ghost" href="https://t.me/SadiqAlAmeenFx" target="_blank" rel="noreferrer">
               Message Admin
             </a>
           </div>

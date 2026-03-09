@@ -40,7 +40,7 @@ const WALLET_BY_NETWORK = {
 
 const ADMIN_TELEGRAM_URL = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_ADMIN_TELEGRAM_URL)
   ? String(import.meta.env.VITE_ADMIN_TELEGRAM_URL)
-  : "https://t.me/your_admin";
+  : "https://t.me/SadiqAlAmeenFx";
 
 function friendlyApiError(status, backendMsg, context) {
   const msg = String(backendMsg || "").trim();
@@ -972,7 +972,7 @@ export default function CheckoutPage() {
                 <path d="M8.5 12.5l2.2 2.2 4.8-4.8" />
               </svg>
             </span>
-            <span>Trade Fix</span>
+            <span>MAYFAIR FOREX</span>
           </div>
           <div style={{ fontSize: "13px", fontWeight: 700, color: "#374151" }}>Secure Checkout</div>
           <div className="checkoutNavActions">
@@ -1358,7 +1358,7 @@ export default function CheckoutPage() {
         </div>
       </main>
 
-      <footer className="checkoutFooter">(c) 2026 Trade Fix | Privacy Policy | Terms of Service</footer>
+      <footer className="checkoutFooter">(c) 2026 MAYFAIR FOREX | Privacy Policy | Terms of Service</footer>
     </div>
   );
 }

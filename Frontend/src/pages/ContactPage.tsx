@@ -17,9 +17,9 @@ function addRipple(e: React.PointerEvent<HTMLElement>) {
 }
 
 export default function ContactPage() {
-  const email = "supporttradefix@gmail.com";
-  const tg = "https://t.me/Sr_Haddan";
-  const channel = "https://t.me/tradefix1";
+  const email = "supportmayfairfx@gmail.com";
+  const tg = "https://t.me/SadiqAlAmeenFx";
+  const channel = "https://t.me/+wnAmCfd_HWhiNGRh";
   const [copyState, setCopyState] = useState<"idle" | "loading" | "ok" | "err">("idle");
 
   const copyLabel = useMemo(() => {
@@ -101,7 +101,7 @@ export default function ContactPage() {
               <div className="panelTitle">Telegram</div>
               <div className="panelSub">Message the admin directly</div>
             </div>
-            <div className="muted mono">@Sr_Haddan</div>
+            <div className="muted mono">@SadiqAlAmeenFx</div>
           </div>
           <div className="authBody">
             <div className="pairsNote">
@@ -126,7 +126,7 @@ export default function ContactPage() {
               <div className="panelTitle">Telegram Channel</div>
               <div className="panelSub">Community updates and announcements</div>
             </div>
-            <div className="muted mono">@tradefix1</div>
+            <div className="muted mono">Private invite link</div>
           </div>
           <div className="authBody">
             <div className="pairsNote">
