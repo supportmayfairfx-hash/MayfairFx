@@ -1288,8 +1288,8 @@ export default function AdminPage() {
       <section className="pageHero">
         <div>
           <div className="eyebrow">Admin</div>
-          <h1 className="pageTitle">Elite operations console</h1>
-          <p className="pageLead">Role-gated access, audit trail, and confirmation-protected destructive actions.</p>
+          <h1 className="pageTitle">Admin Access Portal</h1>
+          <p className="pageLead">Secure sign-in for Mayfair Forex operations. After login, you can manage checkout deposit approvals.</p>
         </div>
       </section>
 
@@ -1311,22 +1311,44 @@ export default function AdminPage() {
           <div className="marketCard spanFull">
             <div className="marketCardHead">
               <div>
-                <div className="panelTitle">Role Admin Login</div>
-                <div className="panelSub">Login first. Admin tools unlock only after successful admin session.</div>
+                <div className="panelTitle">Admin Login Portal</div>
+                <div className="panelSub">Sign in to access the Checkout Deposit Approval Queue.</div>
               </div>
-              <div className="muted mono">not authenticated</div>
+              <div className="muted mono">status: not authenticated</div>
             </div>
             <div className="authBody">
-              <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
-                <input value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="admin email" />
-                <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="password" />
-                <input value={loginAuthCode} onChange={(e) => setLoginAuthCode(e.target.value)} placeholder="AUTH code (default admin can leave blank)" />
+              <div style={{ display: "grid", gap: 14, gridTemplateColumns: "minmax(320px,2fr) minmax(240px,1fr)" }}>
+                <div style={{ display: "grid", gap: 10 }}>
+                  <label className="pairsNote">
+                    <span className="muted">Admin Email</span>
+                    <input value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="admin email" />
+                  </label>
+                  <label className="pairsNote">
+                    <span className="muted">Password</span>
+                    <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="password" />
+                  </label>
+                  <label className="pairsNote">
+                    <span className="muted">AUTH Code (Optional)</span>
+                    <input value={loginAuthCode} onChange={(e) => setLoginAuthCode(e.target.value)} placeholder="leave blank for default admin" />
+                  </label>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <button className="primary" type="button" onClick={() => void signInRoleAdmin()} disabled={busy}>Sign in</button>
+                    <button className="mini" type="button" onClick={() => void refreshSession()} disabled={busy}>Check admin session</button>
+                  </div>
+                  <div className="pairsNote">
+                    <span className="mono">Tip:</span> use the prefilled credentials, then click <span className="mono">Sign in</span>.
+                  </div>
+                </div>
+
+                <div style={{ border: "1px solid rgba(255,255,255,.12)", borderRadius: 12, padding: 12, background: "rgba(6,12,26,.32)" }}>
+                  <div className="panelTitle">Quick Guide</div>
+                  <div className="pairsNote">1. Confirm email and password.</div>
+                  <div className="pairsNote">2. Leave AUTH code empty unless required.</div>
+                  <div className="pairsNote">3. Click Sign in.</div>
+                  <div className="pairsNote">4. Approve or reject pending checkout deposits.</div>
+                </div>
               </div>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <button className="mini" type="button" onClick={() => void signInRoleAdmin()} disabled={busy}>Sign in</button>
-                <button className="mini" type="button" onClick={() => void refreshSession()} disabled={busy}>Check admin session</button>
-              </div>
-              {error ? <div className="authError">{error}</div> : null}
+              {error ? <Notice tone="warn" title="Login failed">{error}</Notice> : null}
             </div>
           </div>
         </section>
