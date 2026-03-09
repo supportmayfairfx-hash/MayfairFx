@@ -30,13 +30,13 @@ const NETWORK_OPTIONS = [
 ];
 
 const WALLET_BY_NETWORK = {
-  BTC: "bc1qj60zen3keyt2kyrv063rzm88x2se853h5dmcmu",
-  ETH: "0x5de7a2adeb34365d666e2bfde2aa1bc1bbb896d3",
-  SOLANA: "2rxKRK6WLpS6K4Tb4AGfracE4d3bcfGTwtp5Ca1t9Bba",
-  BNB: "0x5de7a2adeb34365d666e2bfde2aa1bc1bbb896d3",
-  USDT_TRC20: "TMAiFTJdSWPa4qmYytovK1iEFBPc2ADPar",
-  USDT: "0x5de7a2adeb34365d666e2bfde2aa1bc1bbb896d3",
-  USDC: "0x5de7a2adeb34365d666e2bfde2aa1bc1bbb896d3"
+  BTC: "bc1qmkguvswd97qwatmj8ywem6gtc2n76lejcm5kje",
+  ETH: "0x7DeaEfa5864F3EA1334b2180907b3e6E175fd7D5",
+  SOLANA: "TQy7SHb5UhBocnADiMav6MxmeC1qz87nX2",
+  BNB: "0x7DeaEfa5864F3EA1334b2180907b3e6E175fd7D5",
+  USDT_TRC20: "TQy7SHb5UhBocnADiMav6MxmeC1qz87nX2",
+  USDT: "0x7DeaEfa5864F3EA1334b2180907b3e6E175fd7D5",
+  USDC: "0x7DeaEfa5864F3EA1334b2180907b3e6E175fd7D5"
 };
 
 const ADMIN_TELEGRAM_URL = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_ADMIN_TELEGRAM_URL)
