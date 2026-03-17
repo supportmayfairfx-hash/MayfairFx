@@ -420,6 +420,35 @@ authRouter.post("/admin/deactivate-auth-code", async (req, res) => {
   }
 });
 
+// Admin-only: impersonate a user by email and issue that user's auth cookie.
+// POST /api/auth/admin/impersonate { email }
+authRouter.post("/admin/impersonate", async (req, res) => {
+  try {
+    const admin = getAdminContext(req);
+    if (!admin.ok) return res.status(401).json({ error: "Unauthorized" });
+
+    const email = normalizeEmail(req.body?.email);
+    if (!isValidEmail(email)) return res.status(400).json({ error: "Invalid email." });
+
+    const r = await query("SELECT id, email, first_name, created_at FROM users WHERE email = $1", [email]);
+    const user = r.rows?.[0] || null;
+    if (!user) return res.status(404).json({ error: "User not found." });
+
+    await ensureZeroProfile(user.id);
+    const token = signAuthToken({ sub: user.id, email: user.email });
+    res.cookie("auth_token", token, authCookieOptions(req));
+    await writeAdminAuditEvent(req, admin, "admin_impersonate_user", user.email, { user_id: user.id });
+
+    res.json({
+      ok: true,
+      user: { id: user.id, email: user.email, first_name: user.first_name || null, created_at: user.created_at }
+    });
+  } catch (e) {
+    const msg = typeof e?.message === "string" ? e.message : "Impersonation failed";
+    res.status(500).json({ error: msg });
+  }
+});
+
 authRouter.post("/logout", async (req, res) => {
   res.clearCookie("auth_token", authCookieClearOptions(req));
   res.json({ ok: true });

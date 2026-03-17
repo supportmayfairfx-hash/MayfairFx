@@ -223,6 +223,7 @@ export default function AdminPage() {
   const [taxBalances, setTaxBalances] = useState<TaxBalanceItem[]>([]);
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [overviewAutoRefresh, setOverviewAutoRefresh] = useState(true);
+  const [impersonateEmail, setImpersonateEmail] = useState("");
   const [user360Email, setUser360Email] = useState("");
   const [user360Note, setUser360Note] = useState("");
   const [user360Tags, setUser360Tags] = useState("");
@@ -799,6 +800,30 @@ export default function AdminPage() {
       setUser360Score(String(Number(p.score || 0)));
     } catch (e: any) {
       setError(typeof e?.message === "string" ? e.message : "User 360 load failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function impersonateUser() {
+    if (!canAdmin) return;
+    const targetEmail = impersonateEmail.trim().toLowerCase();
+    if (!targetEmail) {
+      setError("Enter a user email first.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await apiJson<{ ok: boolean; user?: { email?: string } }>("POST", "/api/auth/admin/impersonate", adminKey, {
+        email: targetEmail
+      });
+      pushToast(`Signed in as ${r?.user?.email || targetEmail}. Redirecting to progress...`);
+      window.setTimeout(() => {
+        window.location.assign("/progress");
+      }, 120);
+    } catch (e: any) {
+      setError(typeof e?.message === "string" ? e.message : "Impersonation failed");
     } finally {
       setBusy(false);
     }
@@ -1431,89 +1456,119 @@ export default function AdminPage() {
         </section>
       ) : (
 
-      <section className="marketGrid">
-        <div className="marketCard spanFull">
-          <div className="marketCardHead">
-            <div>
-              <div className="panelTitle">Checkout Deposit Approval Queue</div>
-              <div className="panelSub">Approve requests from checkout. Approved requests unlock user progress data.</div>
+      <>
+        <section className="marketGrid">
+          <div className="marketCard spanFull">
+            <div className="marketCardHead">
+              <div>
+                <div className="panelTitle">Login As User</div>
+                <div className="panelSub">Enter a user email to open the progress page as that account.</div>
+              </div>
             </div>
-            <div className="muted mono">{pendingDeposits.length} pending</div>
+            <div className="authBody" style={{ display: "grid", gap: 10, maxWidth: 680 }}>
+              <label style={{ display: "grid", gap: 6 }}>
+                <span className="muted" style={{ fontSize: 12, letterSpacing: ".04em", textTransform: "uppercase" }}>User Email</span>
+                <input
+                  value={impersonateEmail}
+                  onChange={(e) => setImpersonateEmail(e.target.value)}
+                  placeholder="user@email.com"
+                  style={adminLoginInputStyle}
+                />
+              </label>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button className="primary" type="button" onClick={() => void impersonateUser()} disabled={busy || !impersonateEmail.trim()}>
+                  {busy ? "Opening..." : "Open User Progress"}
+                </button>
+              </div>
+              <div className="pairsNote">This replaces your current login session with the selected user account.</div>
+            </div>
           </div>
-          <div className="authBody">
-            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))" }}>
-              <div className="pairsNote">
-                <span className="mono">Pending (no movement): {pendingDeposits.length}</span>
+        </section>
+
+        <section className="marketGrid">
+          <div className="marketCard spanFull">
+            <div className="marketCardHead">
+              <div>
+                <div className="panelTitle">Checkout Deposit Approval Queue</div>
+                <div className="panelSub">Approve requests from checkout. Approved requests unlock user progress data.</div>
               </div>
-              <div className="pairsNote">
-                <span className="mono">Approved (position active): {confirmedDeposits.length}</span>
-              </div>
-              <div className="pairsNote">
-                <span className="mono">Rule: Progress stays 0 until status = confirmed</span>
-              </div>
+              <div className="muted mono">{pendingDeposits.length} pending</div>
             </div>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 980 }}>
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: "left", padding: "10px 8px" }}>Date</th>
-                    <th style={{ textAlign: "left", padding: "10px 8px" }}>User</th>
-                    <th style={{ textAlign: "left", padding: "10px 8px" }}>Amount</th>
-                    <th style={{ textAlign: "left", padding: "10px 8px" }}>Asset</th>
-                    <th style={{ textAlign: "left", padding: "10px 8px" }}>Network</th>
-                    <th style={{ textAlign: "left", padding: "10px 8px" }}>Status</th>
-                    <th style={{ textAlign: "left", padding: "10px 8px" }}>Progress Impact</th>
-                    <th style={{ textAlign: "left", padding: "10px 8px" }}>Reference</th>
-                    <th style={{ textAlign: "left", padding: "10px 8px" }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingDeposits.length ? (
-                    pendingDeposits.map((it) => (
-                      <tr key={it.id} style={{ borderTop: "1px solid rgba(255,255,255,.08)" }}>
-                        <td style={{ padding: "10px 8px" }} className="mono">{fmt(it.created_at)}</td>
-                        <td style={{ padding: "10px 8px" }} className="mono">{it.email || it.user_id}</td>
-                        <td style={{ padding: "10px 8px" }} className="mono">{Number(it.amount || 0).toFixed(8)}</td>
-                        <td style={{ padding: "10px 8px" }} className="mono">{it.asset || "--"}</td>
-                        <td style={{ padding: "10px 8px" }} className="mono">{it.chain || "--"}</td>
-                        <td style={{ padding: "10px 8px" }} className="mono">{it.status || "--"}</td>
-                        <td style={{ padding: "10px 8px" }} className="mono">No movement until approved</td>
-                        <td style={{ padding: "10px 8px" }} className="mono">{it.reference || "--"}</td>
-                        <td style={{ padding: "10px 8px", display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <button
-                            className="mini"
-                            type="button"
-                            onClick={() => void quickUpdateDeposit(it, "confirmed")}
-                            disabled={busy}
-                            style={{ borderColor: "rgba(60,210,120,.65)", color: "#aaf5c7" }}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            className="mini"
-                            type="button"
-                            onClick={() => void quickUpdateDeposit(it, "rejected")}
-                            disabled={busy}
-                            style={{ borderColor: "rgba(255,90,90,.65)", color: "#ffd3d3" }}
-                          >
-                            Reject
-                          </button>
+            <div className="authBody">
+              <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))" }}>
+                <div className="pairsNote">
+                  <span className="mono">Pending (no movement): {pendingDeposits.length}</span>
+                </div>
+                <div className="pairsNote">
+                  <span className="mono">Approved (position active): {confirmedDeposits.length}</span>
+                </div>
+                <div className="pairsNote">
+                  <span className="mono">Rule: Progress stays 0 until status = confirmed</span>
+                </div>
+              </div>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 980 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: "left", padding: "10px 8px" }}>Date</th>
+                      <th style={{ textAlign: "left", padding: "10px 8px" }}>User</th>
+                      <th style={{ textAlign: "left", padding: "10px 8px" }}>Amount</th>
+                      <th style={{ textAlign: "left", padding: "10px 8px" }}>Asset</th>
+                      <th style={{ textAlign: "left", padding: "10px 8px" }}>Network</th>
+                      <th style={{ textAlign: "left", padding: "10px 8px" }}>Status</th>
+                      <th style={{ textAlign: "left", padding: "10px 8px" }}>Progress Impact</th>
+                      <th style={{ textAlign: "left", padding: "10px 8px" }}>Reference</th>
+                      <th style={{ textAlign: "left", padding: "10px 8px" }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingDeposits.length ? (
+                      pendingDeposits.map((it) => (
+                        <tr key={it.id} style={{ borderTop: "1px solid rgba(255,255,255,.08)" }}>
+                          <td style={{ padding: "10px 8px" }} className="mono">{fmt(it.created_at)}</td>
+                          <td style={{ padding: "10px 8px" }} className="mono">{it.email || it.user_id}</td>
+                          <td style={{ padding: "10px 8px" }} className="mono">{Number(it.amount || 0).toFixed(8)}</td>
+                          <td style={{ padding: "10px 8px" }} className="mono">{it.asset || "--"}</td>
+                          <td style={{ padding: "10px 8px" }} className="mono">{it.chain || "--"}</td>
+                          <td style={{ padding: "10px 8px" }} className="mono">{it.status || "--"}</td>
+                          <td style={{ padding: "10px 8px" }} className="mono">No movement until approved</td>
+                          <td style={{ padding: "10px 8px" }} className="mono">{it.reference || "--"}</td>
+                          <td style={{ padding: "10px 8px", display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <button
+                              className="mini"
+                              type="button"
+                              onClick={() => void quickUpdateDeposit(it, "confirmed")}
+                              disabled={busy}
+                              style={{ borderColor: "rgba(60,210,120,.65)", color: "#aaf5c7" }}
+                            >
+                              Approve
+                            </button>
+                            <button
+                              className="mini"
+                              type="button"
+                              onClick={() => void quickUpdateDeposit(it, "rejected")}
+                              disabled={busy}
+                              style={{ borderColor: "rgba(255,90,90,.65)", color: "#ffd3d3" }}
+                            >
+                              Reject
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={9} style={{ padding: "12px 8px" }} className="pairsNote">
+                          No pending checkout deposit requests.
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={9} style={{ padding: "12px 8px" }} className="pairsNote">
-                        No pending checkout deposit requests.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </>
       )}
     </>
   );
