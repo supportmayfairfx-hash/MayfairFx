@@ -823,7 +823,12 @@ export default function AdminPage() {
         window.location.assign("/progress");
       }, 120);
     } catch (e: any) {
-      setError(typeof e?.message === "string" ? e.message : "Impersonation failed");
+      const msg = typeof e?.message === "string" ? e.message : "Impersonation failed";
+      if (msg.includes("HTTP 404")) {
+        setError("Impersonation endpoint is missing on the live backend. Redeploy backend with the latest main branch.");
+      } else {
+        setError(msg);
+      }
     } finally {
       setBusy(false);
     }
