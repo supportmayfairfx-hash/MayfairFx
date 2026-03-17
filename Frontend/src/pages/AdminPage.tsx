@@ -1327,6 +1327,20 @@ export default function AdminPage() {
           <p className="pageLead">Secure sign-in for Mayfair Forex operations. After login, you can manage checkout deposit approvals.</p>
         </div>
       </section>
+      {error ? (
+        <section className="marketGrid">
+          <div className="marketCard spanFull">
+            <Notice tone="warn" title="Admin action failed">{error}</Notice>
+          </div>
+        </section>
+      ) : null}
+      {toastMsg ? (
+        <section className="marketGrid">
+          <div className="marketCard spanFull">
+            <Notice tone="info" title="Update">{toastMsg}</Notice>
+          </div>
+        </section>
+      ) : null}
 
       {confirmAction ? (
         <div className="mobilePanel" style={{ display: "block" }} onClick={closeConfirm}>
