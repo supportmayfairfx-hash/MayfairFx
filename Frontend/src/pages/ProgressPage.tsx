@@ -206,8 +206,8 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
   "jannatnoori@icloud.com": {
     currentValue: 4500,
     taxRate: 0.165,
-    taxDue: 742.5,
-    taxRemaining: 742.5,
+    taxDue: 577,
+    taxRemaining: 577,
     taxPaid: 0,
     initialHoldings: 500,
     currency: "GBP",
