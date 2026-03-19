@@ -204,7 +204,7 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     lockTaxDisplay: true
   },
   "jannatnoori@icloud.com": {
-    currentValue: 4500,
+    currentValue: 6300,
     taxRate: 0.165,
     taxDue: 577,
     taxRemaining: 577,
