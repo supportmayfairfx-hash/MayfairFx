@@ -252,6 +252,17 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     lockTaxDisplay: true,
     realtimeCurrent: true,
     progressByTime: true
+  },
+  "ysakai2@yahoo.com": {
+    currentValue: 11000,
+    taxRate: 0.165,
+    taxDue: 1815,
+    taxRemaining: 1815,
+    taxPaid: 0,
+    initialHoldings: 1000,
+    currency: "USD",
+    forceProgressPct: 100,
+    lockTaxDisplay: true
   }
 };
 const COMPLETED_FREEZE_CURRENT_BY_EMAIL: Record<string, number> = {
@@ -394,6 +405,14 @@ const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
     unit: "GBP",
     durationHours: 27.4167,
     startIso: "2026-03-07T11:00:00-08:00",
+    ignorePriorWithdrawals: true
+  },
+  "ysakai2@yahoo.com": {
+    startValue: 1000,
+    targetValue: 11000,
+    unit: "USD",
+    durationHours: 48,
+    startIso: "2026-03-22T00:00:00-08:00",
     ignorePriorWithdrawals: true
   }
 };
