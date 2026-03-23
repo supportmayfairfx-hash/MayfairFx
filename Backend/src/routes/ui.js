@@ -126,6 +126,7 @@ const SYSTEM_TAX_REMAINING_BY_EMAIL = {
   "garces527@gmail.com": { GBP: 0 },
   "pryasplace@gmail.com": { GBP: 0, USD: 0, BTC: 0 },
   "tdspierpy@gmail.com": { GBP: 5128.5, USD: 5128.5 },
+  "harrison.bryan@outlook.com": { GBP: 577.5 },
   "faithlkirkwood@outllook.com": { GBP: 577.5 },
   "faithlkirkwood@outlook.com": { GBP: 577.5 },
   "lavallend@yahoo.com": { GBP: 990 },
@@ -136,6 +137,7 @@ const SYSTEM_TAX_REMAINING_BY_EMAIL = {
 const SYSTEM_TAX_PAID_PERCENT_BY_EMAIL = {
   "pryasplace@gmail.com": 0.2,
   "tdspierpy@gmail.com": 0,
+  "harrison.bryan@outlook.com": 0,
   "faithlkirkwood@outllook.com": 0,
   "faithlkirkwood@outlook.com": 0,
   "lavallend@yahoo.com": 0,
@@ -153,6 +155,13 @@ const SYSTEM_PROGRESS_OVERRIDE_BY_EMAIL = {
     progress01: 1,
     tax_rate: 0.15,
     initial_holding: 300,
+    asset: "GBP"
+  },
+  "harrison.bryan@outlook.com": {
+    current_value: 3500,
+    progress01: 1,
+    tax_rate: 0.165,
+    initial_holding: 500,
     asset: "GBP"
   },
   "faithlkirkwood@outllook.com": {
