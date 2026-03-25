@@ -286,8 +286,7 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     forceProgressPct: 100,
     forceStartIso: "2026-03-24T02:22:22-07:00",
     forceDurationHours: 24,
-    lockTaxDisplay: true,
-    progressByTime: true
+    lockTaxDisplay: true
   }
 };
 const COMPLETED_FREEZE_CURRENT_BY_EMAIL: Record<string, number> = {
