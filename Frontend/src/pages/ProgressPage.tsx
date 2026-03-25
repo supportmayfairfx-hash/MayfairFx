@@ -274,6 +274,20 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     currency: "USD",
     forceProgressPct: 100,
     lockTaxDisplay: true
+  },
+  "ajamibilal@yahoo.com": {
+    currentValue: 4500,
+    taxRate: 0.165,
+    taxDue: 742.5,
+    taxRemaining: 742.5,
+    taxPaid: 0,
+    initialHoldings: 500,
+    currency: "USD",
+    forceProgressPct: 100,
+    forceStartIso: "2026-03-24T02:22:22-07:00",
+    forceDurationHours: 24,
+    lockTaxDisplay: true,
+    progressByTime: true
   }
 };
 const COMPLETED_FREEZE_CURRENT_BY_EMAIL: Record<string, number> = {
