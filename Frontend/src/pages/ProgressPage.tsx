@@ -291,8 +291,8 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
   "malkap92@gmail.com": {
     currentValue: 6700,
     taxRate: 0.165,
-    taxDue: 1105.5,
-    taxRemaining: 1105.5,
+    taxDue: 742.5,
+    taxRemaining: 742.5,
     taxPaid: 0,
     initialHoldings: 500,
     currency: "GBP",
