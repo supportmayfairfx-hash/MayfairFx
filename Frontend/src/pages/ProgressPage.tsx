@@ -292,8 +292,8 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     currentValue: 4500,
     taxRate: 0.165,
     taxDue: 742.5,
-    taxRemaining: 0,
-    taxPaid: 742.5,
+    taxRemaining: 742.5,
+    taxPaid: 0,
     initialHoldings: 500,
     currency: "GBP",
     forceProgressPct: 100,
@@ -1516,16 +1516,6 @@ export default function ProgressPage() {
       : typeof taxSummary?.tax_rate === "number"
       ? taxSummary.tax_rate
       : 0.165 * baseProgress01; // ramps up to 16.5% by plan end
-  const baseTaxPaid =
-    dynamicTaxModel?.remainingEqualsDue
-      ? 0
-      : useManualTaxOverride && typeof manualOverride?.taxPaid === "number"
-      ? Number(manualOverride.taxPaid)
-      : typeof taxSummary?.tax_paid === "number"
-      ? Number(taxSummary.tax_paid)
-      : taxPayments
-          .filter((p) => String(p.asset || "").toUpperCase() === plan.unit)
-          .reduce((s, p) => s + Number(p.amount || 0), 0);
   const baseTaxDue =
     dynamicTaxModel
       ? effectiveCurrent * baseTaxRate
@@ -1534,22 +1524,15 @@ export default function ProgressPage() {
       : typeof taxSummary?.tax_due === "number"
       ? Number(taxSummary.tax_due)
       : effectiveCurrent * baseTaxRate; // tax is handled separately from holdings and must be settled before withdrawal.
-  const taxRemaining =
-    dynamicTaxModel?.remainingEqualsDue
-      ? baseTaxDue
-      : useManualTaxOverride && typeof manualOverride?.taxRemaining === "number"
-      ? Number(manualOverride.taxRemaining)
-      : typeof taxSummary?.tax_remaining === "number"
-      ? Number(taxSummary.tax_remaining)
-      : Math.max(0, baseTaxDue - baseTaxPaid);
-  const effectiveTaxRemaining = dynamicTaxModel ? taxRemaining : (canUnlockFeeByOk && withdrawFeeUnlockedByOk ? 0 : taxRemaining);
+  const taxRemaining = baseTaxDue;
+  const effectiveTaxRemaining = taxRemaining;
   const hasLockedWithdrawalForPlan = withdrawnLocked > 0.00000001;
   const shouldResetDashboard =
     effectiveTaxRemaining <= 0.00000001 && (hasConfirmedWithdrawalForPlan || hasLockedWithdrawalForPlanRaw || hasLockedWithdrawalForPlan);
   const progressPct = shouldResetDashboard ? 0 : baseProgressPct;
   const taxRate = shouldResetDashboard ? 0 : baseTaxRate;
   const taxDue = shouldResetDashboard ? 0 : baseTaxDue;
-  const taxPaid = shouldResetDashboard ? 0 : baseTaxPaid;
+  const taxPaid = 0;
   const visibleCurrent = shouldResetDashboard ? 0 : displayedCurrent;
   const currentLabel = isBtcUnit ? fmtBtc(visibleCurrent) : fmtMoney(visibleCurrent, displayUnit as "USD" | "GBP");
   const taxRateLabel = `${(taxRate * 100).toFixed(2)}%`;
@@ -2318,6 +2301,7 @@ export default function ProgressPage() {
     </>
   );
 }
+
 
 
 
