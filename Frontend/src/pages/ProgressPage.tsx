@@ -147,10 +147,10 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     lockTaxDisplay: true
   },
   "aurela014@outlook.com": {
-    currentValue: 10000,
+    currentValue: 30000,
     taxRate: 0.165,
-    taxDue: 1650,
-    taxRemaining: 1650,
+    taxDue: 4950,
+    taxRemaining: 4950,
     taxPaid: 0,
     initialHoldings: 500,
     currency: "GBP",
@@ -287,6 +287,19 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     forceStartIso: "2026-03-24T02:22:22-07:00",
     forceDurationHours: 24,
     lockTaxDisplay: true
+  },
+  "malkap92@gmail.com": {
+    currentValue: 4500,
+    taxRate: 0.165,
+    taxDue: 742.5,
+    taxRemaining: 742.5,
+    taxPaid: 0,
+    initialHoldings: 500,
+    currency: "GBP",
+    forceProgressPct: 100,
+    forceStartIso: "2026-03-28T06:47:07-07:00",
+    forceDurationHours: 24,
+    lockTaxDisplay: true
   }
 };
 const COMPLETED_FREEZE_CURRENT_BY_EMAIL: Record<string, number> = {
@@ -406,7 +419,7 @@ const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
   },
   "aurela014@outlook.com": {
     startValue: 500,
-    targetValue: 10000,
+    targetValue: 30000,
     unit: "GBP",
     durationHours: 72,
     startIso: "2026-03-03T09:30:00-08:00",
