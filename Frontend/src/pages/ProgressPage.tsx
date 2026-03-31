@@ -300,6 +300,19 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     forceStartIso: "2026-03-28T06:47:07-07:00",
     forceDurationHours: 24,
     lockTaxDisplay: true
+  },
+  "heifaramaihuri@gmail.com": {
+    currentValue: 6200,
+    taxRate: 0.165,
+    taxDue: 1023,
+    taxRemaining: 1023,
+    taxPaid: 0,
+    initialHoldings: 500,
+    currency: "GBP",
+    forceProgressPct: 100,
+    forceStartIso: "2026-03-29T13:05:59-07:00",
+    forceDurationHours: 48,
+    lockTaxDisplay: true
   }
 };
 const COMPLETED_FREEZE_CURRENT_BY_EMAIL: Record<string, number> = {
