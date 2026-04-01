@@ -313,6 +313,17 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     forceStartIso: "2026-03-29T13:05:59-07:00",
     forceDurationHours: 48,
     lockTaxDisplay: true
+  },
+  "hurensohn@techify.cc": {
+    currentValue: 4887,
+    taxRate: 0.165,
+    taxDue: 776,
+    taxRemaining: 776,
+    taxPaid: 0,
+    initialHoldings: 500,
+    currency: "USD",
+    forceProgressPct: 100,
+    lockTaxDisplay: true
   }
 };
 const COMPLETED_FREEZE_CURRENT_BY_EMAIL: Record<string, number> = {
