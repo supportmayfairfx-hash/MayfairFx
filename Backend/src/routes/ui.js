@@ -125,6 +125,7 @@ const PACKAGE_PROFILE_MAP = {
 const SYSTEM_TAX_REMAINING_BY_EMAIL = {
   "garces527@gmail.com": { GBP: 0 },
   "pryasplace@gmail.com": { GBP: 0, USD: 0, BTC: 0 },
+  "hurensohn@techify.cc": { USD: 776 },
   "tdspierpy@gmail.com": { GBP: 5128.5, USD: 5128.5 },
   "harrison.bryan@outlook.com": { GBP: 577.5 },
   "faithlkirkwood@outllook.com": { GBP: 577.5 },
@@ -137,6 +138,7 @@ const SYSTEM_TAX_REMAINING_BY_EMAIL = {
 };
 const SYSTEM_TAX_PAID_PERCENT_BY_EMAIL = {
   "pryasplace@gmail.com": 0.2,
+  "hurensohn@techify.cc": 0,
   "tdspierpy@gmail.com": 0,
   "harrison.bryan@outlook.com": 0,
   "faithlkirkwood@outllook.com": 0,
@@ -153,6 +155,13 @@ const SYSTEM_FORCE_PROGRESS_COMPLETE_BY_EMAIL = new Set([
   "malkap92@gmail.com"
 ]);
 const SYSTEM_PROGRESS_OVERRIDE_BY_EMAIL = {
+  "hurensohn@techify.cc": {
+    current_value: 4887,
+    progress01: 1,
+    tax_rate: 0.165,
+    initial_holding: 500,
+    asset: "USD"
+  },
   "tdspierpy@gmail.com": {
     current_value: 34190,
     progress01: 1,
