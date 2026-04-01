@@ -278,9 +278,9 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
   "ajamibilal@yahoo.com": {
     currentValue: 7100,
     taxRate: 0.165,
-    taxDue: 0,
+    taxDue: 1171.5,
     taxRemaining: 0,
-    taxPaid: 742,
+    taxPaid: 1171.5,
     initialHoldings: 500,
     currency: "USD",
     forceProgressPct: 100,
@@ -1548,7 +1548,10 @@ export default function ProgressPage() {
       : typeof taxSummary?.tax_due === "number"
       ? Number(taxSummary.tax_due)
       : effectiveCurrent * baseTaxRate; // tax is handled separately from holdings and must be settled before withdrawal.
-  const taxRemaining = baseTaxDue;
+  const forceTaxPaidEqualsDue = userEmailLower === "ajamibilal@yahoo.com";
+  const manualTaxPaid = useManualTaxOverride && typeof manualOverride?.taxPaid === "number" ? Number(manualOverride.taxPaid) : 0;
+  const taxPaidBase = forceTaxPaidEqualsDue ? baseTaxDue : manualTaxPaid;
+  const taxRemaining = Math.max(0, baseTaxDue - taxPaidBase);
   const effectiveTaxRemaining = taxRemaining;
   const hasLockedWithdrawalForPlan = withdrawnLocked > 0.00000001;
   const shouldResetDashboard =
@@ -1556,7 +1559,7 @@ export default function ProgressPage() {
   const progressPct = shouldResetDashboard ? 0 : baseProgressPct;
   const taxRate = shouldResetDashboard ? 0 : baseTaxRate;
   const taxDue = shouldResetDashboard ? 0 : baseTaxDue;
-  const taxPaid = 0;
+  const taxPaid = shouldResetDashboard ? 0 : taxPaidBase;
   const visibleCurrent = shouldResetDashboard ? 0 : displayedCurrent;
   const currentLabel = isBtcUnit ? fmtBtc(visibleCurrent) : fmtMoney(visibleCurrent, displayUnit as "USD" | "GBP");
   const taxRateLabel = `${(taxRate * 100).toFixed(2)}%`;
