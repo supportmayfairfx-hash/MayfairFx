@@ -324,6 +324,17 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     currency: "USD",
     forceProgressPct: 100,
     lockTaxDisplay: true
+  },
+  "klubsmasherz@gmail.com": {
+    currentValue: 5000,
+    taxRate: 0.165,
+    taxDue: 825,
+    taxRemaining: 825,
+    taxPaid: 0,
+    initialHoldings: 500,
+    currency: "GBP",
+    forceProgressPct: 100,
+    lockTaxDisplay: true
   }
 };
 const COMPLETED_FREEZE_CURRENT_BY_EMAIL: Record<string, number> = {
