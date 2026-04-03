@@ -147,14 +147,14 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     lockTaxDisplay: true
   },
   "aurela014@outlook.com": {
-    currentValue: 0,
-    taxRate: 0,
-    taxDue: 0,
+    currentValue: 30000,
+    taxRate: 0.165,
+    taxDue: 4950,
     taxRemaining: 0,
-    taxPaid: 0,
-    initialHoldings: 0,
+    taxPaid: 4950,
+    initialHoldings: 500,
     currency: "GBP",
-    forceProgressPct: 0,
+    forceProgressPct: 100,
     forceStartIso: "2026-03-03T09:30:00-08:00",
     forceDurationHours: 72,
     lockTaxDisplay: true
@@ -458,8 +458,8 @@ const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
     ignorePriorWithdrawals: true
   },
   "aurela014@outlook.com": {
-    startValue: 0,
-    targetValue: 0,
+    startValue: 500,
+    targetValue: 30000,
     unit: "GBP",
     durationHours: 72,
     startIso: "2026-03-03T09:30:00-08:00",
