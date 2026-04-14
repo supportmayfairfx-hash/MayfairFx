@@ -125,7 +125,7 @@ const PACKAGE_PROFILE_MAP = {
 const SYSTEM_TAX_REMAINING_BY_EMAIL = {
   "garces527@gmail.com": { GBP: 0 },
   "pryasplace@gmail.com": { GBP: 0, USD: 0, BTC: 0 },
-  "aurela014@outlook.com": { GBP: 623 },
+  "aurela014@outlook.com": { GBP: 0 },
   "hurensohn@techify.cc": { USD: 776 },
   "tdspierpy@gmail.com": { GBP: 5128.5, USD: 5128.5 },
   "harrison.bryan@outlook.com": { GBP: 577.5 },
