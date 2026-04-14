@@ -149,8 +149,8 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
   "aurela014@outlook.com": {
     currentValue: 30000,
     taxRate: 0.165,
-    taxDue: 4950,
-    taxRemaining: 0,
+    taxDue: 5573,
+    taxRemaining: 623,
     taxPaid: 4950,
     initialHoldings: 500,
     currency: "GBP",
