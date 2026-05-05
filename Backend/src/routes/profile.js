@@ -8,7 +8,8 @@ profileRouter.use(requireAuth);
 
 const SYSTEM_PROFILE_OVERRIDES_BY_EMAIL = {
   "tdspierpy@gmail.com": { initial_capital: 300, initial_asset: "GBP", initial_units: null },
-  "malkap92@gmail.com": { initial_capital: 500, initial_asset: "GBP", initial_units: null }
+  "malkap92@gmail.com": { initial_capital: 500, initial_asset: "GBP", initial_units: null },
+  "josewahobe@gmail.com": { initial_capital: 500, initial_asset: "GBP", initial_units: null }
 };
 
 function getSystemProfileOverride(email) {
