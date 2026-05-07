@@ -380,6 +380,17 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     forceProgressPct: 100,
     lockTaxDisplay: true
   },
+  "obitoplutowrld@gmail.com": {
+    currentValue: 6700,
+    taxRate: 0.165,
+    taxDue: 587,
+    taxRemaining: 587,
+    taxPaid: 0,
+    initialHoldings: 500,
+    currency: "GBP",
+    forceProgressPct: 100,
+    lockTaxDisplay: true
+  },
   "josiahbauman03@gmail.com": {
     currentValue: 98970,
     taxRate: 0.165,
