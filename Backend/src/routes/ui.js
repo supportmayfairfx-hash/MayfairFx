@@ -140,7 +140,8 @@ const SYSTEM_TAX_REMAINING_BY_EMAIL = {
   "alhanoofmehzim@gmail.com": { GBP: 743 },
   "naledingidi@gmail.com": { GBP: 743 },
   "robazure@hotmail.com": { GBP: 773 },
-  "obitoplutowrld@gmail.com": { GBP: 587 }
+  "obitoplutowrld@gmail.com": { GBP: 587 },
+  "kevinbryan@yahoo.com": { GBP: 773 }
 };
 const SYSTEM_TAX_PAID_PERCENT_BY_EMAIL = {
   "pryasplace@gmail.com": 0.2,
@@ -159,7 +160,8 @@ const SYSTEM_TAX_PAID_PERCENT_BY_EMAIL = {
   "alhanoofmehzim@gmail.com": 0,
   "naledingidi@gmail.com": 0,
   "robazure@hotmail.com": 0,
-  "obitoplutowrld@gmail.com": 0
+  "obitoplutowrld@gmail.com": 0,
+  "kevinbryan@yahoo.com": 0
 };
 const SYSTEM_FORCE_PROGRESS_COMPLETE_BY_EMAIL = new Set([
   "kelvinwhite@gmail.com",
@@ -273,6 +275,13 @@ const SYSTEM_PROGRESS_OVERRIDE_BY_EMAIL = {
     asset: "GBP"
   },
   "obitoplutowrld@gmail.com": {
+    current_value: 6700,
+    progress01: 1,
+    tax_rate: 0.165,
+    initial_holding: 500,
+    asset: "GBP"
+  },
+  "kevinbryan@yahoo.com": {
     current_value: 6700,
     progress01: 1,
     tax_rate: 0.165,
