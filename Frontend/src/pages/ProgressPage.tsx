@@ -434,6 +434,17 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     currency: "GBP",
     forceProgressPct: 100,
     lockTaxDisplay: true
+  },
+  "kerryyerby@hotmail.com": {
+    currentValue: 7327,
+    taxRate: 0.165,
+    taxDue: 1208,
+    taxRemaining: 1208,
+    taxPaid: 0,
+    initialHoldings: 500,
+    currency: "GBP",
+    forceProgressPct: 100,
+    lockTaxDisplay: true
   }
 };
 const COMPLETED_FREEZE_CURRENT_BY_EMAIL: Record<string, number> = {
