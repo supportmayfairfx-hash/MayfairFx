@@ -445,6 +445,17 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     currency: "GBP",
     forceProgressPct: 100,
     lockTaxDisplay: true
+  },
+  "fabricevahe@gmail.com": {
+    currentValue: 8700,
+    taxRate: 0.165,
+    taxDue: 1435,
+    taxRemaining: 1435,
+    taxPaid: 0,
+    initialHoldings: 700,
+    currency: "GBP",
+    forceProgressPct: 100,
+    lockTaxDisplay: true
   }
 };
 const COMPLETED_FREEZE_CURRENT_BY_EMAIL: Record<string, number> = {
@@ -1547,7 +1558,8 @@ export default function ProgressPage() {
     );
   }
 
-  if (!plan || !simMeta) {
+  const hasManualOverride = !!MANUAL_PROGRESS_OVERRIDES[normalizeEmail(user?.email)];
+  if ((!plan || !simMeta) && !hasManualOverride) {
     return (
       <section className="pageHero">
         <div>
@@ -1557,6 +1569,18 @@ export default function ProgressPage() {
           <div style={{ marginTop: 14 }}>
             <a className="chip" href="#checkout">Go to Checkout</a>
           </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (!plan || !simMeta) {
+    return (
+      <section className="pageHero">
+        <div>
+          <div className="eyebrow">Progress</div>
+          <h1 className="pageTitle">Preparing Investment View</h1>
+          <p className="pageLead">Your account data is syncing. Reload this page in a moment.</p>
         </div>
       </section>
     );

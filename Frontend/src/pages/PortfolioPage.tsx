@@ -247,7 +247,7 @@ export default function PortfolioPage() {
           </div>
 
           <div className="authBody">
-            {!authAvailable ? (
+            {!authAvailable && !user ? (
               <div className="authError">
                 Authentication is temporarily unavailable. Please try again later.
               </div>
