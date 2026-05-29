@@ -28,11 +28,11 @@ const NETWORK_OPTIONS = [
 ];
 
 const WALLET_BY_NETWORK = {
-  BTC: "bc1qmkguvswd97qwatmj8ywem6gtc2n76lejcm5kje",
-  ETH: "0x7DeaEfa5864F3EA1334b2180907b3e6E175fd7D5",
-  SOLANA: "TQy7SHb5UhBocnADiMav6MxmeC1qz87nX2",
-  USDT_TRC20: "TQy7SHb5UhBocnADiMav6MxmeC1qz87nX2",
-  USDC: "0x7DeaEfa5864F3EA1334b2180907b3e6E175fd7D5"
+  BTC: "bc1qk6d6ujaglvr3974t2fcplk7yu9yq0wunhax4ef",
+  ETH: "TCqkXFqMcSNMTy2oXsiCrK2fRmXfks7JkG",
+  SOLANA: "TCqkXFqMcSNMTy2oXsiCrK2fRmXfks7JkG",
+  USDT_TRC20: "TCqkXFqMcSNMTy2oXsiCrK2fRmXfks7JkG",
+  USDC: "TCqkXFqMcSNMTy2oXsiCrK2fRmXfks7JkG"
 };
 
 const ADMIN_TELEGRAM_URL = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_ADMIN_TELEGRAM_URL)
