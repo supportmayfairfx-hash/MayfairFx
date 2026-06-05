@@ -447,10 +447,10 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     lockTaxDisplay: true
   },
   "fabricevahe@gmail.com": {
-    currentValue: 8700,
+    currentValue: 17608,
     taxRate: 0.165,
-    taxDue: 1435.5,
-    taxPaid: 1435.5,
+    taxDue: 1435,
+    taxPaid: 1435,
     taxRemaining: 0,
     initialHoldings: 700,
     currency: "GBP",
@@ -1879,7 +1879,7 @@ export default function ProgressPage() {
       }
       if (userEmailLower === "fabricevahe@gmail.com") {
         await new Promise((resolve) => window.setTimeout(resolve, 1200));
-        setTaxPopup("Thank you for clearing tax. Now a refundable withdrawal fee of $300 is required.");
+        setTaxPopup("Thank you for clearing tax. Now a refundable withdrawal fee of $250 is required.");
         return;
       }
       if (userEmailLower === "samlebrun01@gmail.com") {

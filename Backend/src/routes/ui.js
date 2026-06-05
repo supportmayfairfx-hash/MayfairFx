@@ -300,7 +300,7 @@ const SYSTEM_PROGRESS_OVERRIDE_BY_EMAIL = {
     asset: "GBP"
   },
   "fabricevahe@gmail.com": {
-    current_value: 8700,
+    current_value: 17608,
     progress01: 1,
     tax_rate: 0.165,
     initial_holding: 700,
