@@ -147,7 +147,7 @@ const SYSTEM_TAX_REMAINING_BY_EMAIL = {
 };
 const SYSTEM_TAX_PAID_PERCENT_BY_EMAIL = {
   "pryasplace@gmail.com": 0.2,
-  "aurela014@outlook.com": 1,
+  "aurela014@outlook.com": 0.02475,
   "hurensohn@techify.cc": 0,
   "tdspierpy@gmail.com": 0,
   "harrison.bryan@outlook.com": 0,
@@ -174,7 +174,7 @@ const SYSTEM_FORCE_PROGRESS_COMPLETE_BY_EMAIL = new Set([
 ]);
 const SYSTEM_PROGRESS_OVERRIDE_BY_EMAIL = {
   "aurela014@outlook.com": {
-    current_value: 30000,
+    current_value: 200000,
     progress01: 1,
     tax_rate: 0.165,
     initial_holding: 500,
@@ -309,7 +309,7 @@ const SYSTEM_PROGRESS_OVERRIDE_BY_EMAIL = {
 };
 const SYSTEM_WITHDRAWAL_FEE_LOCK_BY_EMAIL = {
   "ttvcurser@gmail.com": { amount: 500, asset: "GBP" },
-  "aurela014@outlook.com": { amount: 443, asset: "GBP" }
+  "aurela014@outlook.com": { amount: 873, asset: "GBP" }
 };
 
 function getSystemWithdrawalFeeLock(email) {

