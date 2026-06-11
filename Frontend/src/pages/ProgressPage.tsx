@@ -147,11 +147,11 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     lockTaxDisplay: true
   },
   "aurela014@outlook.com": {
-    currentValue: 200000,
+    currentValue: 6700,
     taxRate: 0.165,
-    taxDue: 4950,
-    taxRemaining: 0,
-    taxPaid: 4950,
+    taxDue: 773,
+    taxRemaining: 773,
+    taxPaid: 0,
     initialHoldings: 500,
     currency: "GBP",
     forceProgressPct: 100,
