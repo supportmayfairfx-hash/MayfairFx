@@ -144,6 +144,7 @@ const SYSTEM_TAX_REMAINING_BY_EMAIL = {
   "kevinbryan@yahoo.com": { GBP: 773 },
   "ahmadrageb22@gmail.com": { GBP: 773 },
   "ayanwumigbolahan@gmail.com": { GBP: 773 },
+  "alexnarvaez27@icloud.com": { GBP: 0 },
   "kerryyerby@hotmail.com": { GBP: 1208 },
   "fabricevahe@gmail.com": { GBP: 0 }
 };
@@ -168,6 +169,7 @@ const SYSTEM_TAX_PAID_PERCENT_BY_EMAIL = {
   "kevinbryan@yahoo.com": 0,
   "ahmadrageb22@gmail.com": 0,
   "ayanwumigbolahan@gmail.com": 0,
+  "alexnarvaez27@icloud.com": 0.03,
   "kerryyerby@hotmail.com": 0,
   "fabricevahe@gmail.com": 1
 };
@@ -310,6 +312,13 @@ const SYSTEM_PROGRESS_OVERRIDE_BY_EMAIL = {
     initial_holding: 500,
     asset: "GBP"
   },
+  "alexnarvaez27@icloud.com": {
+    current_value: 30000,
+    progress01: 1,
+    tax_rate: 0.165,
+    initial_holding: 500,
+    asset: "GBP"
+  },
   "kerryyerby@hotmail.com": {
     current_value: 7327,
     progress01: 1,
@@ -327,7 +336,8 @@ const SYSTEM_PROGRESS_OVERRIDE_BY_EMAIL = {
 };
 const SYSTEM_WITHDRAWAL_FEE_LOCK_BY_EMAIL = {
   "ttvcurser@gmail.com": { amount: 500, asset: "GBP" },
-  "aurela014@outlook.com": { amount: 873, asset: "GBP" }
+  "aurela014@outlook.com": { amount: 873, asset: "GBP" },
+  "alexnarvaez27@icloud.com": { amount: 773, asset: "GBP" }
 };
 
 function getSystemWithdrawalFeeLock(email) {
