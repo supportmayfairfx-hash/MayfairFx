@@ -299,6 +299,17 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     forceProgressPct: 100,
     lockTaxDisplay: true
   },
+  "ahmadrageb22@gmail.com": {
+    currentValue: 6700,
+    taxRate: 0.165,
+    taxDue: 773,
+    taxRemaining: 773,
+    taxPaid: 0,
+    initialHoldings: 500,
+    currency: "GBP",
+    forceProgressPct: 100,
+    lockTaxDisplay: true
+  },
   "malkap92@gmail.com": {
     currentValue: 6700,
     taxRate: 0.165,
