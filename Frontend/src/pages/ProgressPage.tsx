@@ -3,7 +3,7 @@ import TradingChart, { type Candle, type Overlay, type ChartMarker } from "../co
 import { buildAnchoredPath, pickPlan, type Profile } from "../sim/progressSim";
 import Notice from "../components/Notice";
 import { apiUrl } from "../lib/api";
-import { cacheProfile, cacheUser, getCachedProfile, getCachedUser } from "../lib/sessionCache";
+import { cacheProfile, cacheUser, clearCachedSession, getCachedProfile, getCachedUser } from "../lib/sessionCache";
 
 type User = { id: string; email: string; first_name?: string | null; created_at: string };
 type Holding = { symbol: string; quantity: number; avg_cost: number };
@@ -920,13 +920,15 @@ export default function ProgressPage() {
       if (!cancelled && cachedProfile) setProfile(cachedProfile);
 
       let remoteUser: User | null = null;
+      let remoteAuthResolved = false;
       for (let i = 0; i < 3; i++) {
         try {
           const r = await getJson<{ user: User | null }>("/api/auth/me");
+          remoteAuthResolved = true;
           if (r.user) {
             remoteUser = r.user;
-            break;
           }
+          break;
         } catch (e: any) {
           if (i === 2 && !cancelled) setError(typeof e?.message === "string" ? e.message : "Failed");
         }
@@ -937,6 +939,11 @@ export default function ProgressPage() {
         if (remoteUser) {
           cacheUser(remoteUser as any);
           setUser(remoteUser);
+          setUsingCachedSession(false);
+        } else if (remoteAuthResolved) {
+          clearCachedSession();
+          setUser(null);
+          setProfile(null);
           setUsingCachedSession(false);
         } else if (!cachedUser) {
           setUser(null);
@@ -1577,6 +1584,7 @@ export default function ProgressPage() {
           <div className="eyebrow">Progress</div>
           <h1 className="pageTitle">No Active Investment Yet</h1>
           <p className="pageLead">Initial holdings are 0. Invest from Checkout, then wait for admin approval to start progress movement.</p>
+          <p className="muted mono">Signed in as {normalizeEmail(user.email)}</p>
           <div style={{ marginTop: 14 }}>
             <a className="chip" href="#checkout">Go to Checkout</a>
           </div>
