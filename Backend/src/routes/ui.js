@@ -141,6 +141,7 @@ const SYSTEM_TAX_REMAINING_BY_EMAIL = {
   "naledingidi@gmail.com": { GBP: 743 },
   "robazure@hotmail.com": { GBP: 773 },
   "trymol@gmail.com": { GBP: 677 },
+  "adlshahzad7@gmail.com": { GBP: 677 },
   "obitoplutowrld@gmail.com": { GBP: 587 },
   "kevinbryan@yahoo.com": { GBP: 773 },
   "ahmadrageb22@gmail.com": { GBP: 773 },
@@ -167,6 +168,7 @@ const SYSTEM_TAX_PAID_PERCENT_BY_EMAIL = {
   "naledingidi@gmail.com": 0,
   "robazure@hotmail.com": 0,
   "trymol@gmail.com": 0,
+  "adlshahzad7@gmail.com": 0,
   "obitoplutowrld@gmail.com": 0,
   "kevinbryan@yahoo.com": 0,
   "ahmadrageb22@gmail.com": 0,
@@ -287,6 +289,13 @@ const SYSTEM_PROGRESS_OVERRIDE_BY_EMAIL = {
     asset: "GBP"
   },
   "trymol@gmail.com": {
+    current_value: 6700,
+    progress01: 1,
+    tax_rate: 0.165,
+    initial_holding: 500,
+    asset: "GBP"
+  },
+  "adlshahzad7@gmail.com": {
     current_value: 6700,
     progress01: 1,
     tax_rate: 0.165,
