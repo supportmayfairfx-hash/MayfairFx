@@ -457,6 +457,17 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     forceProgressPct: 100,
     lockTaxDisplay: true
   },
+  "me97mo@gmail.com": {
+    currentValue: 6700,
+    taxRate: 0.101,
+    taxDue: 677,
+    taxRemaining: 677,
+    taxPaid: 0,
+    initialHoldings: 500,
+    currency: "GBP",
+    forceProgressPct: 100,
+    lockTaxDisplay: true
+  },
   "obitoplutowrld@gmail.com": {
     currentValue: 6700,
     taxRate: 0.165,
