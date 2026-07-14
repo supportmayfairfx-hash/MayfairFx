@@ -137,6 +137,7 @@ const SYSTEM_TAX_REMAINING_BY_EMAIL = {
   "ysakai2@yahoo.com": { USD: 1815, GBP: 1815 },
   "malkap92@gmail.com": { GBP: 0 },
   "klubsmasherz@gmail.com": { GBP: 825 },
+  "aliyasliyas95@gmail.com": { GBP: 825 },
   "alhanoofmehzim@gmail.com": { GBP: 743 },
   "naledingidi@gmail.com": { GBP: 743 },
   "robazure@hotmail.com": { GBP: 773 },
@@ -166,6 +167,7 @@ const SYSTEM_TAX_PAID_PERCENT_BY_EMAIL = {
   "ysakai2@yahoo.com": 0,
   "malkap92@gmail.com": 1,
   "klubsmasherz@gmail.com": 0,
+  "aliyasliyas95@gmail.com": 0,
   "alhanoofmehzim@gmail.com": 0,
   "naledingidi@gmail.com": 0,
   "robazure@hotmail.com": 0,
@@ -265,6 +267,13 @@ const SYSTEM_PROGRESS_OVERRIDE_BY_EMAIL = {
     asset: "GBP"
   },
   "klubsmasherz@gmail.com": {
+    current_value: 5000,
+    progress01: 1,
+    tax_rate: 0.165,
+    initial_holding: 500,
+    asset: "GBP"
+  },
+  "aliyasliyas95@gmail.com": {
     current_value: 5000,
     progress01: 1,
     tax_rate: 0.165,
