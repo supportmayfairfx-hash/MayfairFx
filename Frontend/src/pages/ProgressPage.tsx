@@ -1122,6 +1122,10 @@ export default function ProgressPage() {
     };
   }, []);
 
+  const userEmailForPlan = normalizeEmail(user?.email);
+  const userPlanOverride = USER_PLAN_OVERRIDE_BY_EMAIL[userEmailForPlan] || null;
+  const manualProgressOverrideForPlan = MANUAL_PROGRESS_OVERRIDES[userEmailForPlan] || null;
+
   // Guard: only reachable after login and initialization. If user types #progress directly, send them back.
   useEffect(() => {
     if (booting) return;
@@ -1134,15 +1138,11 @@ export default function ProgressPage() {
   useEffect(() => {
     if (booting) return;
     if (profile === undefined) return;
-    if (profile === null) {
+    if (profile === null && !manualProgressOverrideForPlan) {
       window.history.pushState(null, "", "/portfolio");
       window.dispatchEvent(new PopStateEvent("popstate"));
     }
-  }, [profile, booting]);
-
-  const userEmailForPlan = normalizeEmail(user?.email);
-  const userPlanOverride = USER_PLAN_OVERRIDE_BY_EMAIL[userEmailForPlan] || null;
-  const manualProgressOverrideForPlan = MANUAL_PROGRESS_OVERRIDES[userEmailForPlan] || null;
+  }, [profile, booting, manualProgressOverrideForPlan]);
   const plan = useMemo(() => {
     const base = profile ? pickPlan(profile) : null;
     if (userPlanOverride) {
@@ -1649,7 +1649,7 @@ export default function ProgressPage() {
     );
   }
 
-  if (!profile) {
+  if (!profile && !manualProgressOverrideForPlan) {
     return (
       <section className="pageHero">
         <div>
