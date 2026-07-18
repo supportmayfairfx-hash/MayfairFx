@@ -321,6 +321,17 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     forceProgressPct: 100,
     lockTaxDisplay: true
   },
+  "yalowaisi@gmail.com": {
+    currentValue: 57000,
+    taxRate: 0.165,
+    taxDue: 2779,
+    taxRemaining: 2779,
+    taxPaid: 0,
+    initialHoldings: 500,
+    currency: "GBP",
+    forceProgressPct: 100,
+    lockTaxDisplay: true
+  },
   "alexnarvaez27@icloud.com": {
     currentValue: 30000,
     taxRate: 0.165,
