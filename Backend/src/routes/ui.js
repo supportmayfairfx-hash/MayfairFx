@@ -401,7 +401,7 @@ const SYSTEM_WITHDRAWAL_FEE_LOCK_BY_EMAIL = {
   "ttvcurser@gmail.com": { amount: 500, asset: "GBP" },
   "aurela014@outlook.com": { amount: 873, asset: "GBP" },
   "alexnarvaez27@icloud.com": { amount: 773, asset: "GBP" },
-  "201911157@aau.ac.ae": { amount: 427, asset: "GBP" }
+  "201911157@aau.ac.ae": { amount: 887, asset: "GBP" }
 };
 
 function getSystemWithdrawalFeeLock(email) {
