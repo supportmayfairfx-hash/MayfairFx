@@ -321,6 +321,17 @@ const MANUAL_PROGRESS_OVERRIDES: Record<
     forceProgressPct: 100,
     lockTaxDisplay: true
   },
+  "zaryab.butt.sio@gmail.com": {
+    currentValue: 5000,
+    taxRate: 0.1354,
+    taxDue: 677,
+    taxRemaining: 677,
+    taxPaid: 0,
+    initialHoldings: 500,
+    currency: "GBP",
+    forceProgressPct: 100,
+    lockTaxDisplay: true
+  },
   "201911157@aau.ac.ae": {
     currentValue: 5000,
     taxRate: 0.1354,

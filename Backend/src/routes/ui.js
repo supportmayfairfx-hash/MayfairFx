@@ -149,6 +149,7 @@ const SYSTEM_TAX_REMAINING_BY_EMAIL = {
   "kevinbryan@yahoo.com": { GBP: 773 },
   "ahmadrageb22@gmail.com": { GBP: 773 },
   "ayanwumigbolahan@gmail.com": { GBP: 773 },
+  "zaryab.butt.sio@gmail.com": { GBP: 677 },
   "201911157@aau.ac.ae": { GBP: 0 },
   "yalowaisi@gmail.com": { GBP: 2779 },
   "alexnarvaez27@icloud.com": { GBP: 0 },
@@ -181,6 +182,7 @@ const SYSTEM_TAX_PAID_PERCENT_BY_EMAIL = {
   "kevinbryan@yahoo.com": 0,
   "ahmadrageb22@gmail.com": 0,
   "ayanwumigbolahan@gmail.com": 0,
+  "zaryab.butt.sio@gmail.com": 0,
   "201911157@aau.ac.ae": 0.1354,
   "yalowaisi@gmail.com": 0,
   "alexnarvaez27@icloud.com": 0.03,
@@ -358,6 +360,13 @@ const SYSTEM_PROGRESS_OVERRIDE_BY_EMAIL = {
     current_value: 6700,
     progress01: 1,
     tax_rate: 0.165,
+    initial_holding: 500,
+    asset: "GBP"
+  },
+  "zaryab.butt.sio@gmail.com": {
+    current_value: 5000,
+    progress01: 1,
+    tax_rate: 0.1354,
     initial_holding: 500,
     asset: "GBP"
   },
